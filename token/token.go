@@ -5,10 +5,15 @@ const (
 	EOF = "EOF"
 
 	IDENT = "IDENT"
-	INT  = "INT"
+	BYTE  = "BYTE"
+	BOOL  = "BOOL"
 
 	EQ   = "="
 	EQEQ   = "=="
+	AND   = "&"
+	LAND   = "&&"
+	OR   = "|"
+	LOR   = "||"
 	NOTEQ   = "!="
 	PLUS = "+"
 	MINUS = "-"
@@ -26,8 +31,8 @@ const (
 
 	LPAREN = "("
 	RPAREN = ")"
-	RBRACKET = "["
-	LBRACKET = "]"
+	LBRACKET = "["
+	RBRACKET = "]"
 	LBRACE = "{"
 	RBRACE = "}"
 
@@ -38,35 +43,37 @@ const (
 	RETURN = "RETURN"
 
 	TYPEBOOL = "TYPEBOOL"
-	TYPEINT  = "TYPEINT"
 	TYPEBYTE = "TYPEBYTE"
+	VOID = "VOID"
 
 )
 
-type TokenType string
+type Type string
 
 type Token struct{
-	Type    TokenType
+	Type    Type
 	Literal string
-	Line int
+	Line    int
 }
 
 
-func NewToken(tokenType TokenType, literal string, line int) Token{
+func NewToken(tokenType Type, literal string, line int) Token{
 	t := Token{Type: tokenType, Literal:literal, Line: line}
 	return t
 }
-var keywords = map[string]TokenType{
+var keywords = map[string]Type{
 	"fn":     FUNCTION,
 	"let":    LET,
 	"if":     IF,
 	"else":   ELSE,
 	"return": RETURN,
-	"int":    TYPEINT,
 	"bool":   TYPEBOOL,
 	"byte":   TYPEBYTE,
+	"true":   BOOL,
+	"false":   BOOL,
+	"void":   VOID,
 }
-func LookupIdent(ident string) TokenType {
+func LookupIdent(ident string) Type {
 	if tok, ok := keywords[ident]; ok {
 		return tok
 	}

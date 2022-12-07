@@ -63,7 +63,25 @@ func (l *Lexer) nextToken() token.Token{
 			tok = token.NewToken(token.EQ, l.cChar, l.cLine)
 
 		}
+	case "&":
+		if l.peekChar() == "&"{
+			ch := l.cChar
+			l.readChar()
+			tok = token.NewToken(token.LAND, ch + l.cChar, l.cLine)
+		}else{
+			tok = token.NewToken(token.AND, l.cChar, l.cLine)
 
+		}
+
+	case "|":
+		if l.peekChar() == "|"{
+			ch := l.cChar
+			l.readChar()
+			tok = token.NewToken(token.LOR, ch + l.cChar, l.cLine)
+		}else{
+			tok = token.NewToken(token.OR, l.cChar, l.cLine)
+
+		}
 	case "!":
 		if l.peekChar() == "="{
 			ch := l.cChar
@@ -115,7 +133,7 @@ func (l *Lexer) nextToken() token.Token{
 			return tok
 		}else if isDigit(l.cChar) {
 			tok.Literal = l.readNumber()
-			tok.Type = token.INT
+			tok.Type = token.BYTE
 			tok.Line = l.cLine
 			return tok
 		}else{
