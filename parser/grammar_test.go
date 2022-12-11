@@ -348,6 +348,117 @@ func TestBuild(t *testing.T){
 				"/EOF/}/fn/byte\n"+
 				"/EOF/}/fn/}\n",
 		},
+		{
+			description: "var1 = (var2 * **var3 << 8) + 3 | 7",
+			src: []token.Token{
+				token.NewToken(token.LBRACE, token.LBRACE, 0),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
+				token.NewToken(token.IDENT, "var1", 1),
+				token.NewToken(token.EQ, token.EQ, 1),
+				token.NewToken(token.LPAREN, token.LPAREN, 1),
+				token.NewToken(token.IDENT, "var2", 1),
+				token.NewToken(token.ASTERISK, token.ASTERISK, 1),
+				token.NewToken(token.ASTERISK, token.ASTERISK, 1),
+				token.NewToken(token.ASTERISK, token.ASTERISK, 1),
+				token.NewToken(token.IDENT, "var3", 1),
+				token.NewToken(token.LTLT, token.LTLT, 1),
+				token.NewToken(token.BYTE, "8", 1),
+				token.NewToken(token.RPAREN, token.RPAREN, 1),
+				token.NewToken(token.PLUS, token.PLUS, 1),
+				token.NewToken(token.BYTE, "3", 1),
+				token.NewToken(token.OR, token.OR, 1),
+				token.NewToken(token.BYTE, "7", 1),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 2),
+				token.NewToken(token.RBRACE, token.RBRACE, 2),
+				token.NewToken(token.EOF, token.EOF, 2),
+
+			},
+			isValid: true,
+			desiredTreeRep: "\n/EOF\n" +
+				"/EOF/}\n" +
+				"/EOF/}/=\n" +
+				"/EOF/}/=/var1\n" +
+				"/EOF/}/=/|\n" +
+				"/EOF/}/=/|/+\n" +
+				"/EOF/}/=/|/+/)\n" +
+				"/EOF/}/=/|/+/)/<<\n" +
+				"/EOF/}/=/|/+/)/<</*\n" +
+				"/EOF/}/=/|/+/)/<</*/var2\n" +
+				"/EOF/}/=/|/+/)/<</*/*\n" +
+				"/EOF/}/=/|/+/)/<</*/*/*\n" +
+				"/EOF/}/=/|/+/)/<</*/*/*/var3\n" +
+				"/EOF/}/=/|/+/)/<</8\n" +
+				"/EOF/}/=/|/+/3\n" +
+				"/EOF/}/=/|/7\n",
+
+
+		},
+		{
+			description: "foo = (var1 != 3 || $var2 == 8) && var3 ^ var2 & var4 | var5 <= 3 || call()",
+			src: []token.Token{
+				token.NewToken(token.LBRACE, token.LBRACE, 0),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
+				token.NewToken(token.IDENT, "foo", 1),
+				token.NewToken(token.EQ, token.EQ, 1),
+				token.NewToken(token.LPAREN, token.LPAREN, 1),
+				token.NewToken(token.IDENT, "var1", 1),
+				token.NewToken(token.NOTEQ, token.NOTEQ, 1),
+				token.NewToken(token.BYTE, "3", 1),
+				token.NewToken(token.LOR, token.LOR, 1),
+				token.NewToken(token.DOLLAR, token.DOLLAR, 1),
+				token.NewToken(token.IDENT, "var2", 1),
+				token.NewToken(token.EQEQ, token.EQEQ, 1),
+				token.NewToken(token.BYTE, "8", 1),
+				token.NewToken(token.RPAREN, token.RPAREN, 1),
+				token.NewToken(token.LAND, token.LAND, 1),
+				token.NewToken(token.IDENT, "var3", 1),
+				token.NewToken(token.CIRC, token.CIRC, 1),
+				token.NewToken(token.IDENT, "var2", 1),
+				token.NewToken(token.AND, token.AND, 1),
+				token.NewToken(token.IDENT, "var4", 1),
+				token.NewToken(token.OR, token.OR, 1),
+				token.NewToken(token.IDENT, "var5", 1),
+				token.NewToken(token.LTEQ, token.LTEQ, 1),
+				token.NewToken(token.BYTE, "3", 1),
+				token.NewToken(token.LOR, token.LOR, 1),
+				token.NewToken(token.IDENT, "call", 1),
+				token.NewToken(token.LPAREN, token.LPAREN, 1),
+				token.NewToken(token.RPAREN, token.RPAREN, 1),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
+				token.NewToken(token.RBRACE, token.RBRACE, 2),
+				token.NewToken(token.EOF, token.EOF, 2),
+
+			},
+			isValid: true,
+			desiredTreeRep: "\n/EOF\n" +
+				"/EOF/}\n" +
+				"/EOF/}/=\n" +
+				"/EOF/}/=/foo\n" +
+				"/EOF/}/=/||\n" +
+				"/EOF/}/=/||/&&\n" +
+				"/EOF/}/=/||/&&/)\n" +
+				"/EOF/}/=/||/&&/)/||\n" +
+				"/EOF/}/=/||/&&/)/||/!=\n" +
+				"/EOF/}/=/||/&&/)/||/!=/var1\n" +
+				"/EOF/}/=/||/&&/)/||/!=/3\n" +
+				"/EOF/}/=/||/&&/)/||/==\n" +
+				"/EOF/}/=/||/&&/)/||/==/$\n" +
+				"/EOF/}/=/||/&&/)/||/==/$/var2\n" +
+				"/EOF/}/=/||/&&/)/||/==/8\n" +
+				"/EOF/}/=/||/&&/<=\n" +
+				"/EOF/}/=/||/&&/<=/|\n" +
+				"/EOF/}/=/||/&&/<=/|/^\n" +
+				"/EOF/}/=/||/&&/<=/|/^/var3\n" +
+				"/EOF/}/=/||/&&/<=/|/^/&\n" +
+				"/EOF/}/=/||/&&/<=/|/^/&/var2\n" +
+				"/EOF/}/=/||/&&/<=/|/^/&/var4\n" +
+				"/EOF/}/=/||/&&/<=/|/var5\n" +
+				"/EOF/}/=/||/&&/<=/3\n" +
+				"/EOF/}/=/||/)\n" +
+				"/EOF/}/=/||/)/call\n",
+
+		},
+
 	}
 
 	for _, scenario := range testCases{
