@@ -10,6 +10,8 @@ const (
 
 	EQ   = "="
 
+	DOLLAR   = "$"
+
 	AND   = "&"
 	LAND   = "&&"
 	OR   = "|"

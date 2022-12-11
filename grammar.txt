@@ -42,8 +42,8 @@ literal -> address (:D)
         |byte (:D)
         |bool (:D)
 
-address -> &address (:D)
-           |&var (:D)
+address -> $address (:D)
+           |$var (:D)
 
 funcDataType -> void (:D)
                |datatype (:D)

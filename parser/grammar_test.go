@@ -143,7 +143,7 @@ func TestBuild(t *testing.T){
 
 		},
 		{
-			description: "call(var1, &var2, 3, true, 7+8)",
+			description: "call(var1, $$var2, 3, true, 7+8)",
 			src: []token.Token{
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
@@ -151,8 +151,8 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.LPAREN, "(", 1),
 				token.NewToken(token.IDENT, "var1", 1),
 				token.NewToken(token.COMMA, ",", 1),
-				token.NewToken(token.AND, "&", 1),
-				token.NewToken(token.AND, "&", 1),
+				token.NewToken(token.DOLLAR, "$", 1),
+				token.NewToken(token.DOLLAR, "$", 1),
 				token.NewToken(token.IDENT, "var2", 1),
 				token.NewToken(token.COMMA, ",", 1),
 				token.NewToken(token.BYTE, "3", 1),
@@ -176,9 +176,9 @@ func TestBuild(t *testing.T){
 				"/EOF/}/)/," +
 				"\n/EOF/}/)/,/var1" +
 				"\n/EOF/}/)/,/," +
-				"\n/EOF/}/)/,/,/&" +
-				"\n/EOF/}/)/,/,/&/&\n" +
-				"/EOF/}/)/,/,/&/&/var2\n" +
+				"\n/EOF/}/)/,/,/$" +
+				"\n/EOF/}/)/,/,/$/$\n" +
+				"/EOF/}/)/,/,/$/$/var2\n" +
 				"/EOF/}/)/,/,/," +
 				"\n/EOF/}/)/,/,/,/3" +
 				"\n/EOF/}/)/,/,/,/,\n" +
