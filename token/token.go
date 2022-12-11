@@ -45,6 +45,7 @@ const (
 	RBRACE = "}"
 
 	FUNCTION = "FN"
+	WHILE = "WHILE"
 	LET = "LET"
 	IF = "IF"
 	ELSE = "ELSE"
@@ -75,6 +76,7 @@ var keywords = map[string]Type{
 	"if":     IF,
 	"else":   ELSE,
 	"return": RETURN,
+	"while": WHILE,
 	"bool":   TYPEBOOL,
 	"byte":   TYPEBYTE,
 	"true":   BOOL,

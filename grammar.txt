@@ -1,6 +1,9 @@
 program -> block eof ( :D )
 
-block ->  {statements} ( :D )
+block ->  {stmnts} ( :D )
+
+funcBlock ->  {stmnts return expression}
+             | block ( :D )
 
 stmnts -> stmnt stmnts (:D)
         |stmnt (:D)

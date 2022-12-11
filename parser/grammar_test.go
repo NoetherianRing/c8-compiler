@@ -458,7 +458,159 @@ func TestBuild(t *testing.T){
 				"/EOF/}/=/||/)/call\n",
 
 		},
+		{
+			description: "while foo<20{new line}",
+			src: []token.Token{
+				token.NewToken(token.LBRACE, token.LBRACE, 0),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
+				token.NewToken(token.WHILE, "while", 0),
+				token.NewToken(token.LPAREN, token.LPAREN, 0),
+				token.NewToken(token.IDENT, "foo", 0),
+				token.NewToken(token.LT, token.LT, 0),
+				token.NewToken(token.BYTE, "20", 0),
+				token.NewToken(token.RPAREN, token.RPAREN, 0),
+				token.NewToken(token.LBRACE, token.LBRACE, 0),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
+				token.NewToken(token.RBRACE, token.RBRACE, 0),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
+				token.NewToken(token.RBRACE, token.RBRACE, 0),
 
+				token.NewToken(token.EOF, token.EOF, 0),
+
+			},
+			isValid: true,
+			desiredTreeRep: "\n/EOF\n" +
+				"/EOF/}\n" +
+				"/EOF/}/while\n" +
+				"/EOF/}/while/)\n" +
+				"/EOF/}/while/)/<\n" +
+				"/EOF/}/while/)/</foo\n" +
+				"/EOF/}/while/)/</20\n" +
+				"/EOF/}/while/}\n",
+		},
+		{
+			description: "if var == 4 {var=var+1} else{var=var-1}",
+			src: []token.Token{
+				token.NewToken(token.LBRACE, token.LBRACE, 0),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
+				token.NewToken(token.IF, "if", 1),
+				token.NewToken(token.IDENT, "var", 1),
+				token.NewToken(token.EQEQ, token.EQEQ, 1),
+				token.NewToken(token.BYTE, "4", 1),
+				token.NewToken(token.LBRACE, token.LBRACE, 1),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
+				token.NewToken(token.IDENT, "var", 2),
+				token.NewToken(token.EQ, token.EQ, 2),
+				token.NewToken(token.IDENT, "var", 2),
+				token.NewToken(token.PLUS, token.PLUS, 2),
+				token.NewToken(token.BYTE, "1", 2),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 2),
+				token.NewToken(token.RBRACE, token.RBRACE, 3),
+				token.NewToken(token.ELSE, "else", 3),
+				token.NewToken(token.LBRACE, token.LBRACE, 3),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 3),
+				token.NewToken(token.IDENT, "var", 3),
+				token.NewToken(token.EQ, token.EQ, 3),
+				token.NewToken(token.IDENT, "var", 3),
+				token.NewToken(token.PLUS, token.MINUS, 3),
+				token.NewToken(token.BYTE, "1", 3),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 3),
+				token.NewToken(token.RBRACE, token.RBRACE, 4),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 3),
+				token.NewToken(token.RBRACE, token.RBRACE, 5),
+				token.NewToken(token.EOF, token.EOF, 5),
+			},
+			isValid: true,
+			desiredTreeRep: "\n/EOF\n" +
+				"/EOF/}\n" +
+				"/EOF/}/else\n" +
+				"/EOF/}/else/==\n" +
+				"/EOF/}/else/==/var\n" +
+				"/EOF/}/else/==/4\n" +
+				"/EOF/}/else/}\n" +
+				"/EOF/}/else/}/=\n" +
+				"/EOF/}/else/}/=/var\n" +
+				"/EOF/}/else/}/=/+\n" +
+				"/EOF/}/else/}/=/+/var\n" +
+				"/EOF/}/else/}/=/+/1\n" +
+				"/EOF/}/else/}\n" +
+				"/EOF/}/else/}/=\n/" +
+				"EOF/}/else/}/=/var\n" +
+				"/EOF/}/else/}/=/-\n" +
+				"/EOF/}/else/}/=/-/var\n" +
+				"/EOF/}/else/}/=/-/1\n",
+
+		},
+		{
+			description: "if var1 || var2{let var3 byte new line var3 = 2}",
+			src: []token.Token{
+				token.NewToken(token.LBRACE, token.LBRACE, 0),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
+				token.NewToken(token.IF, "if", 1),
+				token.NewToken(token.IDENT, "var1", 1),
+				token.NewToken(token.LOR, token.LOR, 1),
+				token.NewToken(token.IDENT, "var2", 1),
+				token.NewToken(token.LBRACE, token.LBRACE, 1),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
+				token.NewToken(token.LET, "let", 2),
+				token.NewToken(token.IDENT, "var3", 2),
+				token.NewToken(token.TYPEBYTE, "byte", 2),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 2),
+				token.NewToken(token.IDENT, "var3", 3),
+				token.NewToken(token.EQ, token.EQ, 3),
+				token.NewToken(token.BYTE, "2", 3),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 3),
+				token.NewToken(token.RBRACE, token.RBRACE, 4),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 4),
+				token.NewToken(token.RBRACE, token.RBRACE, 5),
+				token.NewToken(token.EOF, token.EOF, 5),
+			},
+			isValid: true,
+			desiredTreeRep: "\n/EOF\n" +
+				"/EOF/}\n" +
+				"/EOF/}/if\n" +
+				"/EOF/}/if/||\n" +
+				"/EOF/}/if/||/var1\n" +
+				"/EOF/}/if/||/var2\n" +
+				"/EOF/}/if/}\n" +
+				"/EOF/}/if/}/let\n" +
+				"/EOF/}/if/}/let/var3\n" +
+				"/EOF/}/if/}/let/byte\n" +
+				"/EOF/}/if/}/=\n" +
+				"/EOF/}/if/}/=/var3\n" +
+				"/EOF/}/if/}/=/2\n",
+		},
+
+		{
+			description: "fn myFunc2() byte {return 3}",
+			src: []token.Token{
+				token.NewToken(token.LBRACE, token.LBRACE, 0),
+				token.NewToken(token.FUNCTION, "fn", 0),
+				token.NewToken(token.IDENT, "myFunc", 0),
+				token.NewToken(token.LPAREN, token.LPAREN, 0),
+				token.NewToken(token.RPAREN, token.RPAREN, 0),
+				token.NewToken(token.TYPEBYTE, "byte", 0),
+				token.NewToken(token.LBRACE, token.LBRACE, 0),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
+				token.NewToken(token.RETURN, "return", 1),
+				token.NewToken(token.BYTE, "3", 1),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
+				token.NewToken(token.RBRACE, token.RBRACE, 2),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 2),
+				token.NewToken(token.RBRACE, token.RBRACE, 3),
+				token.NewToken(token.EOF, token.EOF, 3),
+			},
+			isValid: true,
+			desiredTreeRep:
+			"\n/EOF\n" +
+				"/EOF/}\n"+
+				"/EOF/}/fn\n"+
+				"/EOF/}/fn/myFunc2\n"+
+				"/EOF/}/fn/)\n"+
+				"/EOF/}/fn/byte\n"+
+				"/EOF/}/fn/}\n"+
+				"/EOF/}/fn/}/3\n",
+		},
 	}
 
 	for _, scenario := range testCases{
