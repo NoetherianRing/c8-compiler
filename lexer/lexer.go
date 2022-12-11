@@ -100,8 +100,19 @@ func (l *Lexer) nextToken() token.Token{
 		tok = token.NewToken(token.SLASH, l.cChar, l.cLine)
 	case "%":
 		tok = token.NewToken(token.PERCENT, l.cChar, l.cLine)
-	case ">":
-		tok = token.NewToken(token.GT, l.cChar, l.cLine)
+	case token.GT:
+		peek := l.peekChar()
+		if peek == token.EQ{
+			ch := l.cChar
+			l.readChar()
+			tok = token.NewToken(token.GTEQ, ch + l.cChar, l.cLine)
+		}else {
+			if peek == token.LT{
+				tok = token.NewToken(token.GTGT, l.cChar, l.cLine)
+
+			}
+			tok = token.NewToken(token.GT, l.cChar, l.cLine)
+		}
 	case ",":
 		tok = token.NewToken(token.COMMA, l.cChar, l.cLine)
 	case "(":
@@ -116,10 +127,21 @@ func (l *Lexer) nextToken() token.Token{
 		tok = token.NewToken(token.LBRACE, l.cChar, l.cLine)
 	case "}":
 		tok = token.NewToken(token.RBRACE, l.cChar, l.cLine)
-	case "<":
-		tok = token.NewToken(token.LT, l.cChar, l.cLine)
-	case ";":
-		tok = token.NewToken(token.SEMICOLON, l.cChar, l.cLine)
+	case token.LT:
+		peek := l.peekChar()
+		if peek == token.EQ{
+			ch := l.cChar
+			l.readChar()
+			tok = token.NewToken(token.LTEQ, ch + l.cChar, l.cLine)
+		}else {
+			if peek == token.LT{
+				tok = token.NewToken(token.LTLT, l.cChar, l.cLine)
+
+			}
+			tok = token.NewToken(token.LT, l.cChar, l.cLine)
+		}
+	case token.CIRC:
+		tok = token.NewToken(token.CIRC, l.cChar, l.cLine)
 	case "\n":
 		tok = token.NewToken(token.NEWLINE, l.cChar, l.cLine)
 		l.cLine += 1

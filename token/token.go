@@ -9,24 +9,30 @@ const (
 	BOOL  = "BOOL"
 
 	EQ   = "="
-	EQEQ   = "=="
+
 	AND   = "&"
 	LAND   = "&&"
 	OR   = "|"
 	LOR   = "||"
-	NOTEQ   = "!="
 	PLUS = "+"
 	MINUS = "-"
 	BANG = "!"
 	ASTERISK = "*"
 	SLASH = "/"
 	PERCENT = "%"
+	LTLT = "<<"
+	GTGT = ">>"
+	CIRC = "^"
 
 	LT = "<"
+	LTEQ = "<="
 	GT = ">"
+	GTEQ = ">="
+	NOTEQ   = "!="
+	EQEQ   = "=="
 
 	COMMA = ","
-	SEMICOLON = ";"
+//	SEMICOLON = ";"
 	NEWLINE = "\n"
 
 	LPAREN = "("
