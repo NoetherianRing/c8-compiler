@@ -1,0 +1,6 @@
+{
+let foo byte #comment
+
+    let _f00 **[30]byte
+     let f_o0- ;
+}

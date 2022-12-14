@@ -9,24 +9,31 @@ const (
 	BOOL  = "BOOL"
 
 	EQ   = "="
-	EQEQ   = "=="
+
+	DOLLAR   = "$"
+
 	AND   = "&"
 	LAND   = "&&"
-	OR   = "|"
-	LOR   = "||"
-	NOTEQ   = "!="
-	PLUS = "+"
-	MINUS = "-"
-	BANG = "!"
+	OR       = "|"
+	LOR      = "||"
+	PLUS     = "+"
+	MINUS    = "-"
+	BANG     = "!"
 	ASTERISK = "*"
-	SLASH = "/"
-	PERCENT = "%"
+	SLASH    = "/"
+	PERCENT  = "%"
+	LTLT     = "<<"
+	GTGT     = ">>"
+	XOR      = "^"
 
 	LT = "<"
+	LTEQ = "<="
 	GT = ">"
+	GTEQ = ">="
+	NOTEQ   = "!="
+	EQEQ   = "=="
 
 	COMMA = ","
-	SEMICOLON = ";"
 	NEWLINE = "\n"
 
 	LPAREN = "("
@@ -37,6 +44,7 @@ const (
 	RBRACE = "}"
 
 	FUNCTION = "FN"
+	WHILE = "WHILE"
 	LET = "LET"
 	IF = "IF"
 	ELSE = "ELSE"
@@ -67,6 +75,7 @@ var keywords = map[string]Type{
 	"if":     IF,
 	"else":   ELSE,
 	"return": RETURN,
+	"while": WHILE,
 	"bool":   TYPEBOOL,
 	"byte":   TYPEBYTE,
 	"true":   BOOL,

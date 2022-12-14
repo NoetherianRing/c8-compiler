@@ -1,0 +1,8 @@
+foo = call(true, false)
+if true{
+    fn(let arg bool) function void{
+       return false
+    }
+}else{
+   foo = !foo
+}
