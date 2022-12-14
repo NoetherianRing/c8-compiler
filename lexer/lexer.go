@@ -143,7 +143,7 @@ func (l *Lexer) nextToken() token.Token{
 		}
 	case token.XOR:
 		tok = token.NewToken(token.XOR, token.XOR, l.cLine)
-	case "\n":
+	case token.NEWLINE:
 		tok = token.NewToken(token.NEWLINE, token.NEWLINE, l.cLine)
 		l.cLine += 1
 	case "":

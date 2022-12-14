@@ -144,17 +144,6 @@ func TestNextToken(t *testing.T){
 				token.NewToken(token.RBRACE, token.RBRACE, 7),
 				token.NewToken(token.EOF, token.EOF, 7),
 
-
-
-
-
-
-
-
-
-
-
-
 			},
 		},
 	}

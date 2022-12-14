@@ -37,7 +37,7 @@ params -> expression, params
          |expression
 
 var ->  |*var
-        |[literal] var (:
+        |[literal] var
         |(var)
         |id
 
