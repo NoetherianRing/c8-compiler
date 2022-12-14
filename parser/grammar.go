@@ -30,6 +30,37 @@ Example:
 In here "list" and "digit" are nonterminals;  + - and the numbers from 0 to 9 are terminals; and (1) and (2) are productions.
 The different options of bodies in each production are separated by the symbol |.
 */
+const PROGRAM = "program"
+const BLOCK = "block"
+const FUNC_BLOCK = "funcblock"
+const STATEMENTS = "statements"
+const STATEMENT = "statement"
+const DECLARATION = "declaration"
+const PARAM_DECLARATION = "paramdeclaration"
+const VAR = "var"
+const LITERAL = "literal"
+const ADDRESS = "address"
+const IDENT = "ident"
+const CALL = "call"
+const PARAMS = "params"
+const DATATYPE= "datatype"
+const ARGS= "args"
+const FUNC_DATATYPE = "funcdatatype"
+
+const EXPRESSION = "expression"
+const EXPRESSION_P10 = "expression_p10"
+const EXPRESSION_P9 = "expression_p9"
+const EXPRESSION_P8 = "expression_p8"
+const EXPRESSION_P7 = "expression_p7"
+const EXPRESSION_P6 = "expression_p6"
+const EXPRESSION_P5 = "expression_p5"
+const EXPRESSION_P4 = "expression_p4"
+const EXPRESSION_P3 = "expression_p3"
+const EXPRESSION_P2 = "expression_p2"
+const EXPRESSION_P1 = "expression_p1"
+const EXPRESSION_P0 = "expression_p0"
+
+
 type cache struct{
 	symbol string
 	src *[]token.Token
@@ -178,36 +209,6 @@ func (nonT *NonTerminal) GetValue() string{
 func GetGrammar() map[string]*NonTerminal {
 
 	Log = new(log)
-
-	const PROGRAM = "program"
-	const BLOCK = "block"
-	const FUNC_BLOCK = "funcblock"
-	const STATEMENTS = "statements"
-	const STATEMENT = "statement"
-	const DECLARATION = "declaration"
-	const PARAM_DECLARATION = "paramdeclaration"
-	const VAR = "var"
-	const LITERAL = "literal"
-	const ADDRESS = "address"
-	const IDENT = "ident"
-	const CALL = "call"
-	const PARAMS = "params"
-	const DATATYPE= "datatype"
-	const ARGS= "args"
-	const FUNC_DATATYPE = "funcdatatype"
-	
-	const EXPRESSION = "expression"
-	const EXPRESSION_P10 = "expression_p10"
-	const EXPRESSION_P9 = "expression_p9"
-	const EXPRESSION_P8 = "expression_p8"
-	const EXPRESSION_P7 = "expression_p7"
-	const EXPRESSION_P6 = "expression_p6"
-	const EXPRESSION_P5 = "expression_p5"
-	const EXPRESSION_P4 = "expression_p4"
-	const EXPRESSION_P3 = "expression_p3"
-	const EXPRESSION_P2 = "expression_p2"
-	const EXPRESSION_P1 = "expression_p1"
-	const EXPRESSION_P0 = "expression_p0"
 
 
 	productions := make(map[string]*NonTerminal)
