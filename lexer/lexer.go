@@ -21,7 +21,7 @@ func NewLexer(filename string) (*Lexer, error){
 		return nil, err
 	}
 
-	l := &Lexer{input: string(source), index: 0, cChar: "", cLine: 1}
+	l := &Lexer{input: string(source), index: -1, cChar: "", cLine: 0}
 	l.readChar()
 	return l, nil
 }
@@ -103,11 +103,14 @@ func (l *Lexer) nextToken() token.Token{
 			l.readChar()
 			tok = token.NewToken(token.GTEQ, token.GTEQ, l.cLine)
 		}else {
-			if peek == token.LT{
+			if peek == token.GT{
+				l.readChar()
 				tok = token.NewToken(token.GTGT, token.GTGT, l.cLine)
 
+			}else{
+				tok = token.NewToken(token.GT, token.GT, l.cLine)
+
 			}
-			tok = token.NewToken(token.GT, token.GT, l.cLine)
 		}
 	case token.COMMA:
 		tok = token.NewToken(token.COMMA, token.COMMA, l.cLine)
@@ -130,13 +133,16 @@ func (l *Lexer) nextToken() token.Token{
 			tok = token.NewToken(token.LTEQ, token.LTEQ, l.cLine)
 		}else {
 			if peek == token.LT{
+				l.readChar()
 				tok = token.NewToken(token.LTLT, token.LTLT, l.cLine)
 
+			}else{
+				tok = token.NewToken(token.LT, token.LT, l.cLine)
+
 			}
-			tok = token.NewToken(token.LT, token.LT, l.cLine)
 		}
-	case token.CIRC:
-		tok = token.NewToken(token.CIRC, token.CIRC, l.cLine)
+	case token.XOR:
+		tok = token.NewToken(token.XOR, token.XOR, l.cLine)
 	case "\n":
 		tok = token.NewToken(token.NEWLINE, token.NEWLINE, l.cLine)
 		l.cLine += 1
@@ -173,7 +179,7 @@ func isDigit(ch string) bool {
 }
 func (l *Lexer) readIdentifier() string {
 	startPosition := l.index
-	for isLetter(l.cChar) {
+	for isLetter(l.cChar) || isDigit(l.cChar){
 		l.readChar()
 	}
 	return l.input[startPosition:l.index]

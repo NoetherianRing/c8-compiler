@@ -1,101 +1,105 @@
-program -> block eof ( :D )
+program -> block eof
 
-block ->  {stmnts} ( :D )
+block ->  {stmnts}
 
 funcBlock ->  {stmnts return expression}
-             | block ( :D )
+             | block
 
-stmnts -> stmnt stmnts (:D)
-        |stmnt (:D)
-        | \n (:D)
+stmnts -> stmnt stmnts
+        |stmnt
 
-stmnt -> declaration (:D)
-        | var = expression (:D)
-        | fn arg ident funcDataType block (:D)
-        | if expression block else block
-        | if expression block
-        | while expression block
-        | call (:D)
-
-
-ident -> id (:D)
-
-call ->| var(params) (:D)
-        |var() (:D)
-
-
-arg -> (paramDecl) (:D)
-       |() (:D)
-
-declaration -> let ident datatype (:D)
-
-paramDecl -> declaration, paramDecl (:D)
-            | declaration (:D)
-
-params -> expression, params (:D)
-         |expression (:D)
-
-var ->  |*var (:D)
-        |[literal] var (:D)
-        |(var) (:D)
-        |id (:D)
-
-
-literal -> address (:D)
-        |byte (:D)
-        |bool (:D)
-
-address -> $address (:D)
-           |$var (:D)
-
-funcDataType -> void (:D)
-               |datatype (:D)
-
-dataType -> [literal]datatype (:D)
-            |*datatype (:D)
-            |typeBool(:D)
-            |typeByte(:D)
+stmnt -> declaration \n
+        | var = expression \n
+        | fn arg ident funcDataType block \n
+        | if expression block else block \n
+        | if expression block \n
+        | while expression block \n
+        | call \n
+        | \n
 
 
 
-expression -> expressionP9 || expression
-            |expressionP9
+ident -> id
 
-expressionP9 -> expressionP8 &&  expressionP9
-             |expressionP8
+call ->| var(params)
+        |var()
 
 
-expressionP8 -> expressionP7 == expressionP8
-              |expressionP7 != expressionP8
-              |expressionP7
+arg -> (paramDecl)
+       |()
 
-expressionP7 -> expressionP6 < expressionP7
-            | expressionP6 <= expressionP7
-            | expressionP6 > expressionP7
-            | expressionP6 >= expressionP7
-            | expressionP6
+declaration -> let ident datatype
 
-expressionP6 -> expressionP5 | expressionP6
-             | expressionP5
+paramDecl -> declaration, paramDecl
+            | declaration
 
-expressionP5 -> expressionP4 ^ expressionP5
-               |expressionP4
+params -> expression, params
+         |expression
 
-expressionP4 -> expressionP3 & expressionP4
+var ->  |*var
+        |[literal] var (:
+        |(var)
+        |id
+
+
+literal -> address
+        |byte
+        |bool
+
+address -> $address
+           |$var
+
+funcDataType -> void
+               |datatype
+
+dataType -> [literal]datatype
+            |*datatype
+            |typeBool
+            |typeByte
+
+
+expression -> expressionP10 || expression
+            |expressionP10
+
+expressionP10 -> expressionP9 &&  expressionP10
+             |expressionP9
+
+
+expressionP9 -> expressionP8 == expressionP9
+              |expressionP8 != expressionP9
+              |expressionP8
+
+expressionP8 -> expressionP7 < expressionP8
+            | expressionP7 <= expressionP8
+            | expressionP7 > expressionP8
+            | expressionP7 >= expressionP8
+            | expressionP7
+
+expressionP7 -> expressionP6 | expressionP7
+             | expressionP6
+
+expressionP6 -> expressionP5 ^ expressionP6
+               |expressionP5
+
+expressionP5 -> expressionP4 & expressionP5
+              |expressionP4
+
+expressionP4 -> expressionP3 >> expressionP4
+              |expressionP3 << expressionP4
               |expressionP3
 
-expressionP3 -> expressionP2 >> expressionP3
-              |expressionP2 << expressionP3
+expressionP3 -> expressionP2 + expressionP3
+              |expressionP2 - expressionP3
               |expressionP2
 
-expressionP2 -> expressionP1 + expressionP2
-              |expressionP1 - expressionP2
+expressionP2 -> expressionP1 % expressionP2
+              |expressionP1 / expressionP2
+              |expressionP1 * expressionP2
               |expressionP1
 
-expressionP1 -> expressionP0 % expressionP1
-              |expressionP0 / expressionP1
-              |expressionP0 * expressionP1
-              |expressionP0
+expressionP1 -> !expressionP1
+                |!expressionP0
+                |expression0
 
 expressionP0 -> literal
               |call

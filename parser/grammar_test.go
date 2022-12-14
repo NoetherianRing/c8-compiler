@@ -11,10 +11,10 @@ func TestBuild(t *testing.T){
 	grammar := GetGrammar()
 
 	type cases struct{
-		description string
-		src []token.Token
-		isValid bool
-		desiredTreeRep string
+		description     string
+		src             []token.Token
+		isValid         bool
+		expectedTreeRep string
 	}
 
 	testCases := []cases{
@@ -54,7 +54,7 @@ func TestBuild(t *testing.T){
 			     /  \
 			   3     2
 			*/
-			desiredTreeRep: "\n/EOF\n" +
+			expectedTreeRep: "\n/EOF\n" +
 				"/EOF/}\n" +
 				"/EOF/}/=\n" +
 				"/EOF/}/=/foo\n" +
@@ -86,7 +86,7 @@ func TestBuild(t *testing.T){
 
 			},
 			isValid: true,
-			desiredTreeRep: "\n/EOF\n" +
+			expectedTreeRep: "\n/EOF\n" +
 				"/EOF/}\n" +
 				"/EOF/}/let\n" +
 				"/EOF/}/let/foo\n" +
@@ -114,7 +114,7 @@ func TestBuild(t *testing.T){
 
 			},
 			isValid: true,
-			desiredTreeRep: "\n/EOF\n" +
+			expectedTreeRep: "\n/EOF\n" +
 				"/EOF/}\n" +
 				"/EOF/}/let\n" +
 				"/EOF/}/let/foo\n" +
@@ -136,14 +136,14 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.EOF, token.EOF, 2),
 			},
 			isValid: true,
-			desiredTreeRep: "\n/EOF\n" +
+			expectedTreeRep: "\n/EOF\n" +
 				"/EOF/}\n" +
 				"/EOF/}/)\n"+
 				"/EOF/}/)/foo\n",
 
 		},
 		{
-			description: "call(var1, $$var2, 3, true, 7+8)",
+			description: "call(var1, $$var2, 3, !true, 7+8)",
 			src: []token.Token{
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
@@ -157,6 +157,7 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.COMMA, ",", 1),
 				token.NewToken(token.BYTE, "3", 1),
 				token.NewToken(token.COMMA, ",", 1),
+				token.NewToken(token.BANG, token.BANG, 1),
 				token.NewToken(token.BOOL, "true", 1),
 				token.NewToken(token.COMMA, ",", 1),
 				token.NewToken(token.BYTE, "7", 1),
@@ -168,7 +169,7 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.EOF, token.EOF, 2),
 			},
 			isValid: true,
-			desiredTreeRep:
+			expectedTreeRep:
 				"\n/EOF\n" +
 				"/EOF/}" +
 				"\n/EOF/}/)" +
@@ -182,7 +183,8 @@ func TestBuild(t *testing.T){
 				"/EOF/}/)/,/,/," +
 				"\n/EOF/}/)/,/,/,/3" +
 				"\n/EOF/}/)/,/,/,/,\n" +
-				"/EOF/}/)/,/,/,/,/true\n" +
+				"/EOF/}/)/,/,/,/,/!\n" +
+				"/EOF/}/)/,/,/,/,/!/true\n" +
 				"/EOF/}/)/,/,/,/,/+\n" +
 				"/EOF/}/)/,/,/,/,/+/7" +
 				"\n/EOF/}/)/,/,/,/,/+/8\n",
@@ -200,7 +202,7 @@ func TestBuild(t *testing.T){
 					token.NewToken(token.EOF, token.EOF, 2),
 				},
 				isValid: true,
-				desiredTreeRep:
+				expectedTreeRep:
 					"\n/EOF\n" +
 					"/EOF/}" +
 					"\n/EOF/}/)" +
@@ -234,7 +236,7 @@ func TestBuild(t *testing.T){
 
 			  },
 			  isValid: true,
-			  desiredTreeRep: "\n/EOF\n" +
+			  expectedTreeRep: "\n/EOF\n" +
 			  	"/EOF/}\n" +
 			  	"/EOF/}/=\n" +
 			  	"/EOF/}/=/*\n"+
@@ -267,7 +269,7 @@ func TestBuild(t *testing.T){
 					token.NewToken(token.EOF, token.EOF, 2),
 				},
 				isValid: true,
-				desiredTreeRep:
+				expectedTreeRep:
 					"\n/EOF\n" +
 					"/EOF/}\n"+
 					"/EOF/}/fn\n"+
@@ -296,7 +298,7 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.EOF, token.EOF, 2),
 			},
 			isValid: true,
-			desiredTreeRep:
+			expectedTreeRep:
 			"\n/EOF\n" +
 				"/EOF/}\n"+
 				"/EOF/}/fn\n"+
@@ -332,7 +334,7 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.EOF, token.EOF, 2),
 			},
 			isValid: true,
-			desiredTreeRep:
+			expectedTreeRep:
 			"\n/EOF\n" +
 				"/EOF/}\n"+
 				"/EOF/}/fn\n"+
@@ -374,7 +376,7 @@ func TestBuild(t *testing.T){
 
 			},
 			isValid: true,
-			desiredTreeRep: "\n/EOF\n" +
+			expectedTreeRep: "\n/EOF\n" +
 				"/EOF/}\n" +
 				"/EOF/}/=\n" +
 				"/EOF/}/=/var1\n" +
@@ -412,7 +414,7 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.RPAREN, token.RPAREN, 1),
 				token.NewToken(token.LAND, token.LAND, 1),
 				token.NewToken(token.IDENT, "var3", 1),
-				token.NewToken(token.CIRC, token.CIRC, 1),
+				token.NewToken(token.XOR, token.XOR, 1),
 				token.NewToken(token.IDENT, "var2", 1),
 				token.NewToken(token.AND, token.AND, 1),
 				token.NewToken(token.IDENT, "var4", 1),
@@ -430,7 +432,7 @@ func TestBuild(t *testing.T){
 
 			},
 			isValid: true,
-			desiredTreeRep: "\n/EOF\n" +
+			expectedTreeRep: "\n/EOF\n" +
 				"/EOF/}\n" +
 				"/EOF/}/=\n" +
 				"/EOF/}/=/foo\n" +
@@ -479,7 +481,7 @@ func TestBuild(t *testing.T){
 
 			},
 			isValid: true,
-			desiredTreeRep: "\n/EOF\n" +
+			expectedTreeRep: "\n/EOF\n" +
 				"/EOF/}\n" +
 				"/EOF/}/while\n" +
 				"/EOF/}/while/)\n" +
@@ -521,7 +523,7 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.EOF, token.EOF, 5),
 			},
 			isValid: true,
-			desiredTreeRep: "\n/EOF\n" +
+			expectedTreeRep: "\n/EOF\n" +
 				"/EOF/}\n" +
 				"/EOF/}/else\n" +
 				"/EOF/}/else/==\n" +
@@ -566,7 +568,7 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.EOF, token.EOF, 5),
 			},
 			isValid: true,
-			desiredTreeRep: "\n/EOF\n" +
+			expectedTreeRep: "\n/EOF\n" +
 				"/EOF/}\n" +
 				"/EOF/}/if\n" +
 				"/EOF/}/if/||\n" +
@@ -586,7 +588,7 @@ func TestBuild(t *testing.T){
 			src: []token.Token{
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.FUNCTION, "fn", 0),
-				token.NewToken(token.IDENT, "myFunc", 0),
+				token.NewToken(token.IDENT, "myFunc2", 0),
 				token.NewToken(token.LPAREN, token.LPAREN, 0),
 				token.NewToken(token.RPAREN, token.RPAREN, 0),
 				token.NewToken(token.TYPEBYTE, "byte", 0),
@@ -601,7 +603,7 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.EOF, token.EOF, 3),
 			},
 			isValid: true,
-			desiredTreeRep:
+			expectedTreeRep:
 			"\n/EOF\n" +
 				"/EOF/}\n"+
 				"/EOF/}/fn\n"+
@@ -621,7 +623,7 @@ func TestBuild(t *testing.T){
 			assert.Equal(t, scenario.isValid, valid)
 			treeRep :=""
 			parseTree(tree, "", &treeRep)
-			assert.Equal(t, scenario.desiredTreeRep, treeRep)
+			assert.Equal(t, scenario.expectedTreeRep, treeRep)
 		})
 	}
 
