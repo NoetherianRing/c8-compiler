@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"github.com/NoetherianRing/c8-compiler/ast"
 	"github.com/NoetherianRing/c8-compiler/token"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -143,7 +144,7 @@ func TestBuild(t *testing.T){
 
 		},
 		{
-			description: "call(var1, $$var2, 3, !true, 7+8)",
+			description: "call(var1, $var2, 3, !true, 7+8)",
 			src: []token.Token{
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
@@ -151,7 +152,6 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.LPAREN, "(", 1),
 				token.NewToken(token.IDENT, "var1", 1),
 				token.NewToken(token.COMMA, ",", 1),
-				token.NewToken(token.DOLLAR, "$", 1),
 				token.NewToken(token.DOLLAR, "$", 1),
 				token.NewToken(token.IDENT, "var2", 1),
 				token.NewToken(token.COMMA, ",", 1),
@@ -177,9 +177,8 @@ func TestBuild(t *testing.T){
 				"/EOF/}/)/," +
 				"\n/EOF/}/)/,/var1" +
 				"\n/EOF/}/)/,/," +
-				"\n/EOF/}/)/,/,/$" +
-				"\n/EOF/}/)/,/,/$/$\n" +
-				"/EOF/}/)/,/,/$/$/var2\n" +
+				"\n/EOF/}/)/,/,/$\n" +
+				"/EOF/}/)/,/,/$/var2\n" +
 				"/EOF/}/)/,/,/," +
 				"\n/EOF/}/)/,/,/,/3" +
 				"\n/EOF/}/)/,/,/,/,\n" +
@@ -210,7 +209,7 @@ func TestBuild(t *testing.T){
 					"/EOF/}/)/var1\n",
 			},
 			{
-			  description: "**var1=*[2]([8][10]matrix)",
+			  description: "**var1=*[2][8][10]matrix",
 			  src: []token.Token{
 				  token.NewToken(token.LBRACE, token.LBRACE, 0),
 				  token.NewToken(token.ASTERISK, token.ASTERISK, 0),
@@ -221,7 +220,6 @@ func TestBuild(t *testing.T){
 				  token.NewToken(token.LBRACKET, token.LBRACKET, 0),
 				  token.NewToken(token.BYTE, "2", 0),
 				  token.NewToken(token.RBRACKET, token.RBRACKET, 0),
-				  token.NewToken(token.LPAREN, token.LPAREN, 0),
 				  token.NewToken(token.LBRACKET, token.LBRACKET, 0),
 				  token.NewToken(token.BYTE, "8", 0),
 				  token.NewToken(token.RBRACKET, token.RBRACKET, 0),
@@ -229,7 +227,6 @@ func TestBuild(t *testing.T){
 				  token.NewToken(token.BYTE, "10", 0),
 				  token.NewToken(token.RBRACKET, token.RBRACKET, 0),
 				  token.NewToken(token.IDENT, "matrix", 0),
-				  token.NewToken(token.RPAREN, token.RPAREN, 0),
 				  token.NewToken(token.NEWLINE, token.NEWLINE, 0),
 				  token.NewToken(token.RBRACE, token.RBRACE, 1),
 				  token.NewToken(token.EOF, token.EOF, 1),
@@ -245,12 +242,11 @@ func TestBuild(t *testing.T){
 			  	"/EOF/}/=/*\n"+
 			  	"/EOF/}/=/*/]\n"+
 			  	"/EOF/}/=/*/]/2\n"+
-			  	"/EOF/}/=/*/]/)\n"+
-			  	"/EOF/}/=/*/]/)/]\n"+
-			  	"/EOF/}/=/*/]/)/]/8\n"+
-			  	"/EOF/}/=/*/]/)/]/]\n"+
-			  	"/EOF/}/=/*/]/)/]/]/10\n"+
-			  	"/EOF/}/=/*/]/)/]/]/matrix\n",
+			  	"/EOF/}/=/*/]/]\n"+
+			  	"/EOF/}/=/*/]/]/8\n"+
+			  	"/EOF/}/=/*/]/]/]\n"+
+			  	"/EOF/}/=/*/]/]/]/10\n"+
+			  	"/EOF/}/=/*/]/]/]/matrix\n",
 			},
 			{
 				description: "fn myFunc() void {new line}",
@@ -618,7 +614,7 @@ func TestBuild(t *testing.T){
 	for _, scenario := range testCases{
 
 		t.Run(scenario.description, func(t *testing.T) {
-			tree := NewSyntaxTree(NewNode(token.NewToken("","",0)))
+			tree := ast.NewSyntaxTree(ast.NewNode(token.NewToken("","",0)))
 			valid := grammar["program"].Build(&scenario.src, tree)
 			assert.Equal(t, scenario.isValid, valid)
 			treeRep :=""
@@ -630,13 +626,13 @@ func TestBuild(t *testing.T){
 }
 
 
-func parseTree(tree *SyntaxTree, parents string, treeRep *string){
-	*treeRep += parents + tree.current.value.Literal +"\n"
-	for _, child := range tree.current.children{
-		current := tree.current
-		tree.current = child
-		parseTree(tree, parents+ current.value.Literal +"/", treeRep)
-		tree.current = current
+func parseTree(tree *ast.SyntaxTree, parents string, treeRep *string){
+	*treeRep += parents + tree.Current.Value.Literal +"\n"
+	for _, child := range tree.Current.Children{
+		current := tree.Current
+		tree.Current = child
+		parseTree(tree, parents+ current.Value.Literal +"/", treeRep)
+		tree.Current = current
 	}
 
 }

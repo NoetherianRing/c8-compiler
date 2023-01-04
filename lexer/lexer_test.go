@@ -149,10 +149,10 @@ func TestNextToken(t *testing.T){
 	}
 	for i, tt := range cases{
 		input, err := filepath.Abs(tt.fixture)
-		assert.NoError(t, err, "error in absPath  " + tt.fixture )
+		assert.NoError(t, err, "errorhandler in absPath  " + tt.fixture )
 
 		l, err := NewLexer(input)
-		assert.NoError(t, err, "error in NewLexer " + tt.description)
+		assert.NoError(t, err, "errorhandler in NewLexer " + tt.description)
 		for j, ttt := range tt.expectedTokens{
 			tok := l.nextToken()
 

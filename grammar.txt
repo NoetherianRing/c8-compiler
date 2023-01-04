@@ -38,16 +38,14 @@ params -> expression, params
 
 var ->  |*var
         |[literal] var
-        |(var)
+        |[id] var
         |id
 
 
-literal -> address
-        |byte
+literal -> byte
         |bool
 
-address -> $address
-           |$var
+address -> $var
 
 funcDataType -> void
                |datatype

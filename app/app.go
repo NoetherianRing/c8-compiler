@@ -2,10 +2,10 @@ package app
 
 import (
 	"errors"
+	"github.com/NoetherianRing/c8-compiler/ast"
 	"github.com/NoetherianRing/c8-compiler/lexer"
 	"github.com/NoetherianRing/c8-compiler/parser"
 	"github.com/NoetherianRing/c8-compiler/token"
-	"os"
 	"path/filepath"
 	"strconv"
 )
@@ -15,8 +15,8 @@ type App struct{
 	program *parser.NonTerminal
 }
 
-func NewApp() (*App, error){
-	absPath, err := filepath.Abs(os.Args[1])
+func NewApp(path string) (*App, error){
+	absPath, err := filepath.Abs(path)
 	if err != nil{
 		panic (err)
 	}
@@ -35,11 +35,11 @@ func (app *App) Program(){
 	if err != nil{
 		panic(err)
 	}
-	tree := parser.NewSyntaxTree(parser.NewNode(token.NewToken("", "", 0)))
+	tree := ast.NewSyntaxTree(ast.NewNode(token.NewToken("", "", 0)))
 	valid := app.program.Build(&src, tree)
 
 	if !valid{
-		errorString := "syntactic error\nin line: "+ strconv.Itoa(src[0].Line) + "\nin symbol: "+ src[0].Literal
+		errorString := "syntactic errorhandler\nin line: "+ strconv.Itoa(src[0].Line) + "\nin symbol: "+ src[0].Literal
 		err2:= errors.New(errorString)
 		panic(err2)
 	}
