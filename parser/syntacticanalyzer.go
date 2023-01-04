@@ -34,8 +34,10 @@ The different options of bodies in each production are separated by the symbol |
 const PROGRAM = "program"
 const BLOCK = "block"
 const FUNC_BLOCK = "funcblock"
+const FUNC_STATEMENTS = "funcstatements"
 const STATEMENTS = "statements"
 const STATEMENT = "statement"
+const RETURN_STATEMENT = "returnstatement"
 const DECLARATION = "declaration"
 const PARAM_DECLARATION = "paramdeclaration"
 const VAR = "var"
@@ -217,7 +219,9 @@ func GetGrammar() map[string]*NonTerminal {
 	productions[BLOCK] = new(NonTerminal)
 	productions[FUNC_BLOCK] = new(NonTerminal)
 	productions[STATEMENTS] = new(NonTerminal)
+	productions[FUNC_STATEMENTS] = new(NonTerminal)
 	productions[STATEMENT] = new(NonTerminal)
+	productions[RETURN_STATEMENT] = new(NonTerminal)
 	productions[DECLARATION] = new(NonTerminal)
 	productions[PARAM_DECLARATION] = new(NonTerminal)
 	productions[VAR] = new(NonTerminal)
@@ -270,30 +274,14 @@ func GetGrammar() map[string]*NonTerminal {
 
 	//FUNC_BLOCK:
 
-	options = make([]Option, 3)
+	options = make([]Option, 1)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, Terminal(token.LBRACE))
-	grammarSymbols = append(grammarSymbols, productions[STATEMENTS])
+	grammarSymbols = append(grammarSymbols, productions[FUNC_STATEMENTS])
 	grammarSymbols = append(grammarSymbols, Terminal(token.RBRACE))
 	options[0].grammarSymbols = grammarSymbols
 
-	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, Terminal(token.LBRACE))
-	grammarSymbols = append(grammarSymbols, Terminal(token.RETURN))
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION])
-	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
-	grammarSymbols = append(grammarSymbols, Terminal(token.RBRACE))
-	options[1].grammarSymbols = grammarSymbols
-
-	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, Terminal(token.LBRACE))
-	grammarSymbols = append(grammarSymbols, productions[STATEMENTS])
-	grammarSymbols = append(grammarSymbols, Terminal(token.RETURN))
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION])
-	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
-	grammarSymbols = append(grammarSymbols, Terminal(token.RBRACE))
-	options[2].grammarSymbols = grammarSymbols
 
 	productions[FUNC_BLOCK].options = options
 	productions[FUNC_BLOCK].head = FUNC_BLOCK
@@ -313,6 +301,42 @@ func GetGrammar() map[string]*NonTerminal {
 
 	productions[STATEMENTS].options = options
 	productions[STATEMENTS].head = STATEMENTS
+
+
+	//FUNC_STATEMENTS:
+	options = make([]Option, 2)
+
+	grammarSymbols = make([]GrammarSymbol, 0)
+	grammarSymbols = append(grammarSymbols, productions[STATEMENT])
+	grammarSymbols = append(grammarSymbols, productions[FUNC_STATEMENTS])
+	options[0].grammarSymbols = grammarSymbols
+
+	grammarSymbols = make([]GrammarSymbol, 0)
+	grammarSymbols = append(grammarSymbols, productions[RETURN_STATEMENT])
+	options[1].grammarSymbols = grammarSymbols
+
+	productions[FUNC_STATEMENTS].options = options
+	productions[FUNC_STATEMENTS].head = FUNC_STATEMENTS
+
+
+	//RETURN_STATEMENT:
+	options = make([]Option, 2)
+
+	grammarSymbols = make([]GrammarSymbol, 0)
+	grammarSymbols = append(grammarSymbols, Terminal(token.RETURN))
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION])
+	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
+
+	options[0].grammarSymbols = grammarSymbols
+
+	grammarSymbols = make([]GrammarSymbol, 0)
+	grammarSymbols = append(grammarSymbols, Terminal(token.RETURN))
+	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
+
+	options[1].grammarSymbols = grammarSymbols
+
+	productions[RETURN_STATEMENT].options = options
+	productions[RETURN_STATEMENT].head = RETURN_STATEMENT
 
 	//STATEMENT
 	options = make([]Option, 8)

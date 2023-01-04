@@ -249,7 +249,7 @@ func TestBuild(t *testing.T){
 			  	"/EOF/}/=/*/]/]/]/matrix\n",
 			},
 			{
-				description: "fn myFunc() void {new line}",
+				description: "fn myFunc() void {return new line}",
 				src: []token.Token{
 					token.NewToken(token.LBRACE, token.LBRACE, 0),
 					token.NewToken(token.FUNCTION, "fn", 0),
@@ -259,10 +259,12 @@ func TestBuild(t *testing.T){
 					token.NewToken(token.VOID, "void", 0),
 					token.NewToken(token.LBRACE, token.LBRACE, 0),
 					token.NewToken(token.NEWLINE, token.NEWLINE, 0),
-					token.NewToken(token.RBRACE, token.RBRACE, 1),
+					token.NewToken(token.RETURN, "return", 1),
 					token.NewToken(token.NEWLINE, token.NEWLINE, 1),
 					token.NewToken(token.RBRACE, token.RBRACE, 2),
-					token.NewToken(token.EOF, token.EOF, 2),
+					token.NewToken(token.NEWLINE, token.NEWLINE, 2),
+					token.NewToken(token.RBRACE, token.RBRACE, 3),
+					token.NewToken(token.EOF, token.EOF, 3),
 				},
 				isValid: true,
 				expectedTreeRep:
@@ -272,10 +274,11 @@ func TestBuild(t *testing.T){
 					"/EOF/}/fn/myFunc\n"+
 					"/EOF/}/fn/)\n"+
 					"/EOF/}/fn/void\n"+
-					"/EOF/}/fn/}\n",
+					"/EOF/}/fn/}\n" +
+					"/EOF/}/fn/}/return\n",
 			},
 		{
-			description: "fn myFunc(let number byte) byte {new line}",
+			description: "fn myFunc(let number byte) byte {return 3+3 new line}",
 			src: []token.Token{
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.FUNCTION, "fn", 0),
@@ -288,10 +291,15 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.TYPEBYTE, "byte", 0),
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
-				token.NewToken(token.RBRACE, token.RBRACE, 1),
+				token.NewToken(token.RETURN, "return", 1),
+				token.NewToken(token.BYTE,"3", 1),
+				token.NewToken(token.PLUS,token.PLUS, 1),
+				token.NewToken(token.BYTE,"3", 1),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
 				token.NewToken(token.RBRACE, token.RBRACE, 2),
-				token.NewToken(token.EOF, token.EOF, 2),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 2),
+				token.NewToken(token.RBRACE, token.RBRACE, 3),
+				token.NewToken(token.EOF, token.EOF, 3),
 			},
 			isValid: true,
 			expectedTreeRep:
@@ -304,10 +312,14 @@ func TestBuild(t *testing.T){
 				"/EOF/}/fn/)/let/number\n"+
 				"/EOF/}/fn/)/let/byte\n"+
 				"/EOF/}/fn/byte\n"+
-				"/EOF/}/fn/}\n",
+				"/EOF/}/fn/}\n"+
+				"/EOF/}/fn/}/return\n"+
+				"/EOF/}/fn/}/return/+\n"+
+				"/EOF/}/fn/}/return/+/3\n"+
+				"/EOF/}/fn/}/return/+/3\n",
 		},
 		{
-			description: "fn myFunc(let number byte, let flag bool) byte {new line}",
+			description: "fn myFunc(let number byte, let flag bool) byte {return foo new line}",
 			src: []token.Token{
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.FUNCTION, "fn", 0),
@@ -324,10 +336,13 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.TYPEBYTE, "byte", 0),
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
-				token.NewToken(token.RBRACE, token.RBRACE, 1),
+				token.NewToken(token.RETURN, "return", 1),
+				token.NewToken(token.IDENT, "foo", 1),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
 				token.NewToken(token.RBRACE, token.RBRACE, 2),
-				token.NewToken(token.EOF, token.EOF, 2),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 2),
+				token.NewToken(token.RBRACE, token.RBRACE, 3),
+				token.NewToken(token.EOF, token.EOF, 3),
 			},
 			isValid: true,
 			expectedTreeRep:
@@ -344,7 +359,9 @@ func TestBuild(t *testing.T){
 				"/EOF/}/fn/)/,/let/flag\n"+
 				"/EOF/}/fn/)/,/let/bool\n"+
 				"/EOF/}/fn/byte\n"+
-				"/EOF/}/fn/}\n",
+				"/EOF/}/fn/}\n"+
+				"/EOF/}/fn/}/return\n"+
+				"/EOF/}/fn/}/return/foo\n",
 		},
 		{
 			description: "var1 = (var2 * **var3 << 8) + 3 | 7",
@@ -580,7 +597,7 @@ func TestBuild(t *testing.T){
 		},
 
 		{
-			description: "fn myFunc2() byte {return 3}",
+			description: "fn myFunc2() byte {return call()}",
 			src: []token.Token{
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.FUNCTION, "fn", 0),
@@ -591,7 +608,9 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
 				token.NewToken(token.RETURN, "return", 1),
-				token.NewToken(token.BYTE, "3", 1),
+				token.NewToken(token.IDENT, "call", 1),
+				token.NewToken(token.LPAREN, token.LPAREN, 1),
+				token.NewToken(token.RPAREN, token.RPAREN, 1),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
 				token.NewToken(token.RBRACE, token.RBRACE, 2),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 2),
@@ -607,7 +626,9 @@ func TestBuild(t *testing.T){
 				"/EOF/}/fn/)\n"+
 				"/EOF/}/fn/byte\n"+
 				"/EOF/}/fn/}\n"+
-				"/EOF/}/fn/}/3\n",
+				"/EOF/}/fn/}/return\n"+
+				"/EOF/}/fn/}/return/)\n"+
+				"/EOF/}/fn/}/return/)/call\n",
 		},
 	}
 
