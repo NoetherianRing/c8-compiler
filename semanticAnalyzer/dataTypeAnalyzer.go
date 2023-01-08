@@ -14,10 +14,8 @@ import (
 
 type DataTypeFactory struct{
 	scope *symboltable.Scope
-	//tree *ast.SyntaxTree
 	ctxNode      *ast.Node
 	walkingAFunc bool
-	//execute map[token.Type]func()(interface{}, error)
 }
 
 func NewDataTypeGetter() *DataTypeFactory {
@@ -56,10 +54,11 @@ func (getter *DataTypeFactory) GetDataType()(interface{}, error){
 //When needed, it calls another redirect method for further analysis.
 func (getter *DataTypeFactory) redirect() func()(interface{}, error){
 
-
 	switch getter.ctxNode.Value.Type{
 	case token.ASTERISK:
 		return getter.redirectAsterisk()
+	case token.RBRACKET:
+		return getter.redirectBracket()
 	case token.RPAREN:
 		return getter.redirectParentheses()
 	case token.VOID:
@@ -70,6 +69,40 @@ func (getter *DataTypeFactory) redirect() func()(interface{}, error){
 		return getter.declarationSimple
 	case token.IDENT:
 		return getter.reference
+	case token.LOR:
+		return getter.logicExpression
+	case token.LAND:
+		return getter.logicExpression
+	case token.BANG:
+		return getter.logicExpression
+	case token.AND:
+		return getter.bitwiseExpression
+	case token.XOR:
+		return getter.bitwiseExpression
+	case token.OR:
+		return getter.bitwiseExpression
+	case token.PLUS:
+		return getter.numericExpression
+	case token.MINUS:
+		return getter.numericExpression
+	case token.SLASH:
+		return getter.numericExpression
+	case token.PERCENT:
+		return getter.numericExpression
+	case token.EQEQ:
+		return getter.comparison
+	case token.NOTEQ:
+		return getter.comparison
+	case token.LT:
+		return getter.numericLogicalComparison
+	case token.LTEQ:
+		return getter.numericLogicalComparison
+	case token.GT:
+		return getter.numericLogicalComparison
+	case token.GTEQ:
+		return getter.numericLogicalComparison
+	case token.DOLLAR:
+		return getter.address
 	default:
 		panic(errorhandler.UnexpectedCompilerError())
 	}
@@ -90,6 +123,16 @@ func (getter *DataTypeFactory) redirectAsterisk() func()(interface{}, error) {
 		}
 	default: panic(errorhandler.UnexpectedCompilerError())
 	}
+
+}
+//redirectBracket return a function that analysis the data type of an expression led by an bracket by checking the context.
+func (getter *DataTypeFactory) redirectBracket() func()(interface{}, error) {
+	if getter.isADeclarationContext(){
+		return getter.declaration
+	}else{
+		return getter.dereference
+	}
+
 
 }
 
@@ -173,14 +216,157 @@ func (getter *DataTypeFactory) validateParamDataType(args []interface{}, i int) 
 	}else{
 
 		line := getter.ctxNode.Value.Line
-		err =errors.New(errorhandler.DataTypesDontMatch(line, symboltable.Fmt(treeParam), token.EQ, symboltable.Fmt(args[i])))
+		err =errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(treeParam), token.EQ, symboltable.Fmt(args[i])))
 		return err
 	}
 
 }
 
 
-func (getter *DataTypeFactory) numericExpression() (interface{}, error){
+//logicExpression verifies that the expressions led by the ctx Node are boolean and returns a error if not.
+//Otherwise returns a boolean
+func (getter *DataTypeFactory) logicExpression() (interface{}, error){
+	boolType := symboltable.NewBool()
+	for _, child := range getter.ctxNode.Children{
+		backup := getter.ctxNode
+		getter.ctxNode = child
+		childDatatype,err := getter.GetDataType()
+		getter.ctxNode = backup
+		if err != nil{
+			return nil, err
+		}
+		if reflect.TypeOf(childDatatype) != reflect.TypeOf(boolType){
+			line := child.Value.Line
+			err := errors.New(errorhandler.UnexpectedDataType(line, symboltable.Fmt(boolType), symboltable.Fmt(childDatatype)))
+			return nil, err
+		}
+	}
+	return boolType, nil
+}
+
+//comparison verifies that the expressions led by the ctx Node are of the same data type and returns a error if not.
+//Otherwise returns a boolean
+func (getter *DataTypeFactory) comparison() (interface{}, error){
+	backup := getter.ctxNode
+	getter.ctxNode = getter.ctxNode.Children[0]
+	leftChildDataType, err :=  getter.GetDataType()
+	getter.ctxNode = backup
+	if err != nil{
+		return nil, err
+	}
+	getter.ctxNode = getter.ctxNode.Children[1]
+	rightChildDataType, err :=  getter.GetDataType()
+	getter.ctxNode = backup
+	if err != nil{
+		return nil, err
+	}
+	if leftChildDataType != rightChildDataType{
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(leftChildDataType), token.EQ, symboltable.Fmt(rightChildDataType)))
+		return nil, err
+	}
+	return symboltable.NewBool(), nil
+
+
+}
+
+//numericLogicalComparison verifies that the expressions led by the ctx Node are of the same numeric data type by calling to
+//validateSameNumericDataType(). Returns a error if needed, otherwise returns a boolean
+func (getter *DataTypeFactory) numericLogicalComparison() (interface{}, error){
+	_, err := getter.validateSameNumericDataType()
+	if err != nil{
+		return nil, err
+	}
+	return symboltable.NewBool(), nil
+}
+
+//numericLogicalComparison verifies that the expressions led by the ctx Node are of the same numeric data type by calling to
+//validateSameNumericDataType(). Returns a error if needed, otherwise returns a the same datatype of the expressions it leads.
+func (getter *DataTypeFactory) bitwiseExpression() (interface{}, error){
+	datatype, err := getter.validateSameNumericDataType()
+	if err != nil{
+		return nil, err
+	}
+	return datatype, nil
+}
+
+//validateSameNumericDataType verifies that the expressions led by the ctx Node are of the same numeric data type and returns a error if not.
+//Otherwise returns a the same datatype of the expressions it leads.
+func (getter *DataTypeFactory) validateSameNumericDataType() (interface{},error) {
+
+	leftChildDataType, rightChildDataType, err := getter.validateNumericDataType()
+	if err != nil{
+		return nil, err
+	}
+	if leftChildDataType != rightChildDataType {
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(leftChildDataType), token.EQ, symboltable.Fmt(rightChildDataType)))
+		return nil, err
+	}
+	return leftChildDataType, nil
+}
+
+//validateSameNumericDataType verifies that the expressions led by the ctx Node are of numeric data type and returns a error if not.
+//Otherwise returns both datatypes
+func (getter *DataTypeFactory) validateNumericDataType() (interface{}, interface{}, error) {
+	boolType := symboltable.NewBool()
+	backup := getter.ctxNode
+	getter.ctxNode = getter.ctxNode.Children[0]
+	leftChildDataType, err := getter.GetDataType()
+	getter.ctxNode = backup
+	if err != nil {
+		return nil, nil, err
+	}
+	if reflect.TypeOf(leftChildDataType) == reflect.TypeOf(boolType) {
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(leftChildDataType)))
+		return nil, nil, err
+	}
+	getter.ctxNode = getter.ctxNode.Children[1]
+	rightChildDataType, err := getter.GetDataType()
+	getter.ctxNode = backup
+	if err != nil {
+		return nil, nil, err
+	}
+	if reflect.TypeOf(rightChildDataType) == reflect.TypeOf(boolType) {
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(leftChildDataType)))
+		return nil, nil, err
+	}
+
+	if leftChildDataType != rightChildDataType {
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(leftChildDataType), token.EQ, symboltable.Fmt(rightChildDataType)))
+		return nil, nil, err
+	}
+	return leftChildDataType, rightChildDataType, nil
+}
+
+//numericExpression verifies that the left children of ctx Node is of a greater size of the one on the right and
+//that both are numeric data type. It returns a error if not, otherwise it returns a boolean
+func (getter *DataTypeFactory) numericExpression() (interface{}, error) {
+	leftChildDataType, rightChildDataType, err :=getter.validateNumericDataType()
+	if err != nil{
+		return nil, err
+	}
+
+	if symboltable.GetSize(leftChildDataType) < symboltable.GetSize(rightChildDataType){
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(leftChildDataType), token.LT, symboltable.Fmt(rightChildDataType)))
+		return nil, err
+	}
+	return leftChildDataType, nil
+}
+
+//address takes the data type of what ctxNode dereference and return a pointer that points to
+//that data type
+func (getter *DataTypeFactory) address() (interface{}, error){
+	getter.ctxNode = getter.ctxNode.Children[0]
+	pointsTo, err := getter.dereference()
+	if err != nil{
+		return nil, err
+	}
+	return symboltable.NewPointer(pointsTo), nil
 }
 
 //functionCall validates that the data types of the parameters of a function call
@@ -254,12 +440,87 @@ func (getter *DataTypeFactory) reference()(interface{}, error){
 	return ref.DataType, nil
 }
 
+//dereference analyzes the data type of a dereference and returns it
 func (getter *DataTypeFactory) dereference() (interface{}, error){
+	identifier := GetLeafByRight(getter.ctxNode)
+	backup := getter.ctxNode
+	getter.ctxNode = identifier
+	toCompare, err := getter.reference()
+	getter.ctxNode = backup
+	if err != nil{
+		return nil, err
+	}
 
+	for getter.ctxNode != identifier{
+
+		switch  toCompare.(type){
+		case symboltable.Pointer:
+			if getter.ctxNode.Value.Type == token.ASTERISK{
+				getter.ctxNode = getter.ctxNode.Children[0]
+				toCompare = toCompare.(symboltable.Pointer).PointsTo
+			}else{
+				line := getter.ctxNode.Value.Line
+				err := errors.New(errorhandler.InvalidIndirectOf(line, identifier.Value.Literal))
+				return nil, err
+			}
+		case symboltable.Array:
+			if getter.ctxNode.Value.Type == token.RBRACKET{
+				backup = getter.ctxNode
+				getter.ctxNode = getter.ctxNode.Children[0]
+				err := getter.validateIndex(toCompare)
+				getter.ctxNode = backup
+				if err !=nil{
+					return nil, err
+				}
+				getter.ctxNode = getter.ctxNode.Children[1]
+				toCompare = toCompare.(symboltable.Array).Of
+
+			}else{
+				line := getter.ctxNode.Value.Line
+				err := errors.New(errorhandler.InvalidIndirectOf(line, identifier.Value.Literal))
+				return nil, err
+			}
+		default:
+			panic(errorhandler.UnexpectedCompilerError())
+		}
+
+	}
+
+	return toCompare, nil
+}
+
+
+//validateIndex validates if the index of an array is a byte and if its out of bound.
+func (getter *DataTypeFactory) validateIndex(compare interface{}) error {
+
+	if getter.ctxNode.Value.Type != token.BYTE{
+		dataTypeIndex, err := getter.GetDataType()
+		if err != nil{
+			return err
+		}
+		if reflect.TypeOf(dataTypeIndex) != reflect.TypeOf(symboltable.NewByte()){
+			line := getter.ctxNode.Value.Line
+			err := errors.New(errorhandler.IndexMustBeAByte(line))
+			return err
+		}
+
+	}else{
+		length, err := strconv.Atoi(getter.ctxNode.Value.Literal)
+		if err != nil{
+			panic(errorhandler.UnexpectedCompilerError())
+		}
+		arrayToCompare := compare.(symboltable.Array)
+		if length != arrayToCompare.Length{
+			line := getter.ctxNode.Value.Line
+			err := errors.New(errorhandler.IndexOutOfBounds(line))
+			return err
+		}
+	}
+	return nil
 }
 
 //declaration verifies that there is no declaration of a pointer to a function
-//in the context and returns an error if needed. Otherwise, it returns the data type built by "declarationBuild()".
+//in the context and returns an error if needed. Otherwise, it returns the data type built by "declarationFactory()".
 func (getter *DataTypeFactory) declaration() (interface{}, error){
 	if len(getter.ctxNode.Children) != 0{
 		leaf := GetLeafByRight(getter.ctxNode)
@@ -270,19 +531,19 @@ func (getter *DataTypeFactory) declaration() (interface{}, error){
 			return nil, err
 		}
 	}
-	return getter.declarationBuild()
+	return getter.declarationFactory()
 }
 
-//declarationBuild builds the datatype in the context of a declaration by calling more specific methods
-func (getter *DataTypeFactory) declarationBuild() (interface{}, error){
+//declarationFactory builds the datatype in the context of a declaration by calling more specific methods
+func (getter *DataTypeFactory) declarationFactory() (interface{}, error){
 	if len(getter.ctxNode.Children) == 0{
 		return getter.declarationSimple()
 	}else{
 		switch getter.ctxNode.Value.Type {
 		case token.ASTERISK:
-			return getter.declarationBuildPointer()
+			return getter.declarationFactoryPointer()
 		case token.RBRACKET:
-			return getter.declarationBuildArray()
+			return getter.declarationFactoryArray()
 		default:
 			panic(errorhandler.UnexpectedCompilerError())
 
@@ -305,20 +566,20 @@ func (getter *DataTypeFactory) declarationSimple() (interface{}, error) {
 	}
 }
 
-//declarationBuildPointer returns a pointer data type. The data type of the reference it points to, is given by moving
+//declarationFactoryPointer returns a pointer data type. The data type of the reference it points to, is given by moving
 //the context to the child of the current node and building its datatype
-func (getter *DataTypeFactory) declarationBuildPointer() (interface{}, error) {
+func (getter *DataTypeFactory) declarationFactoryPointer() (interface{}, error) {
 	getter.ctxNode = getter.ctxNode.Children[0]
-	pointsTo, err := getter.declarationBuild()
+	pointsTo, err := getter.declarationFactory()
 	if err != nil {
 		return nil, err
 	}
 	return symboltable.NewPointer(pointsTo), nil
 }
 
-//declarationBuildArray validates that the index of an array is valid (by checking its data type) and return a array data type
-//the data type of the elements of the array is obtained by moving the context and calling to declarationBuild()
-func (getter *DataTypeFactory) declarationBuildArray() (interface{}, error) {
+//declarationFactoryArray validates that the index of an array is valid (by checking its data type) and return a array data type
+//the data type of the elements of the array is obtained by moving the context and calling to declarationFactory()
+func (getter *DataTypeFactory) declarationFactoryArray() (interface{}, error) {
 	length := 0
 	index := getter.ctxNode.Children[0]
 	if index.Value.Type != token.BYTE{
@@ -343,7 +604,7 @@ func (getter *DataTypeFactory) declarationBuildArray() (interface{}, error) {
 		length = literal
 	}
 	getter.ctxNode = getter.ctxNode.Children[1]
-	of, err := getter.declarationBuild()
+	of, err := getter.declarationFactory()
 	if err != nil {
 		return nil, err
 	}

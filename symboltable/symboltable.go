@@ -22,13 +22,16 @@ type Scope struct{
 }
 
 type Simple struct{
+	Size int
 	Kind int
 }
 type Array struct{
+	Size int
 	Length int
 	Of interface{}
 }
 type Pointer struct{
+	Size int
 	PointsTo interface{}
 }
 
@@ -128,23 +131,23 @@ func NewFunction(returnDataType interface{}, argsDataType[] interface{}) Functio
 }
 
 func NewPointer(pointsTo interface{})Pointer{
-	return Pointer{PointsTo: pointsTo}
+	return Pointer{Size: 2, PointsTo: pointsTo}
 }
 
 func NewArray(length int, datatype interface{}) Array{
-	return Array{Length: length, Of: datatype}
+	return Array{Size : 2,Length: length, Of: datatype}
 }
 
 func NewBool() Simple {
-	return Simple{Kind: KindBool}
+	return Simple{Size: 1, Kind: KindBool}
 }
 
 func NewByte() Simple {
-	return Simple{Kind: KindByte}
+	return Simple{Size: 1, Kind: KindByte}
 }
 
 func NewVoid() Simple {
-	return Simple{Kind: KindVoid}
+	return Simple{Size: 1, Kind: KindVoid}
 }
 
 func newSymbol(identifier string, datatype interface{})*Symbol{
@@ -192,4 +195,18 @@ func (scope *Scope )AddSymbol(identifier string, datatype interface{}) bool {
 	symbol := newSymbol(identifier, datatype)
 	scope.Symbols[identifier] = symbol
 	return true
+}
+
+func GetSize(datatype interface{}) int{
+	switch datatype.(type){
+	case Pointer:
+		return datatype.(Pointer).Size
+	case Array:
+		return datatype.(Array).Size
+	case Simple:
+		return datatype.(Simple).Size
+	default:
+		panic(errorhandler.UnexpectedCompilerError())
+	}
+
 }

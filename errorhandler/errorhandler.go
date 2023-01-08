@@ -16,9 +16,9 @@ func PointerToVoid(line int) string{
 	return errorString
 
 }
-func DataTypesDontMatch(line int, dataType1 string, symbol string, dataType2 string) string{
+func DataTypesMismatch(line int, dataType1 string, symbol string, dataType2 string) string{
 	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
-		"\nData types don't match: " + dataType1 + " " + symbol + " " +dataType2
+		"\nData types mismatches: " + dataType1 + " " + symbol + " " +dataType2
 	return errorString
 
 }
