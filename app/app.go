@@ -4,7 +4,7 @@ import (
 	"errors"
 	"github.com/NoetherianRing/c8-compiler/ast"
 	"github.com/NoetherianRing/c8-compiler/lexer"
-	"github.com/NoetherianRing/c8-compiler/parser"
+	"github.com/NoetherianRing/c8-compiler/syntacticanalyzer"
 	"github.com/NoetherianRing/c8-compiler/token"
 	"path/filepath"
 	"strconv"
@@ -12,7 +12,7 @@ import (
 
 type App struct{
 	lexer   *lexer.Lexer
-	program *parser.NonTerminal
+	program *syntacticanalyzer.NonTerminal
 }
 
 func NewApp(path string) (*App, error){
@@ -24,10 +24,10 @@ func NewApp(path string) (*App, error){
 	if err != nil{
 		return nil, err
 	}
-	grammar := parser.GetGrammar()
+	grammar := syntacticanalyzer.GetGrammar()
 
 
-	return &App{lexer: l, program: grammar[parser.PROGRAM]}, err
+	return &App{lexer: l, program: grammar[syntacticanalyzer.PROGRAM]}, err
 }
 
 func (app *App) Program(){

@@ -10,6 +10,12 @@ func UnexpectedDataType(line int, expected string, unexpected string) string{
 	return errorString
 }
 
+func PointerToVoid(line int) string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
+		"\nPointer to void. "
+	return errorString
+
+}
 func DataTypesDontMatch(line int, dataType1 string, symbol string, dataType2 string) string{
 	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
 		"\nData types don't match: " + dataType1 + " " + symbol + " " +dataType2
@@ -18,6 +24,12 @@ func DataTypesDontMatch(line int, dataType1 string, symbol string, dataType2 str
 }
 func UnexpectedCompilerError() string {
 	errorString := "\nunexpected compiler error\n"
+	return errorString
+}
+func NumberOfParametersDoesntMatch(line int, len1 int, len2 int) string {
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
+		"\nThe number of parameters doesn't match " 	+
+		strconv.Itoa(len1) + "=" +  strconv.Itoa(len2) + "\n"
 	return errorString
 }
 

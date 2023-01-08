@@ -21,8 +21,8 @@ stmnt -> declaration \n
 
 ident -> id
 
-call ->| var(params)
-        |var()
+call ->| ident(params)
+        |ident()
 
 
 arg -> (paramDecl)
@@ -39,7 +39,8 @@ params -> expression, params
 var ->  |*var
         |[literal] var
         |[id] var
-        |id
+        |call
+        |ident
 
 
 literal -> byte
