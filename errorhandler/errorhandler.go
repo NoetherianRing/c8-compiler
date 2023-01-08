@@ -69,3 +69,9 @@ func IdentifierIsNotFunction(line int, reference string) string {
 		"\nIdentifier " + reference + " is not a function"
 	return errorString
 }
+
+func IdentifierMissed(line int) string {
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
+		"\nIdentifier missed"
+	return errorString
+}

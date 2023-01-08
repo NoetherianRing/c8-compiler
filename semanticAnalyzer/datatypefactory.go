@@ -103,6 +103,10 @@ func (getter *DataTypeFactory) redirect() func()(interface{}, error){
 		return getter.numericLogicalComparison
 	case token.DOLLAR:
 		return getter.address
+	case token.BYTE:
+		return getter.simple
+	case token.BOOL:
+		return getter.simple
 	default:
 		panic(errorhandler.UnexpectedCompilerError())
 	}
@@ -317,7 +321,8 @@ func (getter *DataTypeFactory) validateNumericDataType() (interface{}, interface
 	if err != nil {
 		return nil, nil, err
 	}
-	if reflect.TypeOf(leftChildDataType) == reflect.TypeOf(boolType) {
+	if reflect.TypeOf(leftChildDataType) == reflect.TypeOf(boolType) ||
+		reflect.TypeOf(leftChildDataType) == reflect.TypeOf(symboltable.NewVoid()) {
 		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(leftChildDataType)))
 		return nil, nil, err
@@ -328,7 +333,8 @@ func (getter *DataTypeFactory) validateNumericDataType() (interface{}, interface
 	if err != nil {
 		return nil, nil, err
 	}
-	if reflect.TypeOf(rightChildDataType) == reflect.TypeOf(boolType) {
+	if reflect.TypeOf(rightChildDataType) == reflect.TypeOf(boolType) ||
+		reflect.TypeOf(leftChildDataType) == reflect.TypeOf(symboltable.NewVoid()) {
 		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(leftChildDataType)))
 		return nil, nil, err
@@ -444,6 +450,11 @@ func (getter *DataTypeFactory) reference()(interface{}, error){
 func (getter *DataTypeFactory) dereference() (interface{}, error){
 	identifier := GetLeafByRight(getter.ctxNode)
 	backup := getter.ctxNode
+	if identifier.Value.Type != token.IDENT{
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.IdentifierMissed(line))
+		return nil, err
+	}
 	getter.ctxNode = identifier
 	toCompare, err := getter.reference()
 	getter.ctxNode = backup
@@ -481,7 +492,7 @@ func (getter *DataTypeFactory) dereference() (interface{}, error){
 				return nil, err
 			}
 		default:
-			panic(errorhandler.UnexpectedCompilerError())
+		 	panic(errorhandler.UnexpectedCompilerError())
 		}
 
 	}
@@ -551,7 +562,7 @@ func (getter *DataTypeFactory) declarationFactory() (interface{}, error){
 	}
 }
 
-//declarationSimple return a boolean, a byte or a void depending on the context
+//declarationSimple returns a boolean, a byte or a void depending on the context
 func (getter *DataTypeFactory) declarationSimple() (interface{}, error) {
 	switch getter.ctxNode.Value.Type {
 	case token.TYPEBOOL:
@@ -609,6 +620,19 @@ func (getter *DataTypeFactory) declarationFactoryArray() (interface{}, error) {
 		return nil, err
 	}
 	return symboltable.NewArray(length, of), nil
+}
+
+//simple returns a boolean or a byte depending on the context
+func (getter *DataTypeFactory) simple() (interface{}, error) {
+	switch getter.ctxNode.Value.Type {
+	case token.BOOL:
+		return symboltable.NewBool(), nil
+	case token.BYTE:
+		return symboltable.NewByte(), nil
+	default:
+		panic(errorhandler.UnexpectedCompilerError())
+
+	}
 }
 
 // GetLeafByRight gets the leaf by walking a tree using the right child of each node.
