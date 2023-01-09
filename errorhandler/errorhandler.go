@@ -16,9 +16,9 @@ func PointerToVoid(line int) string{
 	return errorString
 
 }
-func DataTypesMismatch(line int, dataType1 string, symbol string, dataType2 string) string{
+func DataTypesMismatch(line int, actualDatatype string, symbol string, expectedDatatype string) string{
 	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
-		"\nData types mismatches: " + dataType1 + " " + symbol + " " +dataType2
+		"\nData types mismatches: " + actualDatatype + " " + symbol + " " + expectedDatatype
 	return errorString
 
 }
@@ -26,10 +26,10 @@ func UnexpectedCompilerError() string {
 	errorString := "\nunexpected compiler error\n"
 	return errorString
 }
-func NumberOfParametersDoesntMatch(line int, len1 int, len2 int) string {
+func NumberOfParametersDoesntMatch(line int, actualLength int, expectedLength int) string {
 	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
 		"\nThe number of parameters doesn't match " 	+
-		strconv.Itoa(len1) + "=" +  strconv.Itoa(len2) + "\n"
+		strconv.Itoa(actualLength) + "=" +  strconv.Itoa(expectedLength) + "\n"
 	return errorString
 }
 

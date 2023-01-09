@@ -45,8 +45,8 @@ func (getter *DataTypeFactory) GetDataType()(interface{}, error){
 		panic(errorhandler.UnexpectedCompilerError())
 	}
 	get := getter.redirect()
-	getter.scope = nil
-	getter.ctxNode = nil
+//	getter.scope = nil
+//	getter.ctxNode = nil
 	return get()
 }
 
@@ -175,6 +175,8 @@ func (getter *DataTypeFactory) isADeclarationContext() bool {
 func (getter *DataTypeFactory) validateParamsDataType(args []interface{}) error{
 	var err error
 	err = nil
+	moreParams := true
+	backup := getter.ctxNode
 	for i := range args{
 		if getter.ctxNode.Value.Type == token.COMMA{
 
@@ -189,17 +191,20 @@ func (getter *DataTypeFactory) validateParamsDataType(args []interface{}) error{
 
 
 		}else{
+			moreParams = false
 			if len(args) - (i) != 1{
 				line := getter.ctxNode.Value.Line
 				err =errors.New(errorhandler.NumberOfParametersDoesntMatch(line, i+1, len(args)))
+				return err
 			}else{
 				err = getter.validateParamDataType(args, i)
 			}
 		}
 
 	}
-	if getter.ctxNode.Value.Type == token.COMMA {
-		numberOfTreeParams := CountNodesToLeafByRight(getter.ctxNode)
+	if moreParams {
+		getter.ctxNode = backup
+		numberOfTreeParams := CountNodesToLeafByRight(getter.ctxNode) + 1
 		line := getter.ctxNode.Value.Line
 		err =errors.New(errorhandler.NumberOfParametersDoesntMatch(line, numberOfTreeParams, len(args)))
 
@@ -213,7 +218,7 @@ func (getter *DataTypeFactory) validateParamsDataType(args []interface{}) error{
 func (getter *DataTypeFactory) validateParamDataType(args []interface{}, i int) error{
 	treeParam, err := getter.GetDataType()
 	if err != nil{
-		return nil
+		return err
 	}
 	if symboltable.Compare(treeParam, args[i]){
 		return nil
@@ -389,6 +394,8 @@ func (getter *DataTypeFactory) functionCall() (interface{}, error){
 	identifierDataType, err := getter.reference()
 	getter.ctxNode = backup
 
+	getter.walkingAFunc = false
+
 	if err != nil{
 		return nil, err
 	}
@@ -404,7 +411,7 @@ func (getter *DataTypeFactory) functionCall() (interface{}, error){
 	if argsDataType != nil {
 		if len(getter.ctxNode.Children) != 2 {
 			line := getter.ctxNode.Value.Line
-			err = errors.New(errorhandler.NumberOfParametersDoesntMatch(line, len(argsDataType), 0))
+			err = errors.New(errorhandler.NumberOfParametersDoesntMatch(line, 0, len(argsDataType)))
 			return nil, err
 		}
 
@@ -415,8 +422,15 @@ func (getter *DataTypeFactory) functionCall() (interface{}, error){
 		if err != nil{
 			return nil, err
 		}
+	}else{
+		if len(getter.ctxNode.Children) > 1 {
+			getter.ctxNode =getter.ctxNode.Children[1]
+			numberOfTreeParams := CountNodesToLeafByRight(getter.ctxNode) + 1
+			line := getter.ctxNode.Value.Line
+			err =errors.New(errorhandler.NumberOfParametersDoesntMatch(line, numberOfTreeParams, len(argsDataType)))
+			return nil, err
+		}
 	}
-	getter.walkingAFunc = false
 	return returnDataType, nil
 
 }
@@ -509,7 +523,7 @@ func (getter *DataTypeFactory) validateIndex(compare interface{}) error {
 		if err != nil{
 			return err
 		}
-		if reflect.TypeOf(dataTypeIndex) != reflect.TypeOf(symboltable.NewByte()){
+		if !symboltable.NewByte().Compare(dataTypeIndex){
 			line := getter.ctxNode.Value.Line
 			err := errors.New(errorhandler.IndexMustBeAByte(line))
 			return err
@@ -600,7 +614,7 @@ func (getter *DataTypeFactory) declarationFactoryArray() (interface{}, error) {
 		if err != nil{
 			return nil, err
 		}
-		if reflect.TypeOf(dataTypeIndex) != reflect.TypeOf(symboltable.NewByte()){
+		if !symboltable.NewByte().Compare(dataTypeIndex){
 			line := getter.ctxNode.Value.Line
 			err := errors.New(errorhandler.IndexMustBeAByte(line))
 			return nil, err
