@@ -75,6 +75,7 @@ func TestDeclaration(t *testing.T) {
 	typeByte := token.NewToken(token.TYPEBYTE, "byte", 1)
 	typeBool := token.NewToken(token.TYPEBOOL, "bool", 1)
 	number :=  token.NewToken(token.BYTE, "10", 1)
+	negativeNumber :=  token.NewToken(token.BYTE, "-3", 1)
 	boolean :=  token.NewToken(token.BOOL, "true", 1)
 	referenceByte :=  token.NewToken(token.IDENT, "ByteInSymbolTable", 1)
 	unknown :=  token.NewToken(token.IDENT, "notStored", 1)
@@ -88,8 +89,8 @@ func TestDeclaration(t *testing.T) {
 	datatypePointerToPointerToBool := 	symboltable.NewPointer(datatypePointerToBool)
 
 	datatypeArrayToByteWithIndex := 	symboltable.NewArray( 10, datatypeByte)
-	datatypeArrayToByteWithoutIndex := 	symboltable.NewArray(0, datatypeByte)
-	datatypeArrayToArrayToByte := symboltable.NewArray(0, datatypeArrayToByteWithIndex)
+	datatypeArrayToByteWithoutIndex := 	symboltable.NewArray(symboltable.UnknownLength, datatypeByte)
+	datatypeArrayToArrayToByte := symboltable.NewArray(symboltable.UnknownLength, datatypeArrayToByteWithIndex)
 
 	datatypeArrayToPointerToBool := symboltable.NewArray(10, datatypePointerToBool)
 	datatypePointerToArrayToByte := symboltable.NewPointer(datatypeArrayToByteWithIndex)
@@ -116,9 +117,9 @@ func TestDeclaration(t *testing.T) {
 	treeArrayToByteWithBoolIndex.Head.AddChild(ast.NewNode(boolean))
 	treeArrayToByteWithBoolIndex.Head.AddChild(ast.NewNode(typeByte))
 
-	treeArrayToByteWithUnknowIndex :=  ast.NewSyntaxTree(ast.NewNode(rbracket))
-	treeArrayToByteWithUnknowIndex.Head.AddChild(ast.NewNode(unknown))
-	treeArrayToByteWithUnknowIndex.Head.AddChild(ast.NewNode(typeByte))
+	treeArrayToByteWithUnknownIndex :=  ast.NewSyntaxTree(ast.NewNode(rbracket))
+	treeArrayToByteWithUnknownIndex.Head.AddChild(ast.NewNode(unknown))
+	treeArrayToByteWithUnknownIndex.Head.AddChild(ast.NewNode(typeByte))
 
 	treePointerToPointerToBool := ast.NewSyntaxTree(ast.NewNode(asterisk))
 	treePointerToPointerToBool.Head.AddChild(ast.NewNode(asterisk))
@@ -139,6 +140,11 @@ func TestDeclaration(t *testing.T) {
 	treePointerToArrayToByte.Head.AddChild(ast.NewNode(rbracket))
 	treePointerToArrayToByte.Head.Children[0].AddChild(ast.NewNode(number))
 	treePointerToArrayToByte.Head.Children[0].AddChild(ast.NewNode(typeByte))
+
+	treeNegativeIndex := ast.NewSyntaxTree(ast.NewNode(rbracket))
+	treeNegativeIndex.Head.AddChild(ast.NewNode(negativeNumber))
+	treeNegativeIndex.Head.AddChild(ast.NewNode(typeByte))
+
 
 	testCases := []cases{
 		{description: "void",
@@ -194,7 +200,7 @@ func TestDeclaration(t *testing.T) {
 		},
 		{
 			description:      "array to number with unknown index",
-			ctxNode:          treeArrayToByteWithUnknowIndex.Head,
+			ctxNode:          treeArrayToByteWithUnknownIndex.Head,
 			expectedDatatype: nil,
 			expectedErr:      errors.New(errorhandler.UnresolvedReference(1, unknown.Literal)),
 		},
@@ -240,6 +246,12 @@ func TestDeclaration(t *testing.T) {
 			expectedDatatype: datatypeVoid,
 			expectedErr: nil,
 		},
+		{
+			description:      "negative index",
+			ctxNode:          treeNegativeIndex.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.NegativeIndex(1)),
+		},
 	}
 	for _, scenario := range testCases{
 		t.Run(scenario.description, func(t *testing.T) {
@@ -273,8 +285,8 @@ func TestReference(t *testing.T){
 	datatypePointerToPointerToBool := 	symboltable.NewPointer(datatypePointerToBool)
 
 	datatypeArrayToByteWithIndex := 	symboltable.NewArray( 10, datatypeByte)
-	datatypeArrayToByteWithoutIndex := 	symboltable.NewArray(0, datatypeByte)
-	datatypeArrayToArrayToByte := symboltable.NewArray(0, datatypeArrayToByteWithIndex)
+	datatypeArrayToByteWithoutIndex := 	symboltable.NewArray(symboltable.UnknownLength, datatypeByte)
+	datatypeArrayToArrayToByte := symboltable.NewArray(symboltable.UnknownLength, datatypeArrayToByteWithIndex)
 
 	datatypeArrayToPointerToBool := symboltable.NewArray(10, datatypePointerToBool)
 	datatypePointerToArrayToByte := symboltable.NewPointer(datatypeArrayToByteWithIndex)
@@ -642,6 +654,182 @@ func TestFunctionCall(t *testing.T){
 			getter.SetScope(scope)
 			getter.SetCxtNode(scenario.ctxNode)
 			datatype, err := getter.functionCall()
+			assert.Equal(t, scenario.expectedErr, err)
+			assert.Equal(t, scenario.expectedDatatype, datatype)
+		})
+	}
+}
+
+func TestDereference(t *testing.T){
+
+	getter := NewDataTypeGetter()
+	scope := symboltable.CreateMainScope()
+
+
+	type cases struct{
+		description     string
+		ctxNode         *ast.Node
+		expectedDatatype         interface{}
+		expectedErr         error
+
+	}
+	asterisk := token.NewToken(token.ASTERISK, token.ASTERISK, 1)
+	rbracket := token.NewToken(token.RBRACKET, token.RBRACKET, 1)
+//	void := token.NewToken(token.VOID, "void", 1)
+	number :=  token.NewToken(token.BYTE, "8", 1)
+	negativeNumber :=  token.NewToken(token.BYTE, "-100", 1)
+	numberOutOfBound :=  token.NewToken(token.BYTE, "100", 1)
+//	boolean :=  token.NewToken(token.BOOL, "true", 1)
+//	referenceByte :=  token.NewToken(token.IDENT, "ByteInSymbolTable", 1)
+	unknown :=  token.NewToken(token.IDENT, "notStored", 1)
+
+	datatypeBool := symboltable.NewBool()
+	datatypeByte := symboltable.NewByte()
+
+
+	datatypePointerToBool := 	symboltable.NewPointer(datatypeBool)
+	datatypePointerToPointerToBool := 	symboltable.NewPointer(datatypePointerToBool)
+
+	identPPBool := token.NewToken(token.IDENT, "PointerPointerBool", 1)
+	scope.AddSymbol(identPPBool.Literal, datatypePointerToPointerToBool)
+
+	tree1 := ast.NewSyntaxTree(ast.NewNode(asterisk))
+	tree1.Head.AddChild(ast.NewNode(asterisk))
+	tree1.Head.Children[0].AddChild(ast.NewNode(identPPBool))
+
+	tree2 := ast.NewSyntaxTree(ast.NewNode(asterisk))
+	tree2.Head.AddChild(ast.NewNode(identPPBool))
+
+	tree3 := ast.NewSyntaxTree(ast.NewNode(identPPBool))
+
+	datatypeArrayToByteWithIndex := 	symboltable.NewArray( 10, datatypeByte)
+	datatypeArrayToArrayToByte := symboltable.NewArray(symboltable.UnknownLength, datatypeArrayToByteWithIndex)
+
+	identAAByte := token.NewToken(token.IDENT, "ArrayArrayByte", 1)
+	scope.AddSymbol(identAAByte.Literal, datatypeArrayToArrayToByte)
+
+	tree4:= ast.NewSyntaxTree(ast.NewNode(rbracket))
+	tree4.Head.AddChild(ast.NewNode(number))
+	tree4.Head.AddChild(ast.NewNode(identAAByte))
+
+	datatypeArrayToPointerToBool := symboltable.NewArray(10, datatypePointerToBool)
+
+	identAPBool := token.NewToken(token.IDENT, "ArrayPointerBool", 1)
+	scope.AddSymbol(identAPBool.Literal, datatypeArrayToPointerToBool)
+
+	tree5:= ast.NewSyntaxTree(ast.NewNode(rbracket))
+	tree5.Head.AddChild(ast.NewNode(number))
+	tree5.Head.AddChild(ast.NewNode(identAPBool))
+
+	datatypePointerToArrayToByte := symboltable.NewPointer(datatypeArrayToByteWithIndex)
+	identPAByte := token.NewToken(token.IDENT, "PointerArrayByte", 1)
+	scope.AddSymbol(identPAByte.Literal, datatypePointerToArrayToByte)
+
+	tree6:= ast.NewSyntaxTree(ast.NewNode(asterisk))
+	tree6.Head.AddChild(ast.NewNode(identPAByte))
+
+	tree7:= ast.NewSyntaxTree(ast.NewNode(rbracket))
+	tree7.Head.AddChild(ast.NewNode(numberOutOfBound))
+	tree7.Head.AddChild(ast.NewNode(identAPBool))
+
+	tree8:= ast.NewSyntaxTree(ast.NewNode(rbracket))
+	tree8.Head.AddChild(ast.NewNode(negativeNumber))
+	tree8.Head.AddChild(ast.NewNode(identAPBool))
+
+	tree9:= ast.NewSyntaxTree(ast.NewNode(rbracket))
+	tree9.Head.AddChild(ast.NewNode(identAPBool))
+	tree9.Head.AddChild(ast.NewNode(identAPBool))
+
+	tree10:= ast.NewSyntaxTree(ast.NewNode(asterisk))
+	tree10.Head.AddChild(ast.NewNode(unknown))
+
+	tree11:= ast.NewSyntaxTree(ast.NewNode(asterisk))
+	tree11.Head.AddChild(ast.NewNode(identAPBool))
+
+	tree12:= ast.NewSyntaxTree(ast.NewNode(asterisk))
+	tree12.Head.AddChild(ast.NewNode(asterisk))
+	tree12.Head.Children[0].AddChild(ast.NewNode(asterisk))
+	tree12.Head.Children[0].Children[0].AddChild(ast.NewNode(identPPBool))
+
+	testCases := []cases{
+		{
+			description:      "**identPPBool",
+			ctxNode:          tree1.Head,
+			expectedDatatype: datatypeBool,
+			expectedErr:      nil,
+		},
+		{
+			description:      "*identPPBool",
+			ctxNode:          tree2.Head,
+			expectedDatatype: datatypePointerToBool,
+			expectedErr:      nil,
+		},
+		{
+			description:      "identPPBool",
+			ctxNode:          tree3.Head,
+			expectedDatatype: datatypePointerToPointerToBool,
+			expectedErr:      nil,
+		},
+		{
+			description:      "[10]identAAByte",
+			ctxNode:          tree4.Head,
+			expectedDatatype: datatypeArrayToByteWithIndex,
+			expectedErr:      nil,
+		},
+		{
+			description:      "[8]identAPBool",
+			ctxNode:          tree5.Head,
+			expectedDatatype: datatypePointerToBool,
+			expectedErr:      nil,
+		},
+		{
+			description:      "*identPAByte",
+			ctxNode:          tree6.Head,
+			expectedDatatype: datatypeArrayToByteWithIndex,
+			expectedErr:      nil,
+		},
+		{
+			description:      "[100]identAPBool",
+			ctxNode:          tree7.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.IndexOutOfBounds(identAPBool.Line)),
+		},
+		{
+			description:      "[-100]identAPBool",
+			ctxNode:          tree8.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.NegativeIndex(identAPBool.Line)),
+		},
+		{
+			description:      "[identAPBool]identAPBool",
+			ctxNode:          tree9.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.IndexMustBeAByte(identAPBool.Line)),
+		},
+		{
+			description:      "Unresolved Reference",
+			ctxNode:          tree10.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.UnresolvedReference(unknown.Line, unknown.Literal)),
+		},
+		{
+			description:      "InvalidIndirectOf identAPBool",
+			ctxNode:          tree11.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.InvalidIndirectOf(identAPBool.Line, identAPBool.Literal)),
+		},
+		{
+			description:      "InvalidIndirectOf identPPBool",
+			ctxNode:          tree12.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.InvalidIndirectOf(identPPBool.Line, identPPBool.Literal)),
+		},
+	}
+	for _, scenario := range testCases{
+		t.Run(scenario.description, func(t *testing.T) {
+			getter.SetScope(scope)
+			getter.SetCxtNode(scenario.ctxNode)
+			datatype, err := getter.dereference()
 			assert.Equal(t, scenario.expectedErr, err)
 			assert.Equal(t, scenario.expectedDatatype, datatype)
 		})

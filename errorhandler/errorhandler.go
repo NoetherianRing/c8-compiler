@@ -75,3 +75,9 @@ func IdentifierMissed(line int) string {
 		"\nIdentifier missed"
 	return errorString
 }
+
+func NegativeIndex(line int) string {
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
+		"\nNegative index."
+	return errorString
+}

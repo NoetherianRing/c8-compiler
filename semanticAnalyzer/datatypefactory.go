@@ -506,7 +506,9 @@ func (getter *DataTypeFactory) dereference() (interface{}, error){
 				return nil, err
 			}
 		default:
-		 	panic(errorhandler.UnexpectedCompilerError())
+			line := getter.ctxNode.Value.Line
+			err := errors.New(errorhandler.InvalidIndirectOf(line, identifier.Value.Literal))
+			return nil, err
 		}
 
 	}
@@ -534,11 +536,18 @@ func (getter *DataTypeFactory) validateIndex(compare interface{}) error {
 		if err != nil{
 			panic(errorhandler.UnexpectedCompilerError())
 		}
-		arrayToCompare := compare.(symboltable.Array)
-		if length != arrayToCompare.Length{
+		if length < 0{
 			line := getter.ctxNode.Value.Line
-			err := errors.New(errorhandler.IndexOutOfBounds(line))
+			err := errors.New(errorhandler.NegativeIndex(line))
 			return err
+		}
+		arrayToCompare := compare.(symboltable.Array)
+		if  arrayToCompare.Length != symboltable.UnknownLength{
+			if length >= arrayToCompare.Length{
+				line := getter.ctxNode.Value.Line
+				err := errors.New(errorhandler.IndexOutOfBounds(line))
+				return err
+			}
 		}
 	}
 	return nil
@@ -605,7 +614,7 @@ func (getter *DataTypeFactory) declarationFactoryPointer() (interface{}, error) 
 //declarationFactoryArray validates that the index of an array is valid (by checking its data type) and return a array data type
 //the data type of the elements of the array is obtained by moving the context and calling to declarationFactory()
 func (getter *DataTypeFactory) declarationFactoryArray() (interface{}, error) {
-	length := 0
+	length := symboltable.UnknownLength
 	index := getter.ctxNode.Children[0]
 	if index.Value.Type != token.BYTE{
 		backup := getter.ctxNode
@@ -627,6 +636,11 @@ func (getter *DataTypeFactory) declarationFactoryArray() (interface{}, error) {
 			panic(errorhandler.UnexpectedCompilerError())
 		}
 		length = literal
+		if length < 0{
+			line := getter.ctxNode.Value.Line
+			err := errors.New(errorhandler.NegativeIndex(line))
+			return nil, err
+		}
 	}
 	getter.ctxNode = getter.ctxNode.Children[1]
 	of, err := getter.declarationFactory()

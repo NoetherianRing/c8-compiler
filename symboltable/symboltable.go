@@ -13,7 +13,7 @@ const(
 	KindVoid
 	KindBool
 )
-
+const UnknownLength = -1
 type Scope struct{
 	SubScopes []*Scope
 	NumberOfSubScope int
@@ -62,7 +62,7 @@ func (array Array)Compare(datatype interface{})bool{
 		return false
 	}
 
-	if toCompare.Length != 0 && array.Length !=0{
+	if toCompare.Length != UnknownLength && array.Length !=UnknownLength{
 		if toCompare.Length != array.Length{
 			return false
 		}
@@ -105,7 +105,7 @@ func Fmt(datatype interface{}) string{
 		return "*"+ Fmt(datatype.(Pointer).PointsTo)
 	case Array:
 		array := datatype.(Array)
-		if array.Length != 0{
+		if array.Length != UnknownLength{
 			return "["+strconv.Itoa(array.Length)+"]"+Fmt(array.Of)
 		}else{
 			return "[byte]"+Fmt(array.Of)
