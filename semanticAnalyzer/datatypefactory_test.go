@@ -835,3 +835,582 @@ func TestDereference(t *testing.T){
 		})
 	}
 }
+
+func TestBitwiseExpression(t *testing.T){
+	getter := NewDataTypeGetter()
+	scope := symboltable.CreateMainScope()
+
+
+	type cases struct{
+		description     string
+		ctxNode         *ast.Node
+		expectedDatatype         interface{}
+		expectedErr         error
+
+	}
+	line := 1
+	xor := token.NewToken(token.XOR, token.XOR, line)
+	and := token.NewToken(token.AND, token.AND, line)
+	or := token.NewToken(token.OR, token.OR, line)
+
+	//asterisk := token.NewToken(token.ASTERISK, token.ASTERISK, line)
+	rbracket := token.NewToken(token.RBRACKET, token.RBRACKET, line)
+	parentheses := token.NewToken(token.RPAREN, token.RPAREN, line)
+	address := token.NewToken(token.DOLLAR, token.DOLLAR, line)
+	number10 := token.NewToken(token.BYTE, "10", line)
+//	boolTrue := token.NewToken(token.BOOL, "true", line)
+	funcVoid := token.NewToken(token.IDENT, "myVoidFunc", line)
+	funcArrayByte := token.NewToken(token.IDENT, "myArrayByteFunc", line)
+	pointerBool := token.NewToken(token.IDENT, "myPointerBool", line)
+	varByte := token.NewToken(token.IDENT, "myByte", line)
+	varBool := token.NewToken(token.IDENT, "myBool", line)
+
+	datatypeByte := symboltable.NewByte()
+	scope.AddSymbol(varByte.Literal, datatypeByte)
+
+	datatypeVoid := symboltable.NewVoid()
+
+	datatypeArrayByte :=  symboltable.NewArray(symboltable.UnknownLength, datatypeByte)
+
+	datatypeFuncVoid := symboltable.NewFunction(datatypeVoid, nil)
+	scope.AddSymbol(funcVoid.Literal, datatypeFuncVoid)
+
+	datatypeFuncArrayByte := symboltable.NewFunction(datatypeArrayByte, nil)
+	scope.AddSymbol(funcArrayByte.Literal, datatypeFuncArrayByte)
+
+	datatypeBool := symboltable.NewBool()
+	datatypePointerBool := symboltable.NewPointer(datatypeBool)
+	scope.AddSymbol(pointerBool.Literal, datatypePointerBool)
+	scope.AddSymbol(varBool.Literal, datatypeBool)
+
+	tree1 := ast.NewSyntaxTree(ast.NewNode(xor))
+	tree1.Head.AddChild(ast.NewNode(number10))
+	tree1.Head.AddChild(ast.NewNode(rbracket))
+	tree1.Head.Children[1].AddChild(ast.NewNode(number10))
+	tree1.Head.Children[1].AddChild(ast.NewNode(parentheses))
+	tree1.Head.Children[1].Children[1].AddChild(ast.NewNode(funcArrayByte))
+
+	tree2 := ast.NewSyntaxTree(ast.NewNode(and))
+	tree2.Head.AddChild(ast.NewNode(address))
+	tree2.Head.Children[0].AddChild(ast.NewNode(varBool))
+	tree2.Head.AddChild(ast.NewNode(pointerBool))
+
+	tree3 := ast.NewSyntaxTree(ast.NewNode(or))
+	tree3.Head.AddChild(ast.NewNode(address))
+	tree3.Head.Children[0].AddChild(ast.NewNode(varBool))
+	tree3.Head.AddChild(ast.NewNode(varBool))
+
+	tree4 := ast.NewSyntaxTree(ast.NewNode(xor))
+	tree4.Head.AddChild(ast.NewNode(varBool))
+	tree4.Head.AddChild(ast.NewNode(varByte))
+
+	tree5 := ast.NewSyntaxTree(ast.NewNode(or))
+	tree5.Head.AddChild(ast.NewNode(address))
+	tree5.Head.Children[0].AddChild(ast.NewNode(varBool))
+	tree5.Head.AddChild(ast.NewNode(varByte))
+
+	tree6 := ast.NewSyntaxTree(ast.NewNode(and))
+	tree6.Head.AddChild(ast.NewNode(varByte))
+	tree6.Head.AddChild(ast.NewNode(address))
+	tree6.Head.Children[1].AddChild(ast.NewNode(varBool))
+
+	testCases := []cases{
+		{
+			description:      "10 xor [10]myArrayByteFunc()",
+			ctxNode:          tree1.Head,
+			expectedDatatype: datatypeByte,
+			expectedErr:      nil,
+		},
+		{
+			description:      "$varBool and myPointerBool",
+			ctxNode:          tree2.Head,
+			expectedDatatype: datatypePointerBool,
+			expectedErr:      nil,
+		},
+
+		{
+			description:      "$varBool or varBool",
+			ctxNode:          tree3.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(datatypeBool))),
+		},
+		{
+			description:      "varBool xor varByte",
+			ctxNode:          tree4.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(datatypeBool))),
+		},
+		{
+			description:      "$varBool or varByte",
+			ctxNode:          tree5.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(datatypePointerBool), token.EQ, symboltable.Fmt(datatypeByte))),
+		},
+		{
+		description:      "varByte and $varBool",
+		ctxNode:          tree6.Head,
+		expectedDatatype: nil,
+		expectedErr:      errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(datatypeByte), token.EQ, symboltable.Fmt(datatypePointerBool))),
+	},
+	}
+
+	for _, scenario := range testCases{
+		t.Run(scenario.description, func(t *testing.T) {
+			getter.SetScope(scope)
+			getter.SetCxtNode(scenario.ctxNode)
+			datatype, err := getter.bitwiseExpression()
+			assert.Equal(t, scenario.expectedErr, err)
+			assert.Equal(t, scenario.expectedDatatype, datatype)
+		})
+	}
+}
+
+func TestNumericExpression(t *testing.T){
+	getter := NewDataTypeGetter()
+	scope := symboltable.CreateMainScope()
+
+
+	type cases struct{
+		description     string
+		ctxNode         *ast.Node
+		expectedDatatype         interface{}
+		expectedErr         error
+
+	}
+	line := 1
+	plus := token.NewToken(token.PLUS, token.PLUS, line)
+	minus := token.NewToken(token.MINUS, token.MINUS, line)
+	percent := token.NewToken(token.PERCENT, token.PERCENT, line)
+	slash := token.NewToken(token.SLASH, token.SLASH, line)
+	asterisk := token.NewToken(token.ASTERISK, token.ASTERISK, line)
+
+//	rbracket := token.NewToken(token.RBRACKET, token.RBRACKET, line)
+	number10 := token.NewToken(token.BYTE, "10", line)
+	boolTrue := token.NewToken(token.BOOL, "true", line)
+	funcVoid := token.NewToken(token.IDENT, "myVoidFunc", line)
+	funcArrayByte := token.NewToken(token.IDENT, "myArrayByteFunc", line)
+	pointerBool := token.NewToken(token.IDENT, "myPointer", line)
+	varByte := token.NewToken(token.IDENT, "myByte", line)
+
+
+	datatypeByte := symboltable.NewByte()
+	scope.AddSymbol(varByte.Literal, datatypeByte)
+
+	datatypeVoid := symboltable.NewVoid()
+
+	datatypeArrayByte :=  symboltable.NewArray(symboltable.UnknownLength, datatypeByte)
+
+	datatypeFuncVoid := symboltable.NewFunction(datatypeVoid, nil)
+	scope.AddSymbol(funcVoid.Literal, datatypeFuncVoid)
+
+	datatypeFuncArrayByte := symboltable.NewFunction(datatypeArrayByte, nil)
+	scope.AddSymbol(funcArrayByte.Literal, datatypeFuncArrayByte)
+
+	datatypeBool := symboltable.NewBool()
+	datatypePointerBool := symboltable.NewPointer(datatypeBool)
+	scope.AddSymbol(pointerBool.Literal, datatypePointerBool)
+
+
+	tree1 := ast.NewSyntaxTree(ast.NewNode(plus))
+	tree1.Head.AddChild(ast.NewNode(number10))
+	tree1.Head.AddChild(ast.NewNode(varByte))
+
+	tree2 := ast.NewSyntaxTree(ast.NewNode(minus))
+	tree2.Head.AddChild(ast.NewNode(pointerBool))
+	tree2.Head.AddChild(ast.NewNode(varByte))
+
+	tree3 := ast.NewSyntaxTree(ast.NewNode(slash))
+	tree3.Head.AddChild(ast.NewNode(varByte))
+	tree3.Head.AddChild(ast.NewNode(pointerBool))
+
+	tree4 := ast.NewSyntaxTree(ast.NewNode(percent))
+	tree4.Head.AddChild(ast.NewNode(varByte))
+	tree4.Head.AddChild(ast.NewNode(boolTrue))
+
+	tree5 := ast.NewSyntaxTree(ast.NewNode(asterisk))
+	tree5.Head.AddChild(ast.NewNode(boolTrue))
+	tree5.Head.AddChild(ast.NewNode(varByte))
+	testCases := []cases{
+		{
+			description:      "10 + myByte",
+			ctxNode:          tree1.Head,
+			expectedDatatype: datatypeByte,
+			expectedErr:      nil,
+		},
+		{
+			description:      "pointerBool - myByte",
+			ctxNode:          tree2.Head,
+			expectedDatatype: datatypePointerBool,
+			expectedErr:      nil,
+		},
+		{
+			description:      "myByte / pointerBool",
+			ctxNode:          tree3.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(datatypeByte), "<", symboltable.Fmt(datatypePointerBool))),
+		},
+		{
+			description:      "myByte % true",
+			ctxNode:          tree4.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(datatypeBool))),
+		},
+		{
+			description:      "true * asterisk",
+			ctxNode:          tree5.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(datatypeBool))),
+		},
+	}
+
+	for _, scenario := range testCases{
+		t.Run(scenario.description, func(t *testing.T) {
+			getter.SetScope(scope)
+			getter.SetCxtNode(scenario.ctxNode)
+			datatype, err := getter.numericExpression()
+			assert.Equal(t, scenario.expectedErr, err)
+			assert.Equal(t, scenario.expectedDatatype, datatype)
+		})
+	}
+}
+
+
+func TestNumericLogicalComparison(t *testing.T){
+	getter := NewDataTypeGetter()
+	scope := symboltable.CreateMainScope()
+
+
+	type cases struct{
+		description     string
+		ctxNode         *ast.Node
+		expectedDatatype         interface{}
+		expectedErr         error
+
+	}
+	line := 1
+	lt := token.NewToken(token.LT, token.LT, line)
+	lteq := token.NewToken(token.LTEQ, token.LTEQ, line)
+	gt := token.NewToken(token.GT, token.GT, line)
+	gteq := token.NewToken(token.GTEQ, token.GTEQ, line)
+
+	number10 := token.NewToken(token.BYTE, "10", line)
+	//	boolTrue := token.NewToken(token.BOOL, "true", line)
+	funcVoid := token.NewToken(token.IDENT, "myVoidFunc", line)
+	funcArrayByte := token.NewToken(token.IDENT, "myArrayByteFunc", line)
+	pointerBool := token.NewToken(token.IDENT, "myPointer", line)
+	varByte := token.NewToken(token.IDENT, "myByte", line)
+	varBool := token.NewToken(token.IDENT, "myBool", line)
+	address := token.NewToken(token.DOLLAR, token.DOLLAR, line)
+
+	datatypeByte := symboltable.NewByte()
+	scope.AddSymbol(varByte.Literal, datatypeByte)
+
+	datatypeVoid := symboltable.NewVoid()
+
+	datatypeArrayByte :=  symboltable.NewArray(symboltable.UnknownLength, datatypeByte)
+
+	datatypeFuncVoid := symboltable.NewFunction(datatypeVoid, nil)
+	scope.AddSymbol(funcVoid.Literal, datatypeFuncVoid)
+
+	datatypeFuncArrayByte := symboltable.NewFunction(datatypeArrayByte, nil)
+	scope.AddSymbol(funcArrayByte.Literal, datatypeFuncArrayByte)
+
+	datatypeBool := symboltable.NewBool()
+	scope.AddSymbol(varBool.Literal, datatypeBool)
+
+	datatypePointerBool := symboltable.NewPointer(datatypeBool)
+	scope.AddSymbol(pointerBool.Literal, datatypePointerBool)
+
+
+	tree1 := ast.NewSyntaxTree(ast.NewNode(lt))
+	tree1.Head.AddChild(ast.NewNode(number10))
+	tree1.Head.AddChild(ast.NewNode(varByte))
+
+	tree2 := ast.NewSyntaxTree(ast.NewNode(lteq))
+	tree2.Head.AddChild(ast.NewNode(pointerBool))
+	tree2.Head.AddChild(ast.NewNode(address))
+	tree2.Head.Children[1].AddChild(ast.NewNode(varBool))
+
+	tree3 := ast.NewSyntaxTree(ast.NewNode(gt))
+	tree3.Head.AddChild(ast.NewNode(number10))
+	tree3.Head.AddChild(ast.NewNode(address))
+	tree3.Head.Children[1].AddChild(ast.NewNode(varBool))
+
+	tree4 := ast.NewSyntaxTree(ast.NewNode(gteq))
+	tree4.Head.AddChild(ast.NewNode(address))
+	tree4.Head.Children[0].AddChild(ast.NewNode(varBool))
+	tree4.Head.AddChild(ast.NewNode(number10))
+
+	tree5 := ast.NewSyntaxTree(ast.NewNode(gteq))
+	tree5.Head.AddChild(ast.NewNode(varBool))
+	tree5.Head.AddChild(ast.NewNode(number10))
+
+	tree6 := ast.NewSyntaxTree(ast.NewNode(gteq))
+	tree6.Head.AddChild(ast.NewNode(number10))
+	tree6.Head.AddChild(ast.NewNode(varBool))
+
+	testCases := []cases{
+		{
+			description:      "10 < myByte",
+			ctxNode:          tree1.Head,
+			expectedDatatype: datatypeBool,
+			expectedErr:      nil,
+		},
+		{
+			description:      "myPointerToBool <= &myBool",
+			ctxNode:          tree2.Head,
+			expectedDatatype: datatypeBool,
+			expectedErr:      nil,
+		},
+		{
+			description:      "10 > &myBool",
+			ctxNode:          tree3.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(datatypeByte), token.EQ, symboltable.Fmt(datatypePointerBool))),
+		},
+		{
+			description:      "&myBool >= 10",
+			ctxNode:          tree4.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(datatypePointerBool), token.EQ, symboltable.Fmt(datatypeByte))),
+		},
+		{
+			description:      "true >= 10",
+			ctxNode:          tree5.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(datatypeBool))),
+		},
+		{
+			description:      "10 >= true",
+			ctxNode:          tree6.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(datatypeBool))),
+		},
+	}
+
+	for _, scenario := range testCases{
+		t.Run(scenario.description, func(t *testing.T) {
+			getter.SetScope(scope)
+			getter.SetCxtNode(scenario.ctxNode)
+			datatype, err := getter.numericLogicalComparison()
+			assert.Equal(t, scenario.expectedErr, err)
+			assert.Equal(t, scenario.expectedDatatype, datatype)
+		})
+	}
+}
+
+
+func TestComparison(t *testing.T){
+	getter := NewDataTypeGetter()
+	scope := symboltable.CreateMainScope()
+
+
+	type cases struct{
+		description     string
+		ctxNode         *ast.Node
+		expectedDatatype         interface{}
+		expectedErr         error
+
+	}
+	line := 1
+	eq := token.NewToken(token.EQEQ, token.EQEQ, line)
+	noteq := token.NewToken(token.NOTEQ, token.NOTEQ, line)
+
+	number10 := token.NewToken(token.BYTE, "10", line)
+	//	boolTrue := token.NewToken(token.BOOL, "true", line)
+	funcVoid := token.NewToken(token.IDENT, "myVoidFunc", line)
+	funcArrayByte := token.NewToken(token.IDENT, "myArrayByteFunc", line)
+	pointerBool := token.NewToken(token.IDENT, "myPointer", line)
+	varByte := token.NewToken(token.IDENT, "myByte", line)
+	varBool := token.NewToken(token.IDENT, "myBool", line)
+	address := token.NewToken(token.DOLLAR, token.DOLLAR, line)
+
+	datatypeByte := symboltable.NewByte()
+	scope.AddSymbol(varByte.Literal, datatypeByte)
+
+	datatypeVoid := symboltable.NewVoid()
+
+	datatypeArrayByte :=  symboltable.NewArray(symboltable.UnknownLength, datatypeByte)
+
+	datatypeFuncVoid := symboltable.NewFunction(datatypeVoid, nil)
+	scope.AddSymbol(funcVoid.Literal, datatypeFuncVoid)
+
+	datatypeFuncArrayByte := symboltable.NewFunction(datatypeArrayByte, nil)
+	scope.AddSymbol(funcArrayByte.Literal, datatypeFuncArrayByte)
+
+	datatypeBool := symboltable.NewBool()
+	scope.AddSymbol(varBool.Literal, datatypeBool)
+
+	datatypePointerBool := symboltable.NewPointer(datatypeBool)
+	scope.AddSymbol(pointerBool.Literal, datatypePointerBool)
+
+
+	tree1 := ast.NewSyntaxTree(ast.NewNode(eq))
+	tree1.Head.AddChild(ast.NewNode(number10))
+	tree1.Head.AddChild(ast.NewNode(varByte))
+
+	tree2 := ast.NewSyntaxTree(ast.NewNode(noteq))
+	tree2.Head.AddChild(ast.NewNode(pointerBool))
+	tree2.Head.AddChild(ast.NewNode(address))
+	tree2.Head.Children[1].AddChild(ast.NewNode(varBool))
+
+	tree3 := ast.NewSyntaxTree(ast.NewNode(eq))
+	tree3.Head.AddChild(ast.NewNode(varByte))
+	tree3.Head.AddChild(ast.NewNode(address))
+	tree3.Head.Children[1].AddChild(ast.NewNode(varBool))
+
+
+	testCases := []cases{
+		{
+			description:      "10 == myByte",
+			ctxNode:          tree1.Head,
+			expectedDatatype: datatypeBool,
+			expectedErr:      nil,
+		},
+		{
+			description:      "myPointerToBool != &myBool",
+			ctxNode:          tree2.Head,
+			expectedDatatype: datatypeBool,
+			expectedErr:      nil,
+		},
+		{
+			description:      "$myByte > &myBool",
+			ctxNode:          tree3.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(datatypeByte), token.EQ, symboltable.Fmt(datatypePointerBool))),
+		},
+
+	}
+
+	for _, scenario := range testCases{
+		t.Run(scenario.description, func(t *testing.T) {
+			getter.SetScope(scope)
+			getter.SetCxtNode(scenario.ctxNode)
+			datatype, err := getter.comparison()
+			assert.Equal(t, scenario.expectedErr, err)
+			assert.Equal(t, scenario.expectedDatatype, datatype)
+		})
+	}
+}
+
+
+func TestLogicExpression(t *testing.T){
+	getter := NewDataTypeGetter()
+	scope := symboltable.CreateMainScope()
+
+
+	type cases struct{
+		description     string
+		ctxNode         *ast.Node
+		expectedDatatype         interface{}
+		expectedErr         error
+
+	}
+	line := 1
+	and := token.NewToken(token.LAND, token.LAND, line)
+	not := token.NewToken(token.BANG, token.BANG, line)
+	or := token.NewToken(token.LOR, token.LOR, line)
+
+	number10 := token.NewToken(token.BYTE, "10", line)
+	boolTrue := token.NewToken(token.BOOL, "true", line)
+	funcVoid := token.NewToken(token.IDENT, "myVoidFunc", line)
+	funcArrayByte := token.NewToken(token.IDENT, "myArrayByteFunc", line)
+	pointerBool := token.NewToken(token.IDENT, "myPointer", line)
+	varByte := token.NewToken(token.IDENT, "myByte", line)
+	varBool := token.NewToken(token.IDENT, "myBool", line)
+	asterisk := token.NewToken(token.ASTERISK, token.ASTERISK, line)
+
+	datatypeByte := symboltable.NewByte()
+	scope.AddSymbol(varByte.Literal, datatypeByte)
+
+	datatypeVoid := symboltable.NewVoid()
+
+	datatypeArrayByte :=  symboltable.NewArray(symboltable.UnknownLength, datatypeByte)
+
+	datatypeFuncVoid := symboltable.NewFunction(datatypeVoid, nil)
+	scope.AddSymbol(funcVoid.Literal, datatypeFuncVoid)
+
+	datatypeFuncArrayByte := symboltable.NewFunction(datatypeArrayByte, nil)
+	scope.AddSymbol(funcArrayByte.Literal, datatypeFuncArrayByte)
+
+	datatypeBool := symboltable.NewBool()
+	scope.AddSymbol(varBool.Literal, datatypeBool)
+
+	datatypePointerBool := symboltable.NewPointer(datatypeBool)
+	scope.AddSymbol(pointerBool.Literal, datatypePointerBool)
+
+
+	tree1 := ast.NewSyntaxTree(ast.NewNode(and))
+	tree1.Head.AddChild(ast.NewNode(number10))
+	tree1.Head.AddChild(ast.NewNode(asterisk))
+	tree1.Head.Children[1].AddChild(ast.NewNode(pointerBool))
+
+	tree2 := ast.NewSyntaxTree(ast.NewNode(or))
+	tree2.Head.AddChild(ast.NewNode(varBool))
+	tree2.Head.AddChild(ast.NewNode(varByte))
+
+	tree3 := ast.NewSyntaxTree(ast.NewNode(not))
+	tree3.Head.AddChild(ast.NewNode(varByte))
+
+	tree4 := ast.NewSyntaxTree(ast.NewNode(not))
+	tree4.Head.AddChild(ast.NewNode(asterisk))
+	tree4.Head.Children[0].AddChild(ast.NewNode(pointerBool))
+
+	tree5 := ast.NewSyntaxTree(ast.NewNode(or))
+	tree5.Head.AddChild(ast.NewNode(varBool))
+	tree5.Head.AddChild(ast.NewNode(boolTrue))
+
+
+
+	testCases := []cases{
+		{
+			description:      "10 && *pointerToBool",
+			ctxNode:          tree1.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.UnexpectedDataType(line,symboltable.Fmt(datatypeBool), symboltable.Fmt(datatypeByte))),
+		},
+		{
+			description:      "myBool || myByte",
+			ctxNode:          tree2.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.UnexpectedDataType(line,symboltable.Fmt(datatypeBool), symboltable.Fmt(datatypeByte))),
+		},
+		{
+			description:      "!myByte",
+			ctxNode:          tree3.Head,
+			expectedDatatype: nil,
+			expectedErr:      errors.New(errorhandler.UnexpectedDataType(line,symboltable.Fmt(datatypeBool), symboltable.Fmt(datatypeByte))),
+		},
+		{
+			description:      "!*pointerBool",
+			ctxNode:          tree4.Head,
+			expectedDatatype: datatypeBool,
+			expectedErr:      nil,
+		},
+		{
+			description:      "myBool || true",
+			ctxNode:          tree5.Head,
+			expectedDatatype: datatypeBool,
+			expectedErr:      nil,
+		},
+
+
+
+	}
+
+	for _, scenario := range testCases{
+		t.Run(scenario.description, func(t *testing.T) {
+			getter.SetScope(scope)
+			getter.SetCxtNode(scenario.ctxNode)
+			datatype, err := getter.logicExpression()
+			assert.Equal(t, scenario.expectedErr, err)
+			assert.Equal(t, scenario.expectedDatatype, datatype)
+		})
+	}
+}
+
+
+
+
+
+
