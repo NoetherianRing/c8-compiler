@@ -75,9 +75,21 @@ func IdentifierMissed(line int) string {
 		"\nIdentifier missed"
 	return errorString
 }
+func NameAlreadyInUse(line int, reference string) string {
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
+		"\nThe name " + reference + " is already in use"
+	return errorString
+}
 
 func NegativeIndex(line int) string {
 	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
 		"\nNegative index."
 	return errorString
+}
+
+func UnreachableCode(line int) string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
+		"\nUnreachable code "
+	return errorString
+
 }

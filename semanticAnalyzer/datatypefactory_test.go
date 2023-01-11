@@ -11,7 +11,7 @@ import (
 )
 
 func TestSimple(t *testing.T) {
-	getter := NewDataTypeGetter()
+	getter := NewDataTypeFactory()
 	scope := symboltable.CreateMainScope()
 
 
@@ -58,7 +58,7 @@ func TestSimple(t *testing.T) {
 }
 
 func TestDeclaration(t *testing.T) {
-	getter := NewDataTypeGetter()
+	getter := NewDataTypeFactory()
 	scope := symboltable.CreateMainScope()
 	scope.AddSymbol("BoolInSymbolTable", symboltable.NewBool())
 	scope.AddSymbol("ByteInSymbolTable", symboltable.NewByte())
@@ -265,7 +265,7 @@ func TestDeclaration(t *testing.T) {
 }
 
 func TestReference(t *testing.T){
-	getter := NewDataTypeGetter()
+	getter := NewDataTypeFactory()
 	scope := symboltable.CreateMainScope()
 
 	type cases struct {
@@ -402,7 +402,7 @@ func TestReference(t *testing.T){
 }
 
 func TestFunctionCall(t *testing.T){
-	getter := NewDataTypeGetter()
+	getter := NewDataTypeFactory()
 	scope := symboltable.CreateMainScope()
 
 	type cases struct {
@@ -662,7 +662,7 @@ func TestFunctionCall(t *testing.T){
 
 func TestDereference(t *testing.T){
 
-	getter := NewDataTypeGetter()
+	getter := NewDataTypeFactory()
 	scope := symboltable.CreateMainScope()
 
 
@@ -837,7 +837,7 @@ func TestDereference(t *testing.T){
 }
 
 func TestBitwiseExpression(t *testing.T){
-	getter := NewDataTypeGetter()
+	getter := NewDataTypeFactory()
 	scope := symboltable.CreateMainScope()
 
 
@@ -966,7 +966,7 @@ func TestBitwiseExpression(t *testing.T){
 }
 
 func TestNumericExpression(t *testing.T){
-	getter := NewDataTypeGetter()
+	getter := NewDataTypeFactory()
 	scope := symboltable.CreateMainScope()
 
 
@@ -1076,7 +1076,7 @@ func TestNumericExpression(t *testing.T){
 
 
 func TestNumericLogicalComparison(t *testing.T){
-	getter := NewDataTypeGetter()
+	getter := NewDataTypeFactory()
 	scope := symboltable.CreateMainScope()
 
 
@@ -1201,7 +1201,7 @@ func TestNumericLogicalComparison(t *testing.T){
 
 
 func TestComparison(t *testing.T){
-	getter := NewDataTypeGetter()
+	getter := NewDataTypeFactory()
 	scope := symboltable.CreateMainScope()
 
 
@@ -1295,7 +1295,7 @@ func TestComparison(t *testing.T){
 
 
 func TestLogicExpression(t *testing.T){
-	getter := NewDataTypeGetter()
+	getter := NewDataTypeFactory()
 	scope := symboltable.CreateMainScope()
 
 

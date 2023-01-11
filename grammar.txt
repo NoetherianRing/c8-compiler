@@ -2,8 +2,13 @@ program -> block eof
 
 block ->  {stmnts}
 
-funcBlock ->  {stmnts return expression}
-             | block
+funcBlock ->  {func_statements}
+
+func_statements -> statement func_statements
+                   | returnStatement
+
+returnStatement -> return expression
+                 | return
 
 stmnts -> stmnt stmnts
         |stmnt

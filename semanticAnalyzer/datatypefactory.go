@@ -17,7 +17,7 @@ type DataTypeFactory struct{
 	walkingAFunc bool
 }
 
-func NewDataTypeGetter() *DataTypeFactory {
+func NewDataTypeFactory() *DataTypeFactory {
 	getter := new(DataTypeFactory)
 	getter.walkingAFunc = false
 	getter.ctxNode = nil
@@ -44,7 +44,7 @@ func (getter *DataTypeFactory) GetDataType()(interface{}, error){
 		panic(errorhandler.UnexpectedCompilerError())
 	}
 	get := getter.redirect()
-//	getter.scope = nil
+//	getter.currentScope = nil
 //	getter.ctxNode = nil
 	return get()
 }
