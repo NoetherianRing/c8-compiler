@@ -93,3 +93,13 @@ func UnreachableCode(line int) string{
 	return errorString
 
 }
+func IllegalToken(line int, t string)  string{
+
+	errorString := "\n illegal token: \"" + t + "\" \n in line: " + strconv.Itoa(line)
+	return errorString
+}
+
+func SyntaxError(line int, symbol string)string{
+	errorString := "syntactic error\nin line: "+ strconv.Itoa(line) + "\nin symbol: "+ symbol
+	return errorString
+}

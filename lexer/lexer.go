@@ -2,9 +2,9 @@ package lexer
 
 import (
 	"errors"
+	"github.com/NoetherianRing/c8-compiler/errorhandler"
 	"github.com/NoetherianRing/c8-compiler/token"
 	"os"
-	"strconv"
 )
 
 type Lexer struct{
@@ -40,7 +40,7 @@ func (l *Lexer) GetTokens() ([]token.Token, error){
 	t := l.nextToken()
 	for t.Type != token.EOF{
 		if t.Type == token.ILLEGAL{
-			errorString := "\n illegal token: \"" + t.Literal + "\" \n in line: " + strconv.Itoa(t.Line)
+			errorString := errorhandler.IllegalToken(t.Line, t.Literal)
 			return nil, errors.New(errorString)
 		}
 		tokens = append(tokens, t)

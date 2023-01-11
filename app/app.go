@@ -3,11 +3,11 @@ package app
 import (
 	"errors"
 	"github.com/NoetherianRing/c8-compiler/ast"
+	"github.com/NoetherianRing/c8-compiler/errorhandler"
 	"github.com/NoetherianRing/c8-compiler/lexer"
 	"github.com/NoetherianRing/c8-compiler/syntacticanalyzer"
 	"github.com/NoetherianRing/c8-compiler/token"
 	"path/filepath"
-	"strconv"
 )
 
 type App struct{
@@ -39,8 +39,7 @@ func (app *App) Program(){
 	valid := app.program.Build(&src, tree)
 
 	if !valid{
-		errorString := "syntactic errorhandler\nin line: "+ strconv.Itoa(src[0].Line) + "\nin symbol: "+ src[0].Literal
-		err2:= errors.New(errorString)
+		err2:= errors.New(errorhandler.SyntaxError(src[0].Line, src[0].Literal))
 		panic(err2)
 	}
 

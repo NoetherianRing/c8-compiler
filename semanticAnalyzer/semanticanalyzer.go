@@ -34,6 +34,7 @@ func NewSemanticAnalyzer(tree *ast.SyntaxTree)*SemanticAnalyzer{
 	return analyzer
 }
 
+//Start save in the symbol table the primitive functions, and validates the semantic of all the program
 func (analyzer *SemanticAnalyzer) Start() error{
 	ok := analyzer.savePrimitiveFunctions()
 	if !ok{
@@ -43,6 +44,7 @@ func (analyzer *SemanticAnalyzer) Start() error{
 	return analyzer.validate[next]()
 }
 
+//block creates a new sub scope and validates the semantic of all the statements within the block
 func(analyzer *SemanticAnalyzer) block()error{
 	analyzer.currentScope.AddSubScope()
 	lastAdded := len(analyzer.currentScope.SubScopes)-1
@@ -61,6 +63,8 @@ func(analyzer *SemanticAnalyzer) block()error{
 	return nil
 }
 
+//let validates the semantic of a declaration statements, checks that the name of the declaration is not already in use,
+//and if its not, save the new variable in the symbol table of the current scope
 func(analyzer *SemanticAnalyzer) let()error{
 	name := analyzer.ctxNode.Children[0].Value.Literal
 	datatypeTree := analyzer.ctxNode.Children[1]
@@ -78,6 +82,8 @@ func(analyzer *SemanticAnalyzer) let()error{
 
 	return nil
 }
+
+//assign validates the semantic of assignation statements
 func(analyzer *SemanticAnalyzer) assign()error{
 	leftTree := analyzer.ctxNode.Children[0]
 	analyzer.updateDataTypeFactoryCtx(leftTree)
@@ -101,6 +107,8 @@ func(analyzer *SemanticAnalyzer) assign()error{
 	return nil
 }
 
+//fn validates the semantic of the declaration of a function, then checks that the name of the declaration is not already in use,
+//and if its not, save the new variable in the symbol table of the current scope
 func(analyzer *SemanticAnalyzer) fn()error{
 	backup := analyzer.ctxNode
 	analyzer.ctxNode = analyzer.ctxNode.Children[0]
@@ -131,11 +139,16 @@ func(analyzer *SemanticAnalyzer) fn()error{
 	}
 	analyzer.ctxNode = backup
 	function := symboltable.NewFunction(expectedReturnDataType, args)
-	analyzer.currentScope.AddSymbol(name, function)
+	ok := analyzer.currentScope.AddSymbol(name, function)
+	if !ok{
+		line := analyzer.ctxNode.Value.Line
+		err = errors.New(errorhandler.NameAlreadyInUse(line, name))
+	}
 	return nil
 
 }
 
+//call validates the semantic of functions calls
 func(analyzer *SemanticAnalyzer) call()error{
 	toAnalyze := analyzer.ctxNode
 	analyzer.updateDataTypeFactoryCtx(toAnalyze)
@@ -152,10 +165,12 @@ func(analyzer *SemanticAnalyzer) call()error{
 	return nil
 }
 
+//_if validates the semantic of if statements
 func(analyzer *SemanticAnalyzer) _if()error{
 	return analyzer.validateConditionAndBlock()
 }
 
+//_else validates the semantic of if/else statements
 func(analyzer *SemanticAnalyzer) _else()error{
 	err := analyzer.validateConditionAndBlock()
 	if err != nil{
@@ -166,10 +181,13 @@ func(analyzer *SemanticAnalyzer) _else()error{
 	return err
 }
 
+//_while validates the semantic of while statements
 func(analyzer *SemanticAnalyzer) _while()error{
 	return analyzer.validateConditionAndBlock()
 }
 
+//validateConditionAndBlock validates that the condition of a statement suck as if, if/else and while
+//is a boolean expression, and then executes the block of the statement
 func (analyzer *SemanticAnalyzer) validateConditionAndBlock() error {
 	boolDatatype := symboltable.NewBool()
 	condition := analyzer.ctxNode.Children[0]
@@ -189,12 +207,14 @@ func (analyzer *SemanticAnalyzer) validateConditionAndBlock() error {
 	return err
 }
 
+//savePrimitiveFunctions save into the symbol table the primitive functions of the language
 func(analyzer *SemanticAnalyzer) savePrimitiveFunctions() bool{
 	return analyzer.saveDraw()  &&
 		analyzer.saveSetDT() && analyzer.saveGetDT() &&
-		analyzer.saveSetST() && analyzer.saveGetST()
+		analyzer.saveSetST() && analyzer.saveWaitKey()
 }
 
+//saveDraw save into the symbol table a function named Draw that represents the chip-8 opcode DXYN
 func(analyzer *SemanticAnalyzer) saveDraw() bool{
 	byteType := symboltable.NewByte()
 	paramType := make([]interface{},4)
@@ -204,42 +224,57 @@ func(analyzer *SemanticAnalyzer) saveDraw() bool{
 	paramType[3] = byteType //length
 	returnType := symboltable.NewBool() //collision
 	functionType := symboltable.NewFunction(returnType, paramType)
-	return analyzer.currentScope.AddSymbol("DRAW", functionType)
+	return analyzer.currentScope.AddSymbol("Draw", functionType)
 }
 
+//saveSetDT save into the symbol table a function named SetDT that represents the chip-8 opcode FX15
 func(analyzer *SemanticAnalyzer) saveSetDT() bool{
 	paramType := make([]interface{},1)
 	paramType[0] = symboltable.NewByte()
 	returnType := symboltable.NewVoid()
 	functionType := symboltable.NewFunction(returnType, paramType)
-	return analyzer.currentScope.AddSymbol("SET_DT", functionType)
+	return analyzer.currentScope.AddSymbol("SetDT", functionType)
 }
 
+//saveGetDT save into the symbol table a function named GetDT that represents the chip-8 opcode FX07
 func(analyzer *SemanticAnalyzer) saveGetDT() bool{
 	returnType := symboltable.NewByte()
 	functionType := symboltable.NewFunction(returnType, nil)
-	return analyzer.currentScope.AddSymbol("GET_DT", functionType)
+	return analyzer.currentScope.AddSymbol("GetDT", functionType)
 }
 
+//saveSetST save into the symbol table a function named SetST that represents the chip-8 opcode FX18
 func(analyzer *SemanticAnalyzer) saveSetST() bool{
 	paramType := make([]interface{},1)
 	paramType[0] = symboltable.NewByte()
 	returnType := symboltable.NewVoid()
 	functionType := symboltable.NewFunction(returnType, paramType)
-	return analyzer.currentScope.AddSymbol("SET_ST", functionType)
+	return analyzer.currentScope.AddSymbol("SetST", functionType)
 }
 
-func(analyzer *SemanticAnalyzer) saveGetST() bool{
+//saveWaitKey save into the symbol table a function named WaitKey that represents the chip-8 opcode FX0A
+func(analyzer *SemanticAnalyzer) saveWaitKey() bool{
 	returnType := symboltable.NewByte()
 	functionType := symboltable.NewFunction(returnType, nil)
-	return analyzer.currentScope.AddSymbol("GET_ST", functionType)
+	return analyzer.currentScope.AddSymbol("WaitKey", functionType)
+}
+//saveIsKeyPressed save into the symbol table a function named IsKeyPressed that returns true if the key was pressed
+func(analyzer *SemanticAnalyzer) saveIsKeyPressed() bool{
+	paramType := make([]interface{},1)
+	paramType[0] = symboltable.NewByte()
+	returnType := symboltable.NewBool()
+	functionType := symboltable.NewFunction(returnType, paramType)
+	return analyzer.currentScope.AddSymbol("IsKeyPressed", functionType)
 }
 
+//updateDataTypeFactoryCtx updates the context of datatypeFactory
 func(analyzer *SemanticAnalyzer) updateDataTypeFactoryCtx(toAnalyze *ast.Node) {
 	analyzer.datatypeFactory.SetCxtNode(toAnalyze)
 	analyzer.datatypeFactory.SetScope(analyzer.currentScope)
 }
 
+//funcBlock a new sub scope and validates the semantic of all the statements within the block,
+//then returns the data type of the return statement
 func(analyzer *SemanticAnalyzer) funcBlock()(interface{}, error){
 	analyzer.currentScope.AddSubScope()
 	lastAdded := len(analyzer.currentScope.SubScopes)-1
@@ -267,12 +302,19 @@ func(analyzer *SemanticAnalyzer) funcBlock()(interface{}, error){
 	return symboltable.NewVoid(), nil
 }
 
+//handleParams validates the semantic of all the params of a function and save them in the symbol table of a new scope
+//then returns an array with all the data types of the params
 func (analyzer *SemanticAnalyzer) handleParams()([]interface{},error) {
 	if len(analyzer.ctxNode.Children) == 0 {
 		return nil, nil
 	}
+
 	args := make([]interface{},0)
 	analyzer.ctxNode = analyzer.ctxNode.Children[0]
+	analyzer.currentScope.AddSubScope()
+	lastAdded := len(analyzer.currentScope.SubScopes)-1
+	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded]
+
 	for len(analyzer.ctxNode.Children) == 2{
 		 param, err := analyzer.handleParam(0)
 		 if err != nil{
@@ -301,9 +343,13 @@ func (analyzer *SemanticAnalyzer) handleParams()([]interface{},error) {
 
 		args = append(args, param)
 	}
+	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded].Parent
+
 	return args, nil
 }
 
+//handleParams validates the semantic of each single the param of a function and save it in the symbol table of a new scope
+//then returns the data types of the param
 func (analyzer *SemanticAnalyzer) handleParam(i int) (interface{}, error) {
 	backup := analyzer.ctxNode
 	analyzer.ctxNode = analyzer.ctxNode.Children[i]
