@@ -99,6 +99,19 @@ func IllegalToken(line int, t string)  string{
 	return errorString
 }
 
+func FunctionOutsideGlobalScope(line int)string{
+	errorString := "syntactic error\nin line: "+ strconv.Itoa(line) + "\nfunction declaration outside global scope"
+	return errorString
+}
+
+func GlobalScopeOnlyAllowsDeclarations(line int)string{
+	errorString := "syntactic error\nin line: "+ strconv.Itoa(line) + "\nglobal scope only allows declarations"
+	return errorString
+}
+func MainFunctionNeeded()string{
+	errorString := "main function needed\n"
+	return errorString
+}
 func SyntaxError(line int, symbol string)string{
 	errorString := "syntactic error\nin line: "+ strconv.Itoa(line) + "\nin symbol: "+ symbol
 	return errorString

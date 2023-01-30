@@ -12,7 +12,7 @@ import (
 
 func TestSimple(t *testing.T) {
 	getter := NewDataTypeFactory()
-	scope := symboltable.CreateMainScope()
+	scope := symboltable.CreateGlobalScope()
 
 
 	type cases struct{
@@ -59,7 +59,7 @@ func TestSimple(t *testing.T) {
 
 func TestDeclaration(t *testing.T) {
 	getter := NewDataTypeFactory()
-	scope := symboltable.CreateMainScope()
+	scope := symboltable.CreateGlobalScope()
 	scope.AddSymbol("BoolInSymbolTable", symboltable.NewBool())
 	scope.AddSymbol("ByteInSymbolTable", symboltable.NewByte())
 	scope.AddSymbol("PointerInSymbolTable", symboltable.NewPointer(nil))
@@ -266,7 +266,7 @@ func TestDeclaration(t *testing.T) {
 
 func TestReference(t *testing.T){
 	getter := NewDataTypeFactory()
-	scope := symboltable.CreateMainScope()
+	scope := symboltable.CreateGlobalScope()
 
 	type cases struct {
 		description      string
@@ -403,7 +403,7 @@ func TestReference(t *testing.T){
 
 func TestFunctionCall(t *testing.T){
 	getter := NewDataTypeFactory()
-	scope := symboltable.CreateMainScope()
+	scope := symboltable.CreateGlobalScope()
 
 	type cases struct {
 		description      string
@@ -663,7 +663,7 @@ func TestFunctionCall(t *testing.T){
 func TestDereference(t *testing.T){
 
 	getter := NewDataTypeFactory()
-	scope := symboltable.CreateMainScope()
+	scope := symboltable.CreateGlobalScope()
 
 
 	type cases struct{
@@ -838,7 +838,7 @@ func TestDereference(t *testing.T){
 
 func TestBitwiseExpression(t *testing.T){
 	getter := NewDataTypeFactory()
-	scope := symboltable.CreateMainScope()
+	scope := symboltable.CreateGlobalScope()
 
 
 	type cases struct{
@@ -967,7 +967,7 @@ func TestBitwiseExpression(t *testing.T){
 
 func TestNumericExpression(t *testing.T){
 	getter := NewDataTypeFactory()
-	scope := symboltable.CreateMainScope()
+	scope := symboltable.CreateGlobalScope()
 
 
 	type cases struct{
@@ -1077,7 +1077,7 @@ func TestNumericExpression(t *testing.T){
 
 func TestNumericLogicalComparison(t *testing.T){
 	getter := NewDataTypeFactory()
-	scope := symboltable.CreateMainScope()
+	scope := symboltable.CreateGlobalScope()
 
 
 	type cases struct{
@@ -1202,7 +1202,7 @@ func TestNumericLogicalComparison(t *testing.T){
 
 func TestComparison(t *testing.T){
 	getter := NewDataTypeFactory()
-	scope := symboltable.CreateMainScope()
+	scope := symboltable.CreateGlobalScope()
 
 
 	type cases struct{
@@ -1296,7 +1296,7 @@ func TestComparison(t *testing.T){
 
 func TestLogicExpression(t *testing.T){
 	getter := NewDataTypeFactory()
-	scope := symboltable.CreateMainScope()
+	scope := symboltable.CreateGlobalScope()
 
 
 	type cases struct{

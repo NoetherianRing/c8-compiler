@@ -5,6 +5,7 @@ import (
 	"github.com/NoetherianRing/c8-compiler/ast"
 	"github.com/NoetherianRing/c8-compiler/errorhandler"
 	"github.com/NoetherianRing/c8-compiler/lexer"
+	"github.com/NoetherianRing/c8-compiler/semanticAnalyzer"
 	"github.com/NoetherianRing/c8-compiler/syntacticanalyzer"
 	"github.com/NoetherianRing/c8-compiler/token"
 	"path/filepath"
@@ -37,10 +38,16 @@ func (app *App) Program(){
 	}
 	tree := ast.NewSyntaxTree(ast.NewNode(token.NewToken("", "", 0)))
 	valid := app.program.Build(&src, tree)
-
 	if !valid{
-		err2:= errors.New(errorhandler.SyntaxError(src[0].Line, src[0].Literal))
-		panic(err2)
+		err = errors.New(errorhandler.SyntaxError(src[0].Line, src[0].Literal))
+		panic(err)
 	}
+
+	semantic := semanticAnalyzer.NewSemanticAnalyzer(tree)
+	err = semantic.Start()
+	if err != nil{
+		panic(err)
+	}
+
 
 }

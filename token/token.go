@@ -49,6 +49,7 @@ const (
 	IF = "IF"
 	ELSE = "ELSE"
 	RETURN = "RETURN"
+	MAIN = "MAIN"
 
 	TYPEBOOL = "TYPEBOOL"
 	TYPEBYTE = "TYPEBYTE"

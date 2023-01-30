@@ -163,7 +163,7 @@ func newSymbol(identifier string, datatype interface{})*Symbol{
 	return symbol
 }
 
-func CreateMainScope()*Scope{
+func CreateGlobalScope()*Scope{
 	return &Scope{
 		SubScopes:        make([]*Scope, 0),
 		NumberOfSubScope: 0,

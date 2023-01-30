@@ -20,7 +20,7 @@ type SemanticAnalyzer struct{
 func NewSemanticAnalyzer(tree *ast.SyntaxTree)*SemanticAnalyzer{
 	analyzer := new(SemanticAnalyzer)
 	analyzer.datatypeFactory = NewDataTypeFactory()
-	analyzer.currentScope = symboltable.CreateMainScope()
+	analyzer.currentScope = symboltable.CreateGlobalScope()
 	analyzer.ctxNode = tree.Head
 	analyzer.validate = make(statementValidator)
 	analyzer.validate[token.RBRACE] = analyzer.block
@@ -34,14 +34,35 @@ func NewSemanticAnalyzer(tree *ast.SyntaxTree)*SemanticAnalyzer{
 	return analyzer
 }
 
-//Start save in the symbol table the primitive functions, and validates the semantic of all the program
+//Start save in the symbol table the primitive functions, and validates the semantic of global declarations
+//It also checks the declaration of a main function
 func (analyzer *SemanticAnalyzer) Start() error{
 	ok := analyzer.savePrimitiveFunctions()
 	if !ok{
 		panic(errorhandler.UnexpectedCompilerError())
 	}
-	next := analyzer.ctxNode.Children[0].Value.Type
-	return analyzer.validate[next]()
+	globalScope := analyzer.currentScope
+	globalDeclarations := analyzer.ctxNode.Children[0].Children
+
+	for _, declaration := range globalDeclarations{
+		analyzer.ctxNode = declaration
+		next := declaration.Value.Type
+		if next != token.FUNCTION && next != token.LET{
+			line := analyzer.ctxNode.Value.Line
+			return errors.New(errorhandler.GlobalScopeOnlyAllowsDeclarations(line))
+		}
+		err := analyzer.validate[next]()
+		if err != nil{
+			return err
+		}
+	}
+	_, existMain := globalScope.Symbols[token.MAIN]
+
+	if !existMain{
+		return errors.New(errorhandler.MainFunctionNeeded())
+	}
+
+	return nil
 }
 
 //block creates a new sub scope and validates the semantic of all the statements within the block
@@ -53,6 +74,11 @@ func(analyzer *SemanticAnalyzer) block()error{
 	for _, child := range analyzer.ctxNode.Children{
 		analyzer.ctxNode = child
 		next := child.Value.Type
+		//functions only can be declared in the global scope
+		if next == token.FUNCTION{
+			line := analyzer.ctxNode.Value.Line
+			return errors.New(errorhandler.FunctionOutsideGlobalScope(line))
+		}
 		err := analyzer.validate[next]()
 		if err != nil{
 			return err
@@ -209,7 +235,7 @@ func (analyzer *SemanticAnalyzer) validateConditionAndBlock() error {
 
 //savePrimitiveFunctions save into the symbol table the primitive functions of the language
 func(analyzer *SemanticAnalyzer) savePrimitiveFunctions() bool{
-	return analyzer.saveDraw()  &&
+	return analyzer.saveDraw()  && analyzer.saveClean() &&
 		analyzer.saveSetDT() && analyzer.saveGetDT() &&
 		analyzer.saveSetST() && analyzer.saveWaitKey()
 }
@@ -226,6 +252,14 @@ func(analyzer *SemanticAnalyzer) saveDraw() bool{
 	functionType := symboltable.NewFunction(returnType, paramType)
 	return analyzer.currentScope.AddSymbol("Draw", functionType)
 }
+
+//saveClean save into the symbol table a function named Clean that represents the chip-8 opcode I00E0
+func(analyzer *SemanticAnalyzer) saveClean() bool{
+	returnType := symboltable.NewVoid()
+	functionType := symboltable.NewFunction(returnType, nil)
+	return analyzer.currentScope.AddSymbol("Clean", functionType)
+}
+
 
 //saveSetDT save into the symbol table a function named SetDT that represents the chip-8 opcode FX15
 func(analyzer *SemanticAnalyzer) saveSetDT() bool{
