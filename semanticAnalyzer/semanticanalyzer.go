@@ -70,10 +70,10 @@ func(analyzer *SemanticAnalyzer) block()error{
 	analyzer.currentScope.AddSubScope()
 	lastAdded := len(analyzer.currentScope.SubScopes)-1
 	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded]
-	backup := analyzer.ctxNode
-	for _, child := range analyzer.ctxNode.Children{
+	block := analyzer.ctxNode
+	for _, child := range block.Children{
 		analyzer.ctxNode = child
-		next := child.Value.Type
+		next := analyzer.ctxNode.Value.Type
 		//functions only can be declared in the global scope
 		if next == token.FUNCTION{
 			line := analyzer.ctxNode.Value.Line
@@ -84,7 +84,6 @@ func(analyzer *SemanticAnalyzer) block()error{
 			return err
 		}
 	}
-	analyzer.ctxNode = backup
 	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded].Parent
 	return nil
 }
@@ -313,13 +312,12 @@ func(analyzer *SemanticAnalyzer) funcBlock()(interface{}, error){
 	analyzer.currentScope.AddSubScope()
 	lastAdded := len(analyzer.currentScope.SubScopes)-1
 	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded]
-	backup := analyzer.ctxNode
-	for _, child := range analyzer.ctxNode.Children{
+	block := analyzer.ctxNode
+	for _, child := range block.Children{
 		if child.Value.Type != token.RETURN{
 			analyzer.ctxNode = child
 			next := analyzer.ctxNode.Value.Type
 			err := analyzer.validate[next]()
-			analyzer.ctxNode = backup
 			if err != nil{
 				return nil, err
 			}
