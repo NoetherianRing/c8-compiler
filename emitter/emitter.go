@@ -290,7 +290,7 @@ func (emitter *Emitter) declareInStack(ctxAddresses *Addresses) error {
 func (emitter *Emitter) let(ctxAddresses *Addresses) error{
 	IDENT := 0
 	ident := emitter.ctxNode.Children[IDENT].Value.Literal
-	ctxAddresses.AddAddress(ident, byte(emitter.offsetStack))
+	ctxAddresses.AddAddress(ident, emitter.offsetStack)
 	symbol, ok := emitter.scope.Symbols[ident]
 	if !ok{
 		return errors.New(errorhandler.UnexpectedCompilerError())
@@ -424,13 +424,63 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error{
 			return err
 		}
 	}else{
-		err := emitter.saveDereferenceAddressInI(2, 3, functionCtx)
+		//err := emitter.saveDereferenceAddressInI(2, 3, functionCtx)
+		//because to save a dereference address in i we need v0 and v1 we need to backup v0 (and v1) in v2 (and v3)
+		i8xy0 := I8XY0(2, 0)
+		emitter.machineCode[emitter.currentAddress] = i8xy0[0]
+		err := emitter.moveCurrentAddress()
+		if err!=nil{
+			return err
+		}
+		emitter.machineCode[emitter.currentAddress] = i8xy0[1]
+		err = emitter.moveCurrentAddress()
+		if err!=nil{
+			return err
+		}
+		if symboltable.GetSize(datatype) > 1{
+			i8xy0 := I8XY0(3, 1)
+			emitter.machineCode[emitter.currentAddress] = i8xy0[0]
+			err := emitter.moveCurrentAddress()
+			if err!=nil{
+				return err
+			}
+			emitter.machineCode[emitter.currentAddress] = i8xy0[1]
+			err = emitter.moveCurrentAddress()
+			if err!=nil{
+				return err
+			}
+		}
+		err = emitter.saveDereferenceAddressInI(functionCtx)
 		if err != nil{
 			return err
 		}
+		//because to save a vx (and vy) in memory we need them in v0 (and v1), we save them there again
+		i8xy0 = I8XY0(0, 2)
+		emitter.machineCode[emitter.currentAddress] = i8xy0[0]
+		err = emitter.moveCurrentAddress()
+		if err!=nil{
+			return err
+		}
+		emitter.machineCode[emitter.currentAddress] = i8xy0[1]
+		err = emitter.moveCurrentAddress()
+		if err!=nil{
+			return err
+		}
+		if symboltable.GetSize(datatype) > 1{
+			i8xy0 := I8XY0(1, 3)
+			emitter.machineCode[emitter.currentAddress] = i8xy0[0]
+			err := emitter.moveCurrentAddress()
+			if err!=nil{
+				return err
+			}
+			emitter.machineCode[emitter.currentAddress] = i8xy0[1]
+			err = emitter.moveCurrentAddress()
+			if err!=nil{
+				return err
+			}
+		}
 		emitter.ctxNode = assignBackup.Children[SAVEIN]
 	}
-
 
 
 	//now we store registers V0 through Vsize in memory starting at location I.
@@ -493,8 +543,8 @@ func (emitter *Emitter)saveGlobalReferenceAddressInI(x byte, y byte) error{
 
 }
 
-//saveDereferenceAddressInI save the address of a dereference in I using the registers x and y
-func (emitter *Emitter)saveDereferenceAddressInI(x byte, y byte, functionCtx *FunctionCtx) error {
+//saveDereferenceAddressInI save the address of a dereference in I using the registers 0 and 1
+func (emitter *Emitter)saveDereferenceAddressInI(functionCtx *FunctionCtx) error {
 	return nil
 }
 
