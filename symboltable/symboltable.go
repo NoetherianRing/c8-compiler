@@ -45,6 +45,20 @@ type Symbol struct{
 	IsFunction bool
 	DataType interface{}
 }
+func (array Array) SizeOfElements() int{
+	switch array.Of.(type) {
+	case Pointer:
+		return array.Of.(Pointer).Size
+	case Simple:
+		return array.Of.(Simple).Size
+	case Array:
+		of := array.Of.(Array)
+		return of.SizeOfElements() * array.Length
+	default:
+		return 0
+	}
+
+}
 
 func (t Simple)Compare(datatype interface{})bool{
 	toCompare, ok := datatype.(Simple)

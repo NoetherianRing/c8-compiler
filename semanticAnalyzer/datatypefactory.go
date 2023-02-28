@@ -9,7 +9,7 @@ import (
 	"strconv"
 )
 
-
+//TODO: No poder sumar, ni hacer ningún tipo de operación sobre matrices
 
 type DataTypeFactory struct{
 	scope *symboltable.Scope
@@ -346,6 +346,7 @@ func (getter *DataTypeFactory) validateNumericDataType() (interface{}, interface
 	return leftChildDataType, rightChildDataType, nil
 }
 
+//TODO: En caso de tener 16 bits, tambien tiene que tirar error si son son iguales
 //numericExpression verifies that the left children of ctx Node is of a greater size of the one on the right and
 //that both are numeric data type. It returns a error if not, otherwise it returns a boolean
 func (getter *DataTypeFactory) numericExpression() (interface{}, error) {
