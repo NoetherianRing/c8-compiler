@@ -49,7 +49,7 @@ func IFX65(x byte) Opcode{
 
 
 //TODO: Borrar este mensaje, esto es NUXY
-//IAXY0 writes in an Opcode the new chip 8 instruction AXY0 which added in order of make pointers possible in this compiler
+//IAXY0 writes in an Opcode the new chip 8 instruction AXY0 which was added in order of make pointers possible in this compiler
 //It set I = (V1 << 8) | V2
 func IAXY0(x byte, y byte)Opcode{
 	var iaxy0 Opcode
@@ -57,6 +57,16 @@ func IAXY0(x byte, y byte)Opcode{
 	iaxy0[1] = y
 	return iaxy0
 }
+
+//IBXY0 writes in an Opcode the new chip 8 instruction BXY0 which was added in order of make pointers possible in this compiler
+//It set Vx = byte(I>>8) Vy = byte(I)
+func IBXY0(x byte, y byte)Opcode{
+	var ibxy0 Opcode
+	ibxy0[0] = 0xB0 | x
+	ibxy0[1] = y
+	return ibxy0
+}
+
 //IFX1E writes in an Opcode the chip 8 instruction FX1E which sets I = I + Vx.
 func IFX1E(x byte)Opcode{
 	var ifx1e Opcode

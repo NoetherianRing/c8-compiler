@@ -6,6 +6,7 @@ import (
 	"github.com/NoetherianRing/c8-compiler/errorhandler"
 	"github.com/NoetherianRing/c8-compiler/symboltable"
 	"github.com/NoetherianRing/c8-compiler/token"
+	"strconv"
 )
 
 type Emitter struct{
@@ -20,7 +21,7 @@ type Emitter struct{
 	ctxNode         *ast.Node
 	machineCode     [MEMORY]byte
 	translateStatement     map[token.Type]func(*FunctionCtx)error
-	translateOperation	   map[token.Type]func(function *FunctionCtx) (interface{}, error)
+	translateOperation	   map[token.Type]func(function *FunctionCtx) (int, error)
 	functions       	   map[string]uint16
 
 }
@@ -37,7 +38,8 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 //	emitter.translateStatement[token.WHILE] = emitter._while
 	emitter.translateStatement[token.EQ] = emitter.assign
 
-	emitter.translateOperation = make(map[token.Type]func(*FunctionCtx)(interface{},error))
+	emitter.translateOperation = make(map[token.Type]func(*FunctionCtx)(int,error))
+	emitter.translateOperation[token.DOLLAR] = emitter.address
 
 	emitter.currentAddress = AddressGlobalSection
 	return emitter
@@ -372,7 +374,7 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error{
 				return errors.New(errorhandler.UnexpectedCompilerError())
 			}else{
 				//if the reference is to a global variable we update I = address
-				err := emitter.saveGlobalReferenceAddressInI(2, 3)
+				_, err := emitter.saveGlobalReferenceAddressInI(2, 3)
 				if err != nil{
 					return err
 				}
@@ -380,14 +382,8 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error{
 
 				ifx55 := IFX55(byte(symboltable.GetSize(datatype)))
 
-				emitter.machineCode[emitter.currentAddress] = ifx55[0]
-				err =emitter.moveCurrentAddress()
-				if err != nil{
-					return err
-				}
+				err =emitter.saveOpcode(ifx55)
 
-				emitter.machineCode[emitter.currentAddress] = ifx55[1]
-				err =emitter.moveCurrentAddress()
 				if err != nil{
 					return err
 				}
@@ -402,13 +398,8 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error{
 		indexRegister, referenceIsInRegister := functionCtx.Registers.guide[reference]
 		if referenceIsInRegister {
 			i8xy0 := I8XY0(byte(indexRegister), 0)
-			emitter.machineCode[emitter.currentAddress] = i8xy0[0]
-			err := emitter.moveCurrentAddress()
-			if err!=nil{
-				return err
-			}
-			emitter.machineCode[emitter.currentAddress] = i8xy0[1]
-			err = emitter.moveCurrentAddress()
+			err =emitter.saveOpcode(i8xy0)
+
 			if err!=nil{
 				return err
 			}
@@ -419,7 +410,7 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error{
 	//if not, we search the address of the left side of the assign and we save it in I
 
 	if emitter.ctxNode.Value.Type == token.IDENT{
-		err := emitter.saveStackReferenceAddressInI(2, functionCtx)
+		_,err := emitter.saveStackReferenceAddressInI(2, functionCtx)
 		if err != nil{
 			return err
 		}
@@ -427,54 +418,33 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error{
 		//err := emitter.saveDereferenceAddressInI(2, 3, functionCtx)
 		//because to save a dereference address in i we need v0 and v1 we need to backup v0 (and v1) in v2 (and v3)
 		i8xy0 := I8XY0(2, 0)
-		emitter.machineCode[emitter.currentAddress] = i8xy0[0]
-		err := emitter.moveCurrentAddress()
-		if err!=nil{
-			return err
-		}
-		emitter.machineCode[emitter.currentAddress] = i8xy0[1]
-		err = emitter.moveCurrentAddress()
+		err =emitter.saveOpcode(i8xy0)
 		if err!=nil{
 			return err
 		}
 		if symboltable.GetSize(datatype) > 1{
 			i8xy0 := I8XY0(3, 1)
-			emitter.machineCode[emitter.currentAddress] = i8xy0[0]
-			err := emitter.moveCurrentAddress()
-			if err!=nil{
-				return err
-			}
-			emitter.machineCode[emitter.currentAddress] = i8xy0[1]
-			err = emitter.moveCurrentAddress()
+			err =emitter.saveOpcode(i8xy0)
+
 			if err!=nil{
 				return err
 			}
 		}
-		err = emitter.saveDereferenceAddressInI(functionCtx)
+		_, err = emitter.saveDereferenceAddressInI(functionCtx)
 		if err != nil{
 			return err
 		}
 		//because to save a vx (and vy) in memory we need them in v0 (and v1), we save them there again
 		i8xy0 = I8XY0(0, 2)
-		emitter.machineCode[emitter.currentAddress] = i8xy0[0]
-		err = emitter.moveCurrentAddress()
-		if err!=nil{
-			return err
-		}
-		emitter.machineCode[emitter.currentAddress] = i8xy0[1]
-		err = emitter.moveCurrentAddress()
+		err =emitter.saveOpcode(i8xy0)
+
 		if err!=nil{
 			return err
 		}
 		if symboltable.GetSize(datatype) > 1{
 			i8xy0 := I8XY0(1, 3)
-			emitter.machineCode[emitter.currentAddress] = i8xy0[0]
-			err := emitter.moveCurrentAddress()
-			if err!=nil{
-				return err
-			}
-			emitter.machineCode[emitter.currentAddress] = i8xy0[1]
-			err = emitter.moveCurrentAddress()
+			err =emitter.saveOpcode(i8xy0)
+
 			if err!=nil{
 				return err
 			}
@@ -486,175 +456,315 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error{
 	//now we store registers V0 through Vsize in memory starting at location I.
 	ifx55 := IFX55(byte(symboltable.GetSize(datatype)))
 
-	emitter.machineCode[emitter.currentAddress] = ifx55[0]
-	err =emitter.moveCurrentAddress()
-	if err != nil{
-		return err
-	}
+	err =emitter.saveOpcode(ifx55)
 
-	emitter.machineCode[emitter.currentAddress] = ifx55[1]
-	err =emitter.moveCurrentAddress()
 	if err != nil{
 		return err
 	}
 
 	return nil
+}
+
+//literal save a byte in v0. Return the size of the byte datatype (1) and an error
+func (emitter *Emitter) literal(functionCtx *FunctionCtx) (int, error) {
+	kk,_ := strconv.Atoi(emitter.ctxNode.Value.Literal)
+	i6kk := I6XKK(0, byte(kk))
+	err := emitter.saveOpcode(i6kk)
+	if err != nil{
+		return 0, err
+	}
+	return 1, nil
+}
+
+//literal save a boolean in v0. Return the size of the boolean datatype (1) and an error
+func (emitter *Emitter)boolean(functionCtx *FunctionCtx) (int, error) {
+	var kk byte
+	if emitter.ctxNode.Value.Literal == token.TRUE{
+		kk = 0xFF
+	}else{
+		kk = 0x00
+	}
+	i6kk := I6XKK(0, kk)
+	err := emitter.saveOpcode(i6kk)
+	if err != nil{
+		return 0, err
+	}
+	return 1, nil
+}
+
+func (emitter *Emitter) multiply(functionCtx *FunctionCtx) (int, error) {
+
+}
+
+//index save in v0 (and maybe v1) the value of a dereference.
+//Returns the size of the datatype of the dereference and a error
+func (emitter *Emitter)index(functionCtx *FunctionCtx) (int, error){
+	return emitter.saveDereferenceInRegisters(functionCtx)
+}
+
+//asterisk multiply registers or save a dereference in registers, depending on the context
+//it return the size of the datatype obtained at the end of the operation and an error
+func (emitter *Emitter)asterisk(functionCtx *FunctionCtx)(int, error){
+	if len(emitter.ctxNode.Children) == 1{
+		return emitter.saveDereferenceInRegisters(functionCtx)
+	}else{
+		return emitter.multiply(functionCtx)
+	}
+
+}
+
+//saveDereferenceInRegisters save in v0 (and maybe v1) the value of a dereference.
+//Returns the size of the datatype of the dereference and a error
+func (emitter *Emitter) saveDereferenceInRegisters(functionCtx *FunctionCtx) (int, error) {
+	size, err := emitter.saveDereferenceAddressInI(functionCtx)
+	if err != nil {
+		return 0, err
+	}
+	ifx1e := IFX1E(byte(size))
+	err = emitter.saveOpcode(ifx1e)
+	if err != nil {
+		return 0, err
+	}
+	return size, nil
+}
+//ident save in v0 (and maybe v2) the value of a reference.
+//Returns the size of the datatype of the reference and a error
+func (emitter *Emitter)ident(functionCtx *FunctionCtx) (int, error){
+	ident := emitter.ctxNode.Value.Literal
+	var err error
+	var size int
+	_, isGlobalReference := emitter.globalVariables[ident]
+	if isGlobalReference{
+		size, err = emitter.saveGlobalReferenceAddressInI(0,1)
+		if err != nil{
+			return 0, err
+		}
+	}else{
+		size, err = emitter.saveStackReferenceAddressInI(0,functionCtx)
+		if err != nil{
+			return 0, err
+		}
+	}
+	ifx1e := IFX1E(byte(size))
+	err = emitter.saveOpcode(ifx1e)
+	if err != nil{
+		return 0, err
+	}
+	return size, nil
+}
+
+//address save the address of its children in v0 and v1, return a error if needed, and the size of the pointer
+func (emitter *Emitter)address(functionCtx *FunctionCtx)(int, error){
+	emitter.ctxNode = emitter.ctxNode.Children[0]
+	//first we save the address in I
+	if emitter.ctxNode.Value.Type == token.IDENT{
+		ident := emitter.ctxNode.Value.Literal
+		_, isGlobalReference := emitter.globalVariables[ident]
+		if isGlobalReference{
+			_, err := emitter.saveGlobalReferenceAddressInI(0,1)
+			if err != nil{
+				return 0, err
+			}
+		}else{
+			_, err := emitter.saveStackReferenceAddressInI(0,functionCtx)
+			if err != nil{
+				return 0, err
+			}
+		}
+	}else{
+		_,err := emitter.saveDereferenceAddressInI(functionCtx)
+		if err != nil{
+			return 0, err
+		}
+	}
+	//then we save i in v0 and v1
+	ibxy0 := IBXY0(0,1)
+	err := emitter.saveOpcode(ibxy0)
+	if err != nil{
+		return 0, err
+	}
+	return 	2, nil
 }
 
 //saveGlobalReferenceAddressInI saves the address of a global variable in I using the register x and y
-func (emitter *Emitter)saveGlobalReferenceAddressInI(x byte, y byte) error{
+//Returns the size of the reference it points to and an error
+func (emitter *Emitter)saveGlobalReferenceAddressInI(x byte, y byte) (int, error){
 	ident := emitter.ctxNode.Value.Literal
 	address := emitter.globalVariables[ident]
+	size := symboltable.GetSize(emitter.scope.Symbols[ident].DataType)
 	i6xkk1 := I6XKK(x, byte(address<<8))
 	i6xkk2 := I6XKK(y, byte(address))
 	iaxy0 := IAXY0(x,y)
-	emitter.machineCode[emitter.currentAddress] = i6xkk1[0]
-	err := emitter.moveCurrentAddress()
+
+	err :=emitter.saveOpcode(i6xkk1)
 	if err != nil{
-		return err
-	}
-	emitter.machineCode[emitter.currentAddress] = i6xkk1[1]
-	err =emitter.moveCurrentAddress()
-	if err != nil{
-		return err
-	}
-	emitter.machineCode[emitter.currentAddress] = i6xkk2[0]
-	err =emitter.moveCurrentAddress()
-	if err != nil{
-		return err
-	}
-	emitter.machineCode[emitter.currentAddress] = i6xkk2[1]
-	err =emitter.moveCurrentAddress()
-	if err != nil{
-		return err
+		return 0,err
 	}
 
-	emitter.machineCode[emitter.currentAddress] = iaxy0[0]
-	err =emitter.moveCurrentAddress()
+	err =emitter.saveOpcode(i6xkk2)
 	if err != nil{
-		return err
+		return 0,err
 	}
-	emitter.machineCode[emitter.currentAddress] = iaxy0[1]
-	err =emitter.moveCurrentAddress()
+
+	err =emitter.saveOpcode(iaxy0)
 	if err != nil{
-		return err
+		return 0,err
 	}
-	return nil
+	return size,nil
 
 }
 
-//saveDereferenceAddressInI save the address of a dereference in I using the registers 0 and 1
-func (emitter *Emitter)saveDereferenceAddressInI(functionCtx *FunctionCtx) error {
-	return nil
+//saveDereferenceAddressInI save the address of a dereference in I using the registers 0 and 1.
+//Returns the size of the reference it points to and an error
+func (emitter *Emitter)saveDereferenceAddressInI(functionCtx *FunctionCtx) (int, error) {
+	backup := emitter.ctxNode
+	//we save the address of the leaf in I:
+	leaf := GetLeafByRight(emitter.ctxNode)
+	emitter.ctxNode = leaf
+	leafIdent := emitter.ctxNode.Value.Literal
+	_, isInStack := functionCtx.Addresses.References[leafIdent]
+	if !isInStack{
+		_, isInGlobalMemory := emitter.globalVariables[leafIdent]
+		if !isInGlobalMemory{
+			return 0,errors.New(errorhandler.UnexpectedCompilerError())
+		}
+		_, err := emitter.saveGlobalReferenceAddressInI(0,1)
+		if err != nil{
+			return 0, err
+		}
+	}else{
+		_, err := emitter.saveStackReferenceAddressInI(0, functionCtx)
+		if err != nil{
+			return 0,err
+		}
+	}
+	symbol, ok := emitter.scope.Symbols[leafIdent]
+
+	if !ok{
+		return 0,errors.New(errorhandler.UnexpectedCompilerError())
+	}
+	datatype := symbol.DataType
+
+	emitter.ctxNode = backup
+
+	for emitter.ctxNode!=leaf{
+
+		switch emitter.ctxNode.Value.Type{
+		//if we are analyzing a ], we add the index of the array to I to set the address of the next referenced element in I
+		case token.RBRACKET:
+			index, err := strconv.Atoi(emitter.ctxNode.Children[0].Value.Literal)
+			if err != nil{
+				return 0,errors.New(errorhandler.UnexpectedCompilerError())
+			}
+			err = emitter.executeFX16Safe(0, index*symboltable.GetSize(datatype))
+			datatype = datatype.(symboltable.Array).Of
+			emitter.ctxNode = emitter.ctxNode.Children[1]
+
+		//if we are analyzing a *, then its value is the address  of the next referenced element, si we set I = value.
+		case token.ASTERISK:
+			//we set V0 and V1 = value saved from I in memory
+			ifx65 := IFX65(2)
+
+			err :=emitter.saveOpcode(ifx65)
+			if err != nil{
+				return 0,err
+			}
+			//we set I=value founded previously in I
+			iaxy0 := IAXY0(0,1)
+
+			err =emitter.saveOpcode(iaxy0)
+			if err != nil{
+				return 0,err
+			}
+			datatype = datatype.(symboltable.Pointer).PointsTo
+			emitter.ctxNode = emitter.ctxNode.Children[0]
+
+		}
+
+	}
+	return symboltable.GetSize(datatype), nil
 }
 
 //saveStackReferenceAddressInI save the address of a reference saved in the stack in I using the register x
-func (emitter *Emitter)saveStackReferenceAddressInI( x byte, functionCtx *FunctionCtx)error{
+//Returns the size of the reference it points to and an error
+func (emitter *Emitter)saveStackReferenceAddressInI( x byte, functionCtx *FunctionCtx)(int, error){
 	ident := emitter.ctxNode.Value.Literal
 	reference, ok := functionCtx.Addresses.References[ident]
 	if !ok{
-		return errors.New(errorhandler.UnexpectedCompilerError())
+		return 0, errors.New(errorhandler.UnexpectedCompilerError())
 	}
+	size := symboltable.GetSize(emitter.scope.Symbols[ident].DataType)
 
 	//we set I = address position 0 of stack
 	iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2)
 
-	emitter.machineCode[emitter.currentAddress] = iaxy0[0]
-	err := emitter.moveCurrentAddress()
+
+	err := emitter.saveOpcode(iaxy0)
 	if err != nil{
-		return nil
+		return 0, err
 	}
-	emitter.machineCode[emitter.currentAddress] = iaxy0[1]
-	err = emitter.moveCurrentAddress()
-	if err != nil{
-		return nil
-	}
-	if reference.positionStack <= 255{
-		i6xkk := I6XKK(x, byte(reference.positionStack))
+
+	return size, emitter.executeFX16Safe(x, reference.positionStack)
+
+}
+
+//executeFX16Safe set an int to vx and then set I = I + vx, if the int is greater than 255 we add vx in a loop
+func (emitter *Emitter)executeFX16Safe(x byte, vx int) error{
+
+	for  vx>255{
+		i6xkk := I6XKK(x, 255)
 		ifx1e := IFX1E(x)
 
-		emitter.machineCode[emitter.currentAddress] = i6xkk[0]
-		err := emitter.moveCurrentAddress()
-		if err != nil{
-			return err
-		}
-		emitter.machineCode[emitter.currentAddress] = i6xkk[1]
-		err = emitter.moveCurrentAddress()
+
+		err := emitter.saveOpcode(i6xkk)
 		if err != nil{
 			return err
 		}
 
-		emitter.machineCode[emitter.currentAddress] = ifx1e[0]
-		err = emitter.moveCurrentAddress()
+		err =emitter.saveOpcode(ifx1e)
+		if err != nil{
+			return err
+		}
+		vx = vx - 255
+	}
+	if vx > 0{
+		i6xkk := I6XKK(x, byte(vx))
+		ifx1e := IFX1E(x)
+
+		err :=emitter.saveOpcode(i6xkk)
 		if err != nil{
 			return err
 		}
 
-		emitter.machineCode[emitter.currentAddress] = ifx1e[1]
-		err = emitter.moveCurrentAddress()
+		err =emitter.saveOpcode(ifx1e)
 		if err != nil{
 			return err
 		}
-
-	}else{
-		position := reference.positionStack
-
-		for  position>255{
-			i6xkk := I6XKK(x, 255)
-			ifx1e := IFX1E(x)
-
-			emitter.machineCode[emitter.currentAddress] = i6xkk[0]
-			err := emitter.moveCurrentAddress()
-			if err != nil{
-				return err
-			}
-			emitter.machineCode[emitter.currentAddress] = i6xkk[1]
-			err = emitter.moveCurrentAddress()
-			if err != nil{
-				return err
-			}
-
-			emitter.machineCode[emitter.currentAddress] = ifx1e[0]
-			err = emitter.moveCurrentAddress()
-			if err != nil{
-				return err
-			}
-
-			emitter.machineCode[emitter.currentAddress] = ifx1e[1]
-			err = emitter.moveCurrentAddress()
-			if err != nil{
-				return err
-			}
-			position = position - 255
-		}
-		if position > 0{
-			i6xkk := I6XKK(x, byte(position))
-			ifx1e := IFX1E(x)
-			emitter.machineCode[emitter.currentAddress] = i6xkk[0]
-			err := emitter.moveCurrentAddress()
-			if err != nil{
-				return err
-			}
-			emitter.machineCode[emitter.currentAddress] = i6xkk[1]
-			err = emitter.moveCurrentAddress()
-			if err != nil{
-				return err
-			}
-
-			emitter.machineCode[emitter.currentAddress] = ifx1e[0]
-			err = emitter.moveCurrentAddress()
-			if err != nil{
-				return err
-			}
-
-			emitter.machineCode[emitter.currentAddress] = ifx1e[1]
-			err = emitter.moveCurrentAddress()
-			if err != nil{
-				return err
-			}
-		}
-
 	}
 	return nil
 
 }
+// GetLeafByRight gets the leaf by walking a tree using the right child of each node.
+func GetLeafByRight(head *ast.Node) *ast.Node{
+	current := head
+	for len(current.Children) != 0{
+		current = current.Children[len(current.Children)-1]
+	}
+	return current
+}
+
+//saveOpcode save an opcode in the machine code array
+func (emitter *Emitter) saveOpcode(opcode Opcode) error{
+	emitter.machineCode[emitter.currentAddress] = opcode[0]
+	err := emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	emitter.machineCode[emitter.currentAddress] = opcode[1]
+	err = emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	return nil
+}
+
