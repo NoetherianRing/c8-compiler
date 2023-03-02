@@ -909,7 +909,7 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (int, error) {
 		return 0, err
 	}
 
-	i6xkk:=I6XKK(1, 255) //v1 = 255
+	i6xkk:=I6XKK(1, 255) //v1 = 255. We can use it as a helper because both operands are simples in the context of %
 	err = emitter.saveOpcode(i6xkk)
 
 	if err != nil{
@@ -936,7 +936,7 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (int, error) {
 		return 0, err
 	}
 
-	//so if v0 =0, the rest of division is also 0 and we jump to the end of the operation
+	//so if v0 =0, we need stop dividing and we jump to the end
 	jumpToEnd := I1NNN(emitter.currentAddress+5)
 	err = emitter.saveOpcode(jumpToEnd)
 
@@ -968,6 +968,115 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (int, error) {
 	}
 
 	i8xy0 := I8XY5(0, 1) //  = V0 = V1 to save the rest in v0
+	err = emitter.saveOpcode(i8xy0)
+
+	if err != nil{
+		return 0, err
+	}
+
+	return 1, nil
+}
+
+
+//division translates a / to opcodes and write it in emitter.machineCode, return the size of the datatype of the result and an error
+func (emitter *Emitter) division(functionCtx *FunctionCtx) (int, error) {
+	_, err := emitter.saveOperands(functionCtx)
+	if err != nil{
+		return 0, err
+	}
+
+	i6xkk:=I6XKK(1, 0) //v1 = 0. We can use it to store the result because both operands are simples in the context of /
+	err = emitter.saveOpcode(i6xkk)
+
+	if err != nil{
+		return 0, err
+	}
+
+	i4xkk := I4XKK(0, 0) //if v0 != 0 we skip the next opcode
+	err = emitter.saveOpcode(i4xkk)
+
+	if err != nil{
+		return 0, err
+	}
+	//if v0 =0, the result is 0 and we skip the division
+	skipDivision := I1NNN(emitter.currentAddress+12)
+	err = emitter.saveOpcode(skipDivision)
+
+	if err != nil{
+		return 0, err
+	}
+	i6xkk = I6XKK(0xf, 0) // Vf = 0
+	err = emitter.saveOpcode(i6xkk)
+
+	if err != nil{
+		return 0, err
+	}
+	i8xy5 := I8XY5(0, 2) // V0 = V0-V2
+	err = emitter.saveOpcode(i8xy5)
+
+	if err != nil{
+		return 0, err
+	}
+
+	i4xkk = I4XKK(0, 0) //if v0 != 0 we skip the next opcode
+	err = emitter.saveOpcode(i4xkk)
+
+	if err != nil{
+		return 0, err
+	}
+
+	//if v0 = 0 we do v1 = v1 + 1, to operate before jumping
+	i7xkk := I7XKK(1,1)
+	err = emitter.saveOpcode(i7xkk)
+
+	if err != nil{
+		return 0, err
+	}
+	i4xkk = I4XKK(0, 0) //if v0 != 0 we skip the next opcode
+	err = emitter.saveOpcode(i4xkk)
+
+	if err != nil{
+		return 0, err
+	}
+
+	//if v0 =0, the rest of division is also 0 and we jump to the end of the operation
+	jumpToEnd := I1NNN(emitter.currentAddress+5)
+	err = emitter.saveOpcode(jumpToEnd)
+
+	if err != nil{
+		return 0, err
+	}
+	//if not we ask if v0>v2, and if v0 > v2 we skip the next opcode
+	i3xkk := I3XKK(0xf, 0)
+	err = emitter.saveOpcode(i3xkk)
+
+	if err != nil{
+		return 0, err
+	}
+	//if v0<v2 we jump to to the end of the division, if not we keep dividing
+	jumpToEnd = I1NNN(emitter.currentAddress+2)
+	err = emitter.saveOpcode(jumpToEnd)
+
+	if err != nil{
+		return 0, err
+	}
+
+	i7xkk = I7XKK(1,1)
+	err = emitter.saveOpcode(i7xkk)
+
+	if err != nil{
+		return 0, err
+	}
+
+	loop := I1NNN(emitter.currentAddress-9)
+	err = emitter.saveOpcode(loop)
+
+	if err != nil{
+		return 0, err
+	}
+
+
+	i8xy0 := I8XY5(0, 1) //  = V0 = V1 to save the result in v0
 	err = emitter.saveOpcode(i8xy0)
 
 	if err != nil{
