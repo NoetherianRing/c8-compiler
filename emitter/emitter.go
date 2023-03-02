@@ -140,13 +140,59 @@ func (emitter *Emitter) functionDeclaration()error{
 
 	//we save the arguments in the stack
 	fn  := emitter.ctxNode
-	for _, child := range fn.Children[ARG].Children{
-		emitter.ctxNode = child
-		err := emitter.let(ctxAddresses)
-		if err != nil{
-			return err
+	params := make([]string, 0)
+	if len(emitter.ctxNode.Children[ARG].Children)>0{
+		sizeParams := obtainSizeParams(emitter.scope.Symbols[functionName].DataType.(symboltable.Function).Args)
+		i := 0
+		emitter.ctxNode = emitter.ctxNode.Children[ARG].Children[0]
+		for emitter.ctxNode.Value.Type == token.COMMA{
+			comma := emitter.ctxNode
+			//first we declare them in the stack
+			emitter.ctxNode = emitter.ctxNode.Children[ARG].Children[0]
+			paramIdent := emitter.ctxNode.Children[0].Value.Literal
+			params = append(params, paramIdent)
+			err := emitter.let(ctxAddresses)
+			if err != nil{
+				return err
+			}
+			//then we set its value
+			//the argument i is the register i + 2 (we use v0 and v1 to operate)
+			i8xy0 := I8XY0(0, byte(i+2))
+			err = emitter.saveOpcode(i8xy0)
+			if err != nil{
+				return err
+			}
+			i++
+			if sizeParams[i] == 2{
+				i8xy0 = I8XY0(1, byte(i+2))
+				err = emitter.saveOpcode(i8xy0)
+				if err != nil{
+					return err
+				}
+				i++
+
+			}
+			iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2)
+			err = emitter.saveOpcode(iaxy0)
+			if err != nil{
+				return err
+			}
+			reference,_ := ctxAddresses.GetReference(paramIdent)
+
+			err = emitter.executeFX1ESafe(2, reference.positionStack)
+			if err != nil{
+				return err
+			}
+			ifx55 := IFX55(byte(sizeParams[i]))
+			err = emitter.saveOpcode(ifx55)
+			if err != nil{
+				return err
+			}
+			emitter.ctxNode = comma
+			emitter.ctxNode = emitter.ctxNode.Children[1]
 		}
 	}
+
 	emitter.ctxNode = fn
 
 	//we declare all variables in the stack
@@ -158,6 +204,35 @@ func (emitter *Emitter) functionDeclaration()error{
 	}
 
 	registers := NewRegisterOptimizer().optimizeRegisters(emitter.ctxNode, ctxAddresses)
+
+	//for each parameter we check if the register optimizer put it in a register, and if it did
+	//we save its value that register
+	for _, param := range params{
+		reference, _ := ctxAddresses.GetReference(param)
+		index,isInRegister := registers.guide[reference]
+		if isInRegister{
+			iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2)
+			err = emitter.saveOpcode(iaxy0)
+			if err != nil{
+				return err
+			}
+			err = emitter.executeFX1ESafe(0, reference.positionStack)
+			if err != nil{
+				return err
+			}
+			ifx65 := IFX55(1)
+			err = emitter.saveOpcode(ifx65)
+			if err != nil{
+				return err
+			}
+			i8xy0 := I8XY0(0, byte(index))
+			err = emitter.saveOpcode(i8xy0)
+			if err != nil{
+				return err
+			}
+		}
+
+	}
 
 	ctxFunction := NewCtxFunction(registers, ctxAddresses)
 
@@ -693,7 +768,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 	if len(emitter.ctxNode.Children) > 1{
 
 		emitter.ctxNode = emitter.ctxNode.Children[PARAMS]
-		i := 0
+		i := 2
 		for emitter.ctxNode.Value.Type == token.COMMA{
 			backupComma := emitter.ctxNode
 			emitter.ctxNode = emitter.ctxNode.Children[0]
@@ -716,26 +791,25 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 			emitter.ctxNode = backupComma
 			emitter.ctxNode = emitter.ctxNode.Children[1]
 		}
-		for emitter.ctxNode.Value.Type == token.COMMA{
-			emitter.ctxNode = emitter.ctxNode.Children[0]
-			//we save in v0(and maybe v1) the value of the parameter being analyzed
-			size, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
-			i8XY0 := I8XY0(byte(i), 0)
+		emitter.ctxNode = emitter.ctxNode.Children[0]
+		//we save in v0(and maybe v1) the value of the parameter being analyzed
+		size, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+		i8XY0 := I8XY0(byte(i), 0)
+		i++
+		err = emitter.saveOpcode(i8XY0)
+		if err != nil{
+			return 0, err
+		}
+		if size > 1{
+			i8XY0 := I8XY0(byte(i), 1)
 			i++
-			err = emitter.saveOpcode(i8XY0)
+			err := emitter.saveOpcode(i8XY0)
 			if err != nil{
 				return 0, err
 			}
-			if size > 1{
-				i8XY0 := I8XY0(byte(i), 1)
-				i++
-				err := emitter.saveOpcode(i8XY0)
-				if err != nil{
-					return 0, err
-				}
-			}
-
 		}
+
+
 
 	}
 
