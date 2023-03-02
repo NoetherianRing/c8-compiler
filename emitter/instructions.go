@@ -83,3 +83,19 @@ func I3XKK(x byte, kk byte)Opcode{
 	i3xkk[1] = kk
 	return i3xkk
 }
+
+//I2NNN writes in an Opcode the chip 8 instruction I2NNN CALL (ADDR)
+func I2NNN(nnn uint16)Opcode{
+	var i2nnn Opcode
+	i2nnn[0] = 0x20 | byte(nnn >> 8)
+	i2nnn[1] = byte(nnn)
+	return i2nnn
+}
+
+//I00EE writes in an Opcode the chip 8 instruction 00EE which returns from a subroutine
+func I00EE()Opcode{
+	var i2nnn Opcode
+	i2nnn[0] = 0x00
+	i2nnn[1] = 0xEE
+	return i2nnn
+}

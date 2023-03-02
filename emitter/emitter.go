@@ -349,7 +349,7 @@ func (emitter *Emitter)saveInStack(size byte)[]byte{
 	instructions[5] = ifx1e[1]
 	instructions[6] = ifx55[0]
 	instructions[7] = ifx55[1]
-
+	emitter.offsetStack += int(size)
 	return instructions
 
 }
@@ -657,6 +657,69 @@ func (emitter *Emitter)block(functionCtx *FunctionCtx) error {
 	emitter.lastIndexSubScope = lastIndexSubScopeBackup + 1
 	emitter.scope = scopeBackup
 	functionCtx.Addresses = addressesBackup
+	return nil
+}
+
+func (emitter *Emitter)voidCall(functionCtx *FunctionCtx)error{
+	_,err := emitter.call(functionCtx)
+	return err
+}
+
+func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
+  	const IDENT = 0
+	ident := emitter.ctxNode.Children[IDENT].Value.Literal
+	//we first backup all registers of the current function in a the stack
+	iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2)
+	backupOffset := emitter.offsetStack
+	emitter.offsetStack += 16
+	ifx55 := IFX55(16)
+
+	err := emitter.saveOpcode(iaxy0)
+	if err != nil{
+		return 0, err
+	}
+	err = emitter.executeFX1ESafe(0, emitter.offsetStack)
+	if err != nil{
+		return 0, err
+	}
+	err = emitter.saveOpcode(ifx55)
+	if err != nil{
+		return 0, err
+	}
+
+	//then we obtain the value of the parameters and we save them in the registers:
+
+	//first we need the size of each param
+	sizeParams := obtainSizeParams(emitter.scope.Symbols[ident].DataType.(symboltable.Function).Args)
+	
+	//...
+
+	//we call te function
+	fnAddress, _ := emitter.functions[ident]
+	i2nnn := I2NNN(fnAddress)
+	err = emitter.saveOpcode(i2nnn)
+	if err != nil{
+		return 0, err
+	}
+
+	//when we return, we save again the registers in memory
+	emitter.offsetStack = backupOffset
+	err = emitter.saveOpcode(iaxy0)
+	if err != nil{
+		return 0, err
+	}
+	err = emitter.executeFX1ESafe(0, emitter.offsetStack)
+	if err != nil{
+		return 0, err
+	}
+	ifx65 := IFX65(16)
+	err = emitter.saveOpcode(ifx65)
+	if err != nil{
+		return 0, err
+	}
+
+	size := symboltable.GetSize(emitter.scope.Symbols[ident].DataType.(symboltable.Function).Return)
+	return size, nil
 }
 
 //literal save a byte in v0. Return the size of the byte datatype (1) and an error
@@ -714,14 +777,14 @@ func (emitter *Emitter) saveDereferenceInRegisters(functionCtx *FunctionCtx) (in
 	if err != nil {
 		return 0, err
 	}
-	ifx1e := IFX1E(byte(size))
-	err = emitter.saveOpcode(ifx1e)
+	ifx65 := IFX65(byte(size))
+	err = emitter.saveOpcode(ifx65)
 	if err != nil {
 		return 0, err
 	}
 	return size, nil
 }
-//ident save in v0 (and maybe v2) the value of a reference.
+//ident save in v0 (and maybe v1) the value of a reference.
 //Returns the size of the datatype of the reference and a error
 func (emitter *Emitter)ident(functionCtx *FunctionCtx) (int, error){
 	ident := emitter.ctxNode.Value.Literal
@@ -739,8 +802,8 @@ func (emitter *Emitter)ident(functionCtx *FunctionCtx) (int, error){
 			return 0, err
 		}
 	}
-	ifx1e := IFX1E(byte(size))
-	err = emitter.saveOpcode(ifx1e)
+	ifx65 := IFX65(byte(size))
+	err = emitter.saveOpcode(ifx65)
 	if err != nil{
 		return 0, err
 	}
@@ -850,7 +913,7 @@ func (emitter *Emitter)saveDereferenceAddressInI(functionCtx *FunctionCtx) (int,
 			if err != nil{
 				return 0,errors.New(errorhandler.UnexpectedCompilerError())
 			}
-			err = emitter.executeFX16Safe(0, index*symboltable.GetSize(datatype))
+			err = emitter.executeFX1ESafe(0, index*symboltable.GetSize(datatype))
 			datatype = datatype.(symboltable.Array).Of
 			emitter.ctxNode = emitter.ctxNode.Children[1]
 
@@ -898,12 +961,12 @@ func (emitter *Emitter)saveStackReferenceAddressInI( x byte, functionCtx *Functi
 		return 0, err
 	}
 
-	return size, emitter.executeFX16Safe(x, reference.positionStack)
+	return size, emitter.executeFX1ESafe(x, reference.positionStack)
 
 }
 
-//executeFX16Safe set an int to vx and then set I = I + vx, if the int is greater than 255 we add vx in a loop
-func (emitter *Emitter)executeFX16Safe(x byte, vx int) error{
+//executeFX1ESafe set an int to vx and then set I = I + vx, if the int is greater than 255 we add vx in a loop
+func (emitter *Emitter) executeFX1ESafe(x byte, vx int) error{
 
 	for  vx>255{
 		i6xkk := I6XKK(x, 255)
@@ -938,6 +1001,7 @@ func (emitter *Emitter)executeFX16Safe(x byte, vx int) error{
 	return nil
 
 }
+
 // GetLeafByRight gets the leaf by walking a tree using the right child of each node.
 func GetLeafByRight(head *ast.Node) *ast.Node{
 	current := head
@@ -962,3 +1026,11 @@ func (emitter *Emitter) saveOpcode(opcode Opcode) error{
 	return nil
 }
 
+//obtainSizeParams returns the size of each param of a function
+func obtainSizeParams(params []interface{})[]int{
+	paramSizes := make([]int,0)
+	for _, param := range params{
+		paramSizes = append(paramSizes, symboltable.GetSize(param))
+	}
+	return paramSizes
+}
