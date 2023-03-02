@@ -165,7 +165,6 @@ func (emitter *Emitter) functionDeclaration()error{
 	for _, child := range fn.Children[BLOCK].Children{
 		emitter.ctxNode = child
 		//we jump let stmts because we already save them
-
 		translateStmt, ok :=emitter.translateStatement[emitter.ctxNode.Value.Type]
 		if ok{
 			err := translateStmt(ctxFunction)
@@ -836,22 +835,33 @@ func (emitter *Emitter)ident(functionCtx *FunctionCtx) (int, error){
 	ident := emitter.ctxNode.Value.Literal
 	var err error
 	var size int
-	_, isGlobalReference := emitter.globalVariables[ident]
-	if isGlobalReference{
-		size, err = emitter.saveGlobalReferenceAddressInI(0,1)
+	indexReference, isInRegister := functionCtx.Registers.guide[functionCtx.Addresses.References[ident]]
+	if isInRegister{
+		i8xy0 := I8XY0(0, byte(indexReference))
+		size = 1
+		err =emitter.saveOpcode(i8xy0)
 		if err != nil{
 			return 0, err
 		}
 	}else{
-		size, err = emitter.saveStackReferenceAddressInI(0,functionCtx)
+		_, isGlobalReference := emitter.globalVariables[ident]
+		if isGlobalReference{
+			size, err = emitter.saveGlobalReferenceAddressInI(0,1)
+			if err != nil{
+				return 0, err
+			}
+		}else{
+			size, err = emitter.saveStackReferenceAddressInI(0,functionCtx)
+			if err != nil{
+				return 0, err
+			}
+		}
+		ifx65 := IFX65(byte(size))
+		err = emitter.saveOpcode(ifx65)
 		if err != nil{
 			return 0, err
 		}
-	}
-	ifx65 := IFX65(byte(size))
-	err = emitter.saveOpcode(ifx65)
-	if err != nil{
-		return 0, err
+
 	}
 	return size, nil
 }
