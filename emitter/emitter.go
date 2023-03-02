@@ -543,6 +543,21 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error{
 	return nil
 }
 
+//_return save in v0(and maybe v1)the value a function returns
+func (emitter *Emitter) _return(functionCtx *FunctionCtx) error {
+	if len(emitter.ctxNode.Children) != 0{
+		returnBackup := emitter.ctxNode
+		emitter.ctxNode = emitter.ctxNode.Children[0]
+		_, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+		if err != nil{
+			return  err
+		}
+		emitter.ctxNode = returnBackup
+	}
+	return emitter.saveOpcode(I00EE())
+	
+}
+
 //_if translates the if statement to opcodes and write it in emitter.machineCode
 func (emitter *Emitter) _if(functionCtx *FunctionCtx) error{
 	const CONDITION = 0
