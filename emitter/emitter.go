@@ -175,7 +175,7 @@ func (emitter *Emitter) functionDeclaration()error{
 	registers := NewRegisterOptimizer().optimizeRegisters(emitter.ctxNode, ctxAddresses)
 
 	//for each parameter we check if the register optimizer put it in a register, and if it did
-	//we save its value that register
+	//we save its value in that register
 	for _, param := range params {
 		reference, _ := ctxAddresses.GetReference(param)
 		index, isInRegister := registers.guide[reference]
@@ -901,6 +901,119 @@ func (emitter *Emitter)boolean(functionCtx *FunctionCtx) (int, error) {
 func (emitter *Emitter) multiply(functionCtx *FunctionCtx) (int, error) {
 
 }
+
+//mod translates a % to opcodes and write it in emitter.machineCode, return the size of the datatype of the result and an error
+func (emitter *Emitter) mod(functionCtx *FunctionCtx) (int, error) {
+	_, err := emitter.saveOperands(functionCtx)
+	if err != nil{
+		return 0, err
+	}
+
+	i6xkk:=I6XKK(1, 255) //v1 = 255
+	err = emitter.saveOpcode(i6xkk)
+
+	if err != nil{
+		return 0, err
+	}
+
+	i6xkk = I6XKK(0xf, 0) // Vf = 0
+	err = emitter.saveOpcode(i6xkk)
+
+	if err != nil{
+		return 0, err
+	}
+
+	i8xy5 := I8XY5(0, 2) // V0 = V0-V2
+	err = emitter.saveOpcode(i8xy5)
+
+	if err != nil{
+		return 0, err
+	}
+	i4xkk := I4XKK(0, 0) //if v0 != 0 we skip the next opcode
+	err = emitter.saveOpcode(i4xkk)
+
+	if err != nil{
+		return 0, err
+	}
+
+	//so if v0 =0, the rest of division is also 0 and we jump to the end of the operation
+	jumpToEnd := I1NNN(emitter.currentAddress+5)
+	err = emitter.saveOpcode(jumpToEnd)
+
+	if err != nil{
+		return 0, err
+	}
+	//if not we ask if v0>v2
+	i3xkk := I3XKK(0xf, 0)
+	err = emitter.saveOpcode(i3xkk)
+
+	if err != nil{
+		return 0, err
+	}
+	//if v0>v2 we keep dividing in loop by jumping
+	loop := I1NNN(emitter.currentAddress-5)
+	err = emitter.saveOpcode(loop)
+
+	if err != nil{
+		return 0, err
+	}
+
+	//if not we jump the previous opcode and we find the rest by subtracting 255 (saved in v1) and v0.
+	//That give us the rest
+	i8xy5 = I8XY5(1, 0) //  = V1-V0
+	err = emitter.saveOpcode(i8xy5)
+
+	if err != nil{
+		return 0, err
+	}
+
+	i8xy0 := I8XY5(0, 1) //  = V0 = V1 to save the rest in v0
+	err = emitter.saveOpcode(i8xy0)
+
+	if err != nil{
+		return 0, err
+	}
+
+	return 1, nil
+}
+
+//saveOperands save the operands of a operation in registers. The left operand is saved in V0 (and maybe V1)
+//and the right operand is saved in V2 (and maybe V3). It returns the size of each operand and an error
+func (emitter *Emitter) saveOperands(functionCtx *FunctionCtx) ([2]int, error){
+	leftOperandType := emitter.ctxNode.Children[0].Value.Type
+	rightOperandType := emitter.ctxNode.Children[1].Value.Type
+	var sizes [2]int
+	size, err := emitter.translateOperation[rightOperandType](functionCtx)
+	if err != nil{
+		return sizes, err
+	}
+	sizes[1] = size
+
+	i8xy0:=I8XY0(2,0)
+	err = emitter.saveOpcode(i8xy0)
+	if err != nil{
+		return sizes, err
+	}
+	if size > 1{
+		i8xy0:=I8XY0(3,1)
+		err = emitter.saveOpcode(i8xy0)
+		if err != nil{
+			return sizes, err
+		}
+
+	}
+	size, err = emitter.translateOperation[leftOperandType](functionCtx)
+	if err != nil{
+		return  sizes, err
+	}
+	sizes[0] = size
+	return sizes, nil
+
+}
+
+
+
+
 
 //index save in v0 (and maybe v1) the value of a dereference.
 //Returns the size of the datatype of the dereference and a error

@@ -83,6 +83,13 @@ func I3XKK(x byte, kk byte)Opcode{
 	i3xkk[1] = kk
 	return i3xkk
 }
+//I4XKK writes in an Opcode the chip 8 instruction 4XKK which skip the next instruction if vx != kk.
+func I4XKK(x byte, kk byte)Opcode{
+	var i4xkk Opcode
+	i4xkk[0] = 0x40 | x
+	i4xkk[1] = kk
+	return i4xkk
+}
 
 //I2NNN writes in an Opcode the chip 8 instruction I2NNN CALL (ADDR)
 func I2NNN(nnn uint16)Opcode{
@@ -98,4 +105,20 @@ func I00EE()Opcode{
 	i2nnn[0] = 0x00
 	i2nnn[1] = 0xEE
 	return i2nnn
+}
+
+//I8XY5 writes in an Opcode the chip 8 instruction 8XY5 (Vx = Vx - Vy)
+func I8XY5(x byte, y byte)Opcode{
+	var i8xy5 Opcode
+	i8xy5[0] = 0x80 | x
+	i8xy5[1] = 0x05 | (y << 4)
+	return i8xy5
+}
+
+//I7XKK writes in an Opcode the chip 8 instruction 7XKK (vx = vx + kk)
+func I7XKK(x byte, kk byte)Opcode{
+	var i7xkk Opcode
+	i7xkk[0] = 0x40 | x
+	i7xkk[1] = kk
+	return i7xkk
 }
