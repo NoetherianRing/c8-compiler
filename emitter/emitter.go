@@ -48,7 +48,7 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 }
 
 
-//Start
+//Start translates the syntax tree into machine code and returns it
 func (emitter *Emitter) Start() ([MEMORY]byte, error){
 	emitter.ctxNode = emitter.ctxNode.Children[0] //The tree start with a EOF node, so we move to the next one
 
@@ -87,16 +87,16 @@ func (emitter *Emitter) Start() ([MEMORY]byte, error){
 	emitter.ctxNode = block
 
 
-	//The stack section will start in the last available address, which is saved in the v4 and v5 registers
-	v4 := byte(emitter.currentAddress & 0xFF00 >> 8)
-	v5 := byte(emitter.currentAddress & 0x00FF)
-	x := byte(4)
-	y := byte(5)
-	saveV4 := I6XKK(x, v4)
+	//The stack section will start in the last available address, which is saved in the vD and vE registers
+	vD := byte(emitter.currentAddress & 0xFF00 >> 8)
+	VE := byte(emitter.currentAddress & 0x00FF)
+	x := byte(RegisterStackAddres1)
+	y := byte(RegisterStackAddres2)
+	saveV4 := I6XKK(x, vD)
 	emitter.machineCode[0] = saveV4[0]
 	emitter.machineCode[1] = saveV4[1]
 
-	saveV5 := I6XKK(y, v5)
+	saveV5 := I6XKK(y, VE)
 	emitter.machineCode[2] = saveV5[0]
 	emitter.machineCode[3] = saveV5[1]
 
