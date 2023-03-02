@@ -898,8 +898,57 @@ func (emitter *Emitter)boolean(functionCtx *FunctionCtx) (int, error) {
 	return 1, nil
 }
 
-func (emitter *Emitter) multiply(functionCtx *FunctionCtx) (int, error) {
+//multiplication translates a multiplication to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (int, error) {
+	_, err := emitter.saveOperands(functionCtx)
+	if err != nil{
+		return 0, err
+	}
 
+	i4xkk := I4XKK(0, 0) //if v0 != 0 we skip the next opcode
+	err = emitter.saveOpcode(i4xkk)
+
+	if err != nil{
+		return 0, err
+	}
+	//if v0 =0, the result is 0 and we skip the operation
+	skipMultiplication := I1NNN(emitter.currentAddress+6)
+	err = emitter.saveOpcode(skipMultiplication)
+	if err != nil{
+		return 0, err
+	}
+	//v1 = 1
+	err = emitter.saveOpcode(I6XKK(1,1))
+	if err != nil{
+		return 0, err
+	}
+
+	//v2 = v2 + v2
+	err = emitter.saveOpcode(I8XY5(2,2))
+	if err != nil{
+		return 0, err
+	}
+
+	//v2 = v2 - v1
+	err = emitter.saveOpcode(I8XY5(2,1))
+	if err != nil{
+		return 0, err
+	}
+
+	//if v2 = 0 we skip the next opcode
+	err = emitter.saveOpcode(I3XKK(2,0))
+	if err != nil{
+		return 0, err
+	}
+
+	//if v2 != 0 we keep iterating the loop
+	err = emitter.saveOpcode(I1NNN(emitter.currentAddress-3))
+	if err != nil{
+		return 0, err
+	}
+
+	return 1, nil
 }
 
 //mod translates a % to opcodes and write it in emitter.machineCode, return the size of the datatype of the result and an error
@@ -908,6 +957,16 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (int, error) {
 	if err != nil{
 		return 0, err
 	}
+
+	i4xkk := I4XKK(0, 0) //if v0 != 0 we skip the next opcode
+	err = emitter.saveOpcode(i4xkk)
+
+	if err != nil{
+		return 0, err
+	}
+	//if v0 =0, the result is 0 and we skip the operation
+	skipMod := I1NNN(emitter.currentAddress+10)
+	err = emitter.saveOpcode(skipMod)
 
 	i6xkk:=I6XKK(1, 255) //v1 = 255. We can use it as a helper because both operands are simples in the context of %
 	err = emitter.saveOpcode(i6xkk)
@@ -929,7 +988,7 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (int, error) {
 	if err != nil{
 		return 0, err
 	}
-	i4xkk := I4XKK(0, 0) //if v0 != 0 we skip the next opcode
+	i4xkk = I4XKK(0, 0) //if v0 != 0 we skip the next opcode
 	err = emitter.saveOpcode(i4xkk)
 
 	if err != nil{
@@ -1130,13 +1189,13 @@ func (emitter *Emitter)index(functionCtx *FunctionCtx) (int, error){
 	return emitter.saveDereferenceInRegisters(functionCtx)
 }
 
-//asterisk multiply registers or save a dereference in registers, depending on the context
+//asterisk multiplication registers or save a dereference in registers, depending on the context
 //it return the size of the datatype obtained at the end of the operation and an error
 func (emitter *Emitter)asterisk(functionCtx *FunctionCtx)(int, error){
 	if len(emitter.ctxNode.Children) == 1{
 		return emitter.saveDereferenceInRegisters(functionCtx)
 	}else{
-		return emitter.multiply(functionCtx)
+		return emitter.multiplication(functionCtx)
 	}
 
 }
