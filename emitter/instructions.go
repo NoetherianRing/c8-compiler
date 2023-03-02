@@ -74,3 +74,12 @@ func IFX1E(x byte)Opcode{
 	ifx1e[1] = 0x1E
 	return ifx1e
 }
+
+
+//I3XKK writes in an Opcode the chip 8 instruction 3XKK which skip the next instruction if vx = kk.
+func I3XKK(x byte, kk byte)Opcode{
+	var i3xkk Opcode
+	i3xkk[0] = 0x30 | x
+	i3xkk[1] = kk
+	return i3xkk
+}

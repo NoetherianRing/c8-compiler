@@ -350,7 +350,7 @@ func (emitter *Emitter)saveInStack(size byte)[]byte{
 
 }
 
-//assign translate the assign statement to opcodes and write it in emitter.machineCode
+//assign translates the assign statement to opcodes and write it in emitter.machineCode
 func (emitter *Emitter)assign(functionCtx *FunctionCtx)error{
 	const SAVEIN = 0
 	const TOSAVE = 1
@@ -463,6 +463,123 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error{
 	}
 
 	return nil
+}
+
+//_if translates the if statement to opcodes and write it in emitter.machineCode
+func (emitter *Emitter) _if(functionCtx *FunctionCtx) error{
+	const CONDITION = 0
+	const BLOCK = 1
+
+	backup := emitter.ctxNode
+	//first we write in v0 the result of the condition
+	emitter.ctxNode = emitter.ctxNode.Children[CONDITION]
+	_, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	if err != nil{
+		return err
+	}
+	i3xkk := I3XKK(0, True) //if v0 = true we skip the next instruction
+	err = emitter.saveOpcode(i3xkk)
+	if err != nil{
+		return err
+	}
+	//the next instruction is going to be a jump to the memory address after the block
+	//because we don't know this address yet, we save the current address to write the opcode later
+	lineAfterCondition := emitter.currentAddress
+	err = emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	err = emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	emitter.ctxNode = backup
+	//we write all the opcodes of the block
+	emitter.ctxNode = emitter.ctxNode.Children[BLOCK]
+	err = emitter.block(functionCtx)
+	if err != nil{
+		return err
+	}
+	//then we write the jump after the condition
+	i1nnn := I1NNN(emitter.currentAddress)
+
+	emitter.machineCode[lineAfterCondition] = i1nnn[0]
+	emitter.machineCode[lineAfterCondition+1] = i1nnn[1]
+
+	return nil
+}
+
+//_else translates the else statement to opcodes and write it in emitter.machineCode
+func (emitter *Emitter) _else(functionCtx *FunctionCtx) error{
+	const CONDITION = 0
+	const IFBLOCK = 1
+	const ELSEBLOCK = 2
+
+	backup := emitter.ctxNode
+	//first we write in v0 the result of the condition
+	emitter.ctxNode = emitter.ctxNode.Children[CONDITION]
+	_, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	if err != nil{
+		return err
+	}
+	i3xkk := I3XKK(0, True) //if v0 = true we skip the next instruction
+	err = emitter.saveOpcode(i3xkk)
+	if err != nil{
+		return err
+	}
+	//the next instruction is going to be a jump to the memory address after the if block
+	//because we don't know this address yet, we save the current address to write the opcode later
+	lineAfterCondition := emitter.currentAddress
+	err = emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	err = emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	emitter.ctxNode = backup
+	//we write all the opcodes of the if block
+	emitter.ctxNode = emitter.ctxNode.Children[IFBLOCK]
+	err = emitter.block(functionCtx)
+	if err != nil{
+		return err
+	}
+	//if we execute the if block we want to jump the else block,
+	//because we don't have the address to jump yet, we save the current address to write it later
+	lineAfterIf := emitter.currentAddress
+	err = emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	err = emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	emitter.ctxNode = backup
+
+	//then we write the jump after the condition
+	i1nnn := I1NNN(emitter.currentAddress)
+
+	emitter.machineCode[lineAfterCondition] = i1nnn[0]
+	emitter.machineCode[lineAfterCondition+1] = i1nnn[1]
+
+	//we write all the opcodes of the else block
+	emitter.ctxNode = emitter.ctxNode.Children[ELSEBLOCK]
+	err = emitter.block(functionCtx)
+	if err != nil{
+		return err
+	}
+	//then we write the jump after the if block
+	i1nnn2 := I1NNN(emitter.currentAddress)
+
+	emitter.machineCode[lineAfterIf] = i1nnn2[0]
+	emitter.machineCode[lineAfterIf+1] = i1nnn2[1]
+	return nil
+}
+
+func (emitter *Emitter)block(functionCtx *FunctionCtx) error {
+
 }
 
 //literal save a byte in v0. Return the size of the byte datatype (1) and an error

@@ -5,5 +5,6 @@ const(
 	StackSectionStartPointer = 10            //The memory position in which we store the address in which starts the stack section
 	RegisterStackAddres1     = 4 			//The index of the register that saves the first 8 bits of the stack address
 	RegisterStackAddres2     = 5			//The index of the register that saves the last 8 bits of the stack address
-
+	True 					 = 0xFF
+	False 					 = 0x00
 )
