@@ -19,10 +19,11 @@ type Emitter struct{
 	// the address in which the stack section starts
 	scope           *symboltable.Scope
 	ctxNode         *ast.Node
-	machineCode     [MEMORY]byte
+	machineCode    		   [MEMORY]byte
 	translateStatement     map[token.Type]func(*FunctionCtx)error
 	translateOperation	   map[token.Type]func(function *FunctionCtx) (int, error)
 	functions       	   map[string]uint16
+	lastIndexSubScope	   int //in the context of a scope, tells the numbers of sub-scopes already written in machine code
 
 }
 
@@ -31,6 +32,7 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 
 	emitter.globalVariables = make(map[string]uint16)
 	emitter.scope = scope
+	emitter.lastIndexSubScope = 0
 	emitter.ctxNode = tree.Head
 	emitter.translateStatement = make(map[token.Type]func(*FunctionCtx)error)
 //	emitter.translateStatement[token.IF] = emitter._if
@@ -123,6 +125,8 @@ func (emitter *Emitter) functionDeclaration()error{
 	const ARG = 0
 	const IDENT = 1
 	const BLOCK = 4
+	emitter.lastIndexSubScope = 0
+
 	//we backup the offsetStack so we can update it after compiling the function
 	offsetBackup := emitter.offsetStack
 
@@ -577,9 +581,82 @@ func (emitter *Emitter) _else(functionCtx *FunctionCtx) error{
 	emitter.machineCode[lineAfterIf+1] = i1nnn2[1]
 	return nil
 }
+//_while translates the else statement to opcodes and write it in emitter.machineCode
+func (emitter *Emitter)_while(functionCtx *FunctionCtx) error {
+	const CONDITION = 0
+	const BLOCK = 1
 
+	//we save the initial address to jump in every iteration
+	initial := emitter.currentAddress
+	backup := emitter.ctxNode
+
+	emitter.ctxNode = emitter.ctxNode.Children[CONDITION]
+	_, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	if err != nil{
+		return err
+	}
+	i3xkk := I3XKK(0, True) //if v0 = true we skip the next instruction
+	err = emitter.saveOpcode(i3xkk)
+	if err != nil{
+		return err
+	}
+	//the next instruction is going to be a jump to the memory address after the while
+	//because we don't know this address yet, we save the current address to write the opcode later
+	lineAfterCondition := emitter.currentAddress
+	err = emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	err = emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	emitter.ctxNode = backup
+
+	emitter.ctxNode = emitter.ctxNode.Children[BLOCK]
+	err = emitter.block(functionCtx)
+	if err != nil{
+		return err
+	}
+	jumpToInitial := I1NNN(initial) //after executing the block, we jump to the address of the condition
+	err =emitter.saveOpcode(jumpToInitial)
+	if err != nil{
+		return err
+	}
+
+	//then we write the jump after the condition
+	jumpWhile := I1NNN(emitter.currentAddress)
+
+	emitter.machineCode[lineAfterCondition] = jumpWhile[0]
+	emitter.machineCode[lineAfterCondition+1] = jumpWhile[1]
+	return nil
+}
+
+//block translates a block  to opcodes and write it in emitter.machineCode, it also handle the scope
 func (emitter *Emitter)block(functionCtx *FunctionCtx) error {
+	lastIndexSubScopeBackup := emitter.lastIndexSubScope
+	scopeBackup := emitter.scope
+	emitter.scope = emitter.scope.SubScopes[emitter.lastIndexSubScope]
+	addressesBackup := functionCtx.Addresses
+	functionCtx.Addresses = functionCtx.Addresses.SubAddresses[emitter.lastIndexSubScope]
+	emitter.lastIndexSubScope = 0
 
+	block := emitter.ctxNode
+
+	for _, child :=range  block.Children{
+		//we jump let statements because they were already executed in the declaration of a function
+		if child.Value.Type != token.LET{
+			emitter.ctxNode = child
+			err := emitter.translateStatement[emitter.ctxNode.Value.Type](functionCtx)
+			if err != nil{
+				return err
+			}
+		}
+	}
+
+	emitter.lastIndexSubScope = lastIndexSubScopeBackup + 1
+	emitter.scope = scopeBackup
+	functionCtx.Addresses = addressesBackup
 }
 
 //literal save a byte in v0. Return the size of the byte datatype (1) and an error
