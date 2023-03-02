@@ -144,52 +144,21 @@ func (emitter *Emitter) functionDeclaration()error{
 	if len(emitter.ctxNode.Children[ARG].Children)>0{
 		sizeParams := obtainSizeParams(emitter.scope.Symbols[functionName].DataType.(symboltable.Function).Args)
 		i := 0
+		var err error
 		emitter.ctxNode = emitter.ctxNode.Children[ARG].Children[0]
 		for emitter.ctxNode.Value.Type == token.COMMA{
 			comma := emitter.ctxNode
-			//first we declare them in the stack
-			emitter.ctxNode = emitter.ctxNode.Children[ARG].Children[0]
-			paramIdent := emitter.ctxNode.Children[0].Value.Literal
-			params = append(params, paramIdent)
-			err := emitter.let(ctxAddresses)
-			if err != nil{
-				return err
-			}
-			//then we set its value
-			//the argument i is the register i + 2 (we use v0 and v1 to operate)
-			i8xy0 := I8XY0(0, byte(i+2))
-			err = emitter.saveOpcode(i8xy0)
-			if err != nil{
-				return err
-			}
-			i++
-			if sizeParams[i] == 2{
-				i8xy0 = I8XY0(1, byte(i+2))
-				err = emitter.saveOpcode(i8xy0)
-				if err != nil{
-					return err
-				}
-				i++
-
-			}
-			iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2)
-			err = emitter.saveOpcode(iaxy0)
-			if err != nil{
-				return err
-			}
-			reference,_ := ctxAddresses.GetReference(paramIdent)
-
-			err = emitter.executeFX1ESafe(2, reference.positionStack)
-			if err != nil{
-				return err
-			}
-			ifx55 := IFX55(byte(sizeParams[i]))
-			err = emitter.saveOpcode(ifx55)
-			if err != nil{
+			emitter.ctxNode = emitter.ctxNode.Children[0]
+			i, err = emitter.saveParamsInStack(&params, ctxAddresses, i, sizeParams)
+			if err != nil {
 				return err
 			}
 			emitter.ctxNode = comma
 			emitter.ctxNode = emitter.ctxNode.Children[1]
+		}
+		i, err = emitter.saveParamsInStack(&params, ctxAddresses, i, sizeParams)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -199,7 +168,7 @@ func (emitter *Emitter) functionDeclaration()error{
 	emitter.ctxNode = emitter.ctxNode.Children[BLOCK]
 	err := emitter.declareInStack(ctxAddresses)
 	emitter.ctxNode = fn
-	if err != nil{
+	if err != nil {
 		return err
 	}
 
@@ -207,27 +176,27 @@ func (emitter *Emitter) functionDeclaration()error{
 
 	//for each parameter we check if the register optimizer put it in a register, and if it did
 	//we save its value that register
-	for _, param := range params{
+	for _, param := range params {
 		reference, _ := ctxAddresses.GetReference(param)
-		index,isInRegister := registers.guide[reference]
-		if isInRegister{
+		index, isInRegister := registers.guide[reference]
+		if isInRegister {
 			iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2)
 			err = emitter.saveOpcode(iaxy0)
-			if err != nil{
+			if err != nil {
 				return err
 			}
 			err = emitter.executeFX1ESafe(0, reference.positionStack)
-			if err != nil{
+			if err != nil {
 				return err
 			}
 			ifx65 := IFX55(1)
 			err = emitter.saveOpcode(ifx65)
-			if err != nil{
+			if err != nil {
 				return err
 			}
 			i8xy0 := I8XY0(0, byte(index))
 			err = emitter.saveOpcode(i8xy0)
-			if err != nil{
+			if err != nil {
 				return err
 			}
 		}
@@ -237,13 +206,13 @@ func (emitter *Emitter) functionDeclaration()error{
 	ctxFunction := NewCtxFunction(registers, ctxAddresses)
 
 	//we write the rest of the statements in memory
-	for _, child := range fn.Children[BLOCK].Children{
+	for _, child := range fn.Children[BLOCK].Children {
 		emitter.ctxNode = child
 		//we jump let stmts because we already save them
-		translateStmt, ok :=emitter.translateStatement[emitter.ctxNode.Value.Type]
-		if ok{
+		translateStmt, ok := emitter.translateStatement[emitter.ctxNode.Value.Type]
+		if ok {
 			err := translateStmt(ctxFunction)
-			if err != nil{
+			if err != nil {
 				return err
 			}
 		}
@@ -253,6 +222,52 @@ func (emitter *Emitter) functionDeclaration()error{
 	emitter.scope = mainScope
 	emitter.offsetStack = offsetBackup
 	return nil
+}
+
+//saveParamsInStack declare params in the stack and save its values there, returns the amount of params saved
+func (emitter *Emitter) saveParamsInStack(params *[]string, ctxAddresses *Addresses, i int, sizeParams []int) (int, error) {
+
+	//first we declare them in the stack
+	paramIdent := emitter.ctxNode.Value.Literal
+	*params = append(*params, paramIdent)
+	err := emitter.let(ctxAddresses)
+	if err != nil {
+		return i, err
+	}
+	//then we set its value
+	//the argument i is the register i + 2 (we use v0 and v1 to operate)
+	i8xy0 := I8XY0(0, byte(i+2))
+	err = emitter.saveOpcode(i8xy0)
+	if err != nil {
+		return i, err
+	}
+	i++
+	if sizeParams[i] == 2 {
+		i8xy0 = I8XY0(1, byte(i+2))
+		err = emitter.saveOpcode(i8xy0)
+		if err != nil {
+			return i, err
+		}
+		i++
+
+	}
+	iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2)
+	err = emitter.saveOpcode(iaxy0)
+	if err != nil {
+		return i, err
+	}
+	reference, _ := ctxAddresses.GetReference(paramIdent)
+
+	err = emitter.executeFX1ESafe(2, reference.positionStack)
+	if err != nil {
+		return i, err
+	}
+	ifx55 := IFX55(byte(sizeParams[i]))
+	err = emitter.saveOpcode(ifx55)
+	if err != nil {
+		return i, err
+	}
+	return i, nil
 }
 
 //globalVariableDeclaration assigns an address to a global variable and updates the current address
@@ -555,7 +570,7 @@ func (emitter *Emitter) _return(functionCtx *FunctionCtx) error {
 		emitter.ctxNode = returnBackup
 	}
 	return emitter.saveOpcode(I00EE())
-	
+
 }
 
 //_if translates the if statement to opcodes and write it in emitter.machineCode
