@@ -660,13 +660,16 @@ func (emitter *Emitter)block(functionCtx *FunctionCtx) error {
 	return nil
 }
 
+//voidCall translates a void call to opcodes and write it in emitter.machineCode
 func (emitter *Emitter)voidCall(functionCtx *FunctionCtx)error{
 	_,err := emitter.call(functionCtx)
 	return err
 }
 
+//call translates a call to opcodes and write it in emitter.machineCode, return the size of the datatype it returns and an error
 func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
   	const IDENT = 0
+  	const PARAMS = 1
 	ident := emitter.ctxNode.Children[IDENT].Value.Literal
 	//we first backup all registers of the current function in a the stack
 	iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2)
@@ -687,14 +690,57 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 		return 0, err
 	}
 
-	//then we obtain the value of the parameters and we save them in the registers:
+	//then we obtain the value of the parameters and we save them in registers:
+	if len(emitter.ctxNode.Children) > 1{
 
-	//first we need the size of each param
-	sizeParams := obtainSizeParams(emitter.scope.Symbols[ident].DataType.(symboltable.Function).Args)
-	
-	//...
+		emitter.ctxNode = emitter.ctxNode.Children[PARAMS]
+		i := 0
+		for emitter.ctxNode.Value.Type == token.COMMA{
+			backupComma := emitter.ctxNode
+			emitter.ctxNode = emitter.ctxNode.Children[0]
+			//we save in v0(and maybe v1) the value of the parameter being analyzed
+			size, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+			i8XY0 := I8XY0(byte(i), 0)
+			i++
+			err = emitter.saveOpcode(i8XY0)
+			if err != nil{
+				return 0, err
+			}
+			if size > 1{
+				i8XY0 := I8XY0(byte(i), 1)
+				i++
+				err := emitter.saveOpcode(i8XY0)
+				if err != nil{
+					return 0, err
+				}
+			}
+			emitter.ctxNode = backupComma
+			emitter.ctxNode = emitter.ctxNode.Children[1]
+		}
+		for emitter.ctxNode.Value.Type == token.COMMA{
+			emitter.ctxNode = emitter.ctxNode.Children[0]
+			//we save in v0(and maybe v1) the value of the parameter being analyzed
+			size, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+			i8XY0 := I8XY0(byte(i), 0)
+			i++
+			err = emitter.saveOpcode(i8XY0)
+			if err != nil{
+				return 0, err
+			}
+			if size > 1{
+				i8XY0 := I8XY0(byte(i), 1)
+				i++
+				err := emitter.saveOpcode(i8XY0)
+				if err != nil{
+					return 0, err
+				}
+			}
 
-	//we call te function
+		}
+
+	}
+
+	//we call the function
 	fnAddress, _ := emitter.functions[ident]
 	i2nnn := I2NNN(fnAddress)
 	err = emitter.saveOpcode(i2nnn)
