@@ -978,6 +978,57 @@ func (emitter *Emitter) subtraction(functionCtx *FunctionCtx) (int, error) {
 	return 2, nil
 }
 
+//shift translates a subtraction to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter) shift(functionCtx *FunctionCtx) (int, error) {
+	_, err := emitter.saveOperands(functionCtx)
+	if err != nil {
+		return 0, err
+	}
+	//we set v3= 1 to use it as an aux
+	err = emitter.saveOpcode(I6XKK(3,1))
+	if err != nil{
+		return 0, err
+	}
+
+	//we shift v0 by 1
+	switch emitter.ctxNode.Value.Type {
+	case token.GTGT:
+		err = emitter.saveOpcode(I8XY6(0))
+		if err != nil{
+			return 0, err
+		}
+	case token.LTLT:
+		err = emitter.saveOpcode(I8XYE(0))
+		if err != nil{
+			return 0, err
+		}
+	default:
+		return 0, errors.New(errorhandler.UnexpectedCompilerError())
+
+	}
+
+	//v2 = v2 - 1
+	err = emitter.saveOpcode(I8XY5(2, 3))
+	if err != nil{
+		return 0, err
+	}
+
+	//if v2 != 0 we keep shifting
+	err = emitter.saveOpcode(I3XKK(0, 0))
+	if err != nil{
+		return 0, err
+	}
+	err = emitter.saveOpcode(I1NNN(emitter.currentAddress-3))
+	if err != nil{
+		return 0, err
+	}
+	
+	return 1, nil
+
+}
+
+
 //multiplication translates a multiplication to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (int, error) {
