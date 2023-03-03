@@ -941,6 +941,42 @@ func (emitter *Emitter) sum(functionCtx *FunctionCtx) (int, error) {
 	return 2, nil
 }
 
+//subtraction translates a subtraction to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter) subtraction(functionCtx *FunctionCtx) (int, error) {
+	sizeOperands, err := emitter.saveOperands(functionCtx)
+	if err != nil{
+		return 0, err
+	}
+	//if the left operand is a simple data type we just subtract v0 = v0 - v2
+	if sizeOperands[0] == 1{
+		err := emitter.saveOpcode(I8XY5(0,2))
+		if err != nil{
+			return 0, err
+		}
+		return 1, nil
+	}
+	//if the left operands is a pointer we first subtract v1 = v1 - v2
+	err = emitter.saveOpcode(I8XY5(1,2))
+	if err != nil{
+		return 0, err
+	}
+	//because we already use v2, we can now use it as an aux, v2 = 1
+	err = emitter.saveOpcode(I6XKK(2,1))
+	if err != nil{
+		return 0, err
+	}
+	//if vf = false, then v1 - v2 < 0, so we need to to v0 = v0 - 1
+	err = emitter.saveOpcode(I4XKK(0xf,False))
+	if err != nil{
+		return 0, err
+	}
+	err = emitter.saveOpcode(I8XY5(0,2))
+	if err != nil{
+		return 0, err
+	}
+	return 2, nil
+}
 
 //multiplication translates a multiplication to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
