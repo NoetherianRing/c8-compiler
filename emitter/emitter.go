@@ -39,10 +39,11 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 //	emitter.translateStatement[token.ELSE] = emitter._else
 //	emitter.translateStatement[token.WHILE] = emitter._while
 	emitter.translateStatement[token.EQ] = emitter.assign
+	emitter.translateStatement[token.RPAREN] = emitter.voidCall
 
 	emitter.translateOperation = make(map[token.Type]func(*FunctionCtx)(int,error))
 	emitter.translateOperation[token.DOLLAR] = emitter.address
-
+	emitter.translateOperation[token.RPAREN] = emitter.parenthesis
 	emitter.currentAddress = AddressGlobalSection
 	return emitter
 }
@@ -764,6 +765,16 @@ func (emitter *Emitter)block(functionCtx *FunctionCtx) error {
 	return nil
 }
 
+//parenthesis analyze the context of a parenthesis and delegate the operation,
+//returns an error and the size of the result of the executed operation
+func (emitter *Emitter)parenthesis(functionCtx *FunctionCtx)(int, error){
+	if emitter.ctxNode.Children[0].Value.Type == token.IDENT{
+		return emitter.call(functionCtx)
+	}
+	emitter.ctxNode = emitter.ctxNode.Children[0]
+	return emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+}
+
 //voidCall translates a void call to opcodes and write it in emitter.machineCode
 func (emitter *Emitter)voidCall(functionCtx *FunctionCtx)error{
 	_,err := emitter.call(functionCtx)
@@ -898,6 +909,39 @@ func (emitter *Emitter)boolean(functionCtx *FunctionCtx) (int, error) {
 	return 1, nil
 }
 
+//sum translates a sum to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter) sum(functionCtx *FunctionCtx) (int, error) {
+	sizeOperands, err := emitter.saveOperands(functionCtx)
+	if err != nil{
+		return 0, err
+	}
+	//if the left operand is a simple data type we just sum v0 = v0 +v2
+	if sizeOperands[0] == 1{
+		err := emitter.saveOpcode(I8XY4(0,2))
+		if err != nil{
+			return 0, err
+		}
+		return 1, nil
+	}
+	//if the left operands is a pointer we first sum v1 = v1 + v2
+	err = emitter.saveOpcode(I8XY4(1,2))
+	if err != nil{
+		return 0, err
+	}
+	//if vf = true, then v1 + v2 > 255, so we need to to v0 = v0 + 1
+	err = emitter.saveOpcode(I4XKK(0xf,True))
+	if err != nil{
+		return 0, err
+	}
+	err = emitter.saveOpcode(I7XKK(0,1))
+	if err != nil{
+		return 0, err
+	}
+	return 2, nil
+}
+
+
 //multiplication translates a multiplication to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (int, error) {
@@ -925,7 +969,7 @@ func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (int, error) {
 	}
 
 	//v2 = v2 + v2
-	err = emitter.saveOpcode(I8XY5(2,2))
+	err = emitter.saveOpcode(I8XY4(2,2))
 	if err != nil{
 		return 0, err
 	}
@@ -1148,10 +1192,12 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (int, error) {
 //saveOperands save the operands of a operation in registers. The left operand is saved in V0 (and maybe V1)
 //and the right operand is saved in V2 (and maybe V3). It returns the size of each operand and an error
 func (emitter *Emitter) saveOperands(functionCtx *FunctionCtx) ([2]int, error){
-	leftOperandType := emitter.ctxNode.Children[0].Value.Type
-	rightOperandType := emitter.ctxNode.Children[1].Value.Type
+	leftOperand := emitter.ctxNode.Children[0]
+	rightOperand := emitter.ctxNode.Children[1]
+	backup := emitter.ctxNode
+	emitter.ctxNode = rightOperand
 	var sizes [2]int
-	size, err := emitter.translateOperation[rightOperandType](functionCtx)
+	size, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 	if err != nil{
 		return sizes, err
 	}
@@ -1170,11 +1216,14 @@ func (emitter *Emitter) saveOperands(functionCtx *FunctionCtx) ([2]int, error){
 		}
 
 	}
-	size, err = emitter.translateOperation[leftOperandType](functionCtx)
+	emitter.ctxNode = leftOperand
+	size, err = emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 	if err != nil{
 		return  sizes, err
 	}
 	sizes[0] = size
+
+	emitter.ctxNode = backup
 	return sizes, nil
 
 }

@@ -11,10 +11,76 @@ func I6XKK(x byte, kk byte) Opcode {
 }
 //I8XY0 writes in an Opcode the chip 8 instruction 8XY0 which set Vx = Vy
 func I8XY0(x byte, y byte) Opcode {
-	var i6xkk Opcode
-	i6xkk[0] =0x80 | (x)
-	i6xkk[1] = 0x00 | (y << 4)
-	return i6xkk
+	var i8xy0 Opcode
+	i8xy0[0] =0x80 | (x)
+	i8xy0[1] = 0x00 | (y << 4)
+	return i8xy0
+}
+
+//I8XY1 writes in an Opcode the chip 8 instruction 8XY1 which set Vx = Vx | Vy
+func I8XY1(x byte, y byte) Opcode {
+	var i8xy1 Opcode
+	i8xy1[0] =0x80 | (x)
+	i8xy1[1] = 0x00 | (y << 4)
+	return i8xy1
+}
+
+//I8XY2 writes in an Opcode the chip 8 instruction 8XY2 which set Vx = Vx & Vy
+func I8XY2(x byte, y byte) Opcode {
+	var i8xy2 Opcode
+	i8xy2[0] =0x80 | (x)
+	i8xy2[1] = 0x00 | (y << 4)
+	return i8xy2
+}
+
+//I8XY3 writes in an Opcode the chip 8 instruction 8XY3 which set Vx = Vx ^ Vy
+func I8XY3(x byte, y byte) Opcode {
+	var i8xy3 Opcode
+	i8xy3[0] =0x80 | (x)
+	i8xy3[1] = 0x00 | (y << 4)
+	return i8xy3
+}
+//I8XY4 writes in an Opcode the chip 8 instruction 8XY4 which set Vx = Vx + Vy
+//If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
+func I8XY4(x byte, y byte) Opcode {
+	var i8xy4 Opcode
+	i8xy4[0] =0x80 | (x)
+	i8xy4[1] = 0x00 | (y << 4)
+	return i8xy4
+}
+
+//I8XY7 writes in an Opcode the chip 8 instruction 8XY7
+//if Vy > Vx, then VF is set to 1, otherwise 0. Then Vx is subtracted from Vy, and the results stored in Vx.
+func I8XY7(x byte, y byte)Opcode{
+	var i8xy7 Opcode
+	i8xy7[0] = 0x80 | x
+	i8xy7[1] = 0x05 | (y << 4)
+	return i8xy7
+}
+
+//I8XY5 writes in an Opcode the chip 8 instruction 8XY5 (Vx = Vx - Vy)
+//if Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
+func I8XY5(x byte, y byte)Opcode{
+	var i8xy5 Opcode
+	i8xy5[0] = 0x80 | x
+	i8xy5[1] = 0x05 | (y << 4)
+	return i8xy5
+}
+//I8XY6 writes in an Opcode the chip 8 instruction 8XY6 which set Vx = Vx >> 1
+func I8XY6(x byte) Opcode {
+	var i8xy6 Opcode
+	i8xy6[0] =0x80 | (x)
+	i8xy6[1] = 0x00
+	return i8xy6
+}
+
+
+//I8XYE writes in an Opcode the chip 8 instruction 8XYE which set Vx = Vx << 1
+func I8XYE(x byte) Opcode {
+	var i8xyE Opcode
+	i8xyE[0] =0x80 | (x)
+	i8xyE[1] = 0x00
+	return i8xyE
 }
 
 //I1NNN writes in an Opcode the chip 8 instruction 1NNN which jumps to location nnn
@@ -48,7 +114,6 @@ func IFX65(x byte) Opcode{
 }
 
 
-//TODO: Borrar este mensaje, esto es NUXY
 //IAXY0 writes in an Opcode the new chip 8 instruction AXY0 which was added in order of make pointers possible in this compiler
 //It set I = (V1 << 8) | V2
 func IAXY0(x byte, y byte)Opcode{
@@ -107,13 +172,6 @@ func I00EE()Opcode{
 	return i2nnn
 }
 
-//I8XY5 writes in an Opcode the chip 8 instruction 8XY5 (Vx = Vx - Vy)
-func I8XY5(x byte, y byte)Opcode{
-	var i8xy5 Opcode
-	i8xy5[0] = 0x80 | x
-	i8xy5[1] = 0x05 | (y << 4)
-	return i8xy5
-}
 
 //I7XKK writes in an Opcode the chip 8 instruction 7XKK (vx = vx + kk)
 func I7XKK(x byte, kk byte)Opcode{
