@@ -909,6 +909,98 @@ func (emitter *Emitter)boolean(functionCtx *FunctionCtx) (int, error) {
 	return 1, nil
 }
 
+//ltgt translates < and > to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter)ltgt(functionCtx *FunctionCtx) (int, error){
+	sizeOperands, err := emitter.saveOperands(functionCtx)
+	if err != nil{
+		return 0, err
+	}
+
+	// if our operands are simples we just need to check if v0 is lesser/greater than v2.
+	//we first save this information in vf and then we set v0 = vf
+	if sizeOperands[0] == 1{
+		switch emitter.ctxNode.Value.Type {
+		case token.LT:
+			err = emitter.saveOpcode(I8XY5(0,2))
+			if err != nil{
+				return 0, err
+			}
+		case token.GT:
+			err = emitter.saveOpcode(I8XY7(0,2))
+			if err != nil{
+				return 0, err
+			}
+		default:
+			return 0, errors.New(errorhandler.UnexpectedCompilerError())
+		}
+		err = emitter.saveOpcode(I8XY0(0,0xf))
+		if err != nil{
+			return 0, err
+		}
+		return 1, nil
+	}else{
+		//if we are comparing pointers we first compare v0 with v2
+		switch emitter.ctxNode.Value.Type {
+		case token.LT:
+			err = emitter.saveOpcode(I8XY5(0,2))
+			if err != nil{
+				return 0, err
+			}
+		case token.GT:
+			err = emitter.saveOpcode(I8XY7(0,2))
+			if err != nil{
+				return 0, err
+			}
+		default:
+			return 0, errors.New(errorhandler.UnexpectedCompilerError())
+
+		}
+		err = emitter.saveOpcode(I3XKK(0xf,0)) //if vf = 0 we keep analyzing
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.saveOpcode(I1NNN(emitter.currentAddress + 5)) //if vf = 1 we know that the result is true and jump to the end
+		if err != nil{
+			return 0, err
+		}
+		//if vf = 0 we ask if v0 == v2 with a xor
+		err = emitter.saveOpcode(I8XY3(0,2))
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.saveOpcode(I4XKK(0,0)) //if v0 != v2 we skip the next opcode
+		if err != nil{
+			return 0, err
+		}
+
+
+		//if v0 == v2 we need to analyze v1 and v3
+		switch emitter.ctxNode.Value.Type {
+		case token.LT:
+			err = emitter.saveOpcode(I8XY5(0,2))
+			if err != nil{
+				return 0, err
+			}
+		case token.GT:
+			err = emitter.saveOpcode(I8XY7(0,2))
+			if err != nil{
+				return 0, err
+			}
+		default:
+			return 0, errors.New(errorhandler.UnexpectedCompilerError())
+
+		}
+		//then we save the result in v0
+		err = emitter.saveOpcode(I8XY0(0,0xf))
+		if err != nil{
+			return 0, err
+		}
+		return 2, nil
+	}
+
+}
+
 //sum translates a sum to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter) sum(functionCtx *FunctionCtx) (int, error) {
@@ -1023,10 +1115,11 @@ func (emitter *Emitter) shift(functionCtx *FunctionCtx) (int, error) {
 	if err != nil{
 		return 0, err
 	}
-	
+
 	return 1, nil
 
 }
+
 
 
 //multiplication translates a multiplication to opcodes and write it in emitter.machineCode,
