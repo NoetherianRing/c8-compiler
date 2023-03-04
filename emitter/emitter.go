@@ -921,12 +921,12 @@ func (emitter *Emitter)ltgt(functionCtx *FunctionCtx) (int, error){
 	//we first save this information in vf and then we set v0 = vf
 	if sizeOperands[0] == 1{
 		switch emitter.ctxNode.Value.Type {
-		case token.LT:
+		case token.GT:
 			err = emitter.saveOpcode(I8XY5(0,2))
 			if err != nil{
 				return 0, err
 			}
-		case token.GT:
+		case token.LT:
 			err = emitter.saveOpcode(I8XY7(0,2))
 			if err != nil{
 				return 0, err
@@ -942,12 +942,12 @@ func (emitter *Emitter)ltgt(functionCtx *FunctionCtx) (int, error){
 	}else{
 		//if we are comparing pointers we first compare v0 with v2
 		switch emitter.ctxNode.Value.Type {
-		case token.LT:
+		case token.GT:
 			err = emitter.saveOpcode(I8XY5(0,2))
 			if err != nil{
 				return 0, err
 			}
-		case token.GT:
+		case token.LT:
 			err = emitter.saveOpcode(I8XY7(0,2))
 			if err != nil{
 				return 0, err
@@ -977,12 +977,12 @@ func (emitter *Emitter)ltgt(functionCtx *FunctionCtx) (int, error){
 
 		//if v0 == v2 we need to analyze v1 and v3
 		switch emitter.ctxNode.Value.Type {
-		case token.LT:
+		case token.GT:
 			err = emitter.saveOpcode(I8XY5(0,2))
 			if err != nil{
 				return 0, err
 			}
-		case token.GT:
+		case token.LT:
 			err = emitter.saveOpcode(I8XY7(0,2))
 			if err != nil{
 				return 0, err
@@ -999,6 +999,132 @@ func (emitter *Emitter)ltgt(functionCtx *FunctionCtx) (int, error){
 		return 2, nil
 	}
 
+}
+
+//ltgteq translates <= and >= to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter)ltgteq(functionCtx *FunctionCtx) (int, error) {
+	sizeOperands, err := emitter.saveOperands(functionCtx)
+	if err != nil {
+		return 0, err
+	}
+
+	if sizeOperands[0] == 1{
+		err = emitter.saveOpcode(I6XKK(0xf,True)) //vf = 1
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.saveOpcode(I8XY3(0,2)) //we ask v0 == v2 with a xor
+		if err != nil{
+			return 0, err
+		}
+
+		err = emitter.saveOpcode(I3XKK(0,0)) //if v0 = 0 then v0 was equal to v2 and we skip the next opcode
+		if err != nil{
+			return 0, err
+		}
+		switch emitter.ctxNode.Value.Type {
+		case token.GTEQ:
+			err = emitter.saveOpcode(I8XY5(0,2))//if v0 wasn't equal to v2, we ask if v0 > v2 and store the result in vf
+			if err != nil{
+				return 0, err
+			}
+		case token.LTEQ:
+			err = emitter.saveOpcode(I8XY7(0,2)) //if v0 wasn't equal to v2, we ask if v0 < v2 and store the result in vf
+			if err != nil{
+				return 0, err
+			}
+		default:
+			return 0, errors.New(errorhandler.UnexpectedCompilerError())
+
+		}
+		//then we save the result in v0
+		err = emitter.saveOpcode(I8XY0(0,0xf))
+		if err != nil{
+			return 0, err
+		}
+
+		return 1, nil
+	}else{
+		//first we ask if v0 is greater/lesser than v2 and store the result in vf
+		switch emitter.ctxNode.Value.Type {
+		case token.GTEQ:
+			err = emitter.saveOpcode(I8XY5(0,2))
+			if err != nil{
+				return 0, err
+			}
+		case token.LTEQ:
+			err = emitter.saveOpcode(I8XY7(0,2))
+			if err != nil{
+				return 0, err
+			}
+		default:
+			return 0, errors.New(errorhandler.UnexpectedCompilerError())
+
+		}
+
+		err = emitter.saveOpcode(I3XKK(0xf,0)) //if vf = 0 we skip  the next opcode
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.saveOpcode(I1NNN(emitter.currentAddress+9)) //if vf = 1 we skip  7 opcodes because we know the result is true
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.saveOpcode(I8XY3(0,2)) //we ask v0 == v2 with a xor. v0 = 0 if ture
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.saveOpcode(I3XKK(0,0)) //if v0 = 0 we skip  the next opcode
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.saveOpcode(I1NNN(emitter.currentAddress+6)) //if v0 != 0 we skip 4 opcodes because we know the result is false
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.saveOpcode(I8XY3(0,2)) //we ask v1 == v3 with a xor. v1 = 0 if ture
+		if err != nil{
+			return 0, err
+		}
+		// if v1 = 0 we set vf = 1 and jump to the end
+		err = emitter.saveOpcode(I4XKK(1,0))
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.saveOpcode(I6XKK(0xf,True)) //vf = 1
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.saveOpcode(I3XKK(1,0))
+		if err != nil{
+			return 0, err
+		}
+		//first we ask if v1 is greater/lesser than v3 and store the result in vf
+		switch emitter.ctxNode.Value.Type {
+		case token.GTEQ:
+			err = emitter.saveOpcode(I8XY5(0,2))
+			if err != nil{
+				return 0, err
+			}
+		case token.LTEQ:
+			err = emitter.saveOpcode(I8XY7(0,2))
+			if err != nil{
+				return 0, err
+			}
+		default:
+			return 0, errors.New(errorhandler.UnexpectedCompilerError())
+
+		}
+		//we set v0 = vf
+		err = emitter.saveOpcode(I8XY0(0,0xf))
+		if err != nil{
+			return 0, err
+		}
+
+
+		return 2, nil
+	}
 }
 
 //sum translates a sum to opcodes and write it in emitter.machineCode,
