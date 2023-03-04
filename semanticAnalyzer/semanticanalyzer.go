@@ -246,8 +246,8 @@ func(analyzer *SemanticAnalyzer) saveDraw() bool{
 	paramType := make([]interface{},4)
 	paramType[0] = byteType //x
 	paramType[1] = byteType//y
-	paramType[2] = symboltable.NewPointer(byteType) //sprite address
-	paramType[3] = byteType //length
+	paramType[2] = byteType //length
+	paramType[3] = symboltable.NewPointer(byteType) //sprite address
 	returnType := symboltable.NewBool() //collision
 	functionType := symboltable.NewFunction(returnType, paramType)
 	return analyzer.currentScope.AddSymbol("Draw", functionType)

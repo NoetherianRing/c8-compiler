@@ -120,8 +120,9 @@ func (emitter *Emitter) primitiveFunctionsDeclaration()error{
 
 }
 
-//getFontDeclaration save the instructions getFont in memory
+//getFontDeclaration save the function getFont in memory
 func (emitter *Emitter) getFontDeclaration ()error{
+	emitter.functions["getFont"] = emitter.currentAddress
 	//getFont only has a parameter (a byte) saved in v0, and it return a pointer saving it in v0 and v1
 	err := emitter.saveOpcode(IFX29(0)) // I = location of sprite for digit V0.
 	if err != nil{
@@ -134,44 +135,51 @@ func (emitter *Emitter) getFontDeclaration ()error{
 	return nil
 }
 
-//cleanDeclaration save the instructions clean in memory
+//cleanDeclaration save the function clean in memory
 func (emitter *Emitter) cleanDeclaration ()error{
 	//clean has not parameters and is a void function that clean the screen
+	emitter.functions["clean"] = emitter.currentAddress
 	return emitter.saveOpcode(I00E0())
 }
 
-//setSTDeclaration save the instructions setST in memory
+//setSTDeclaration save the function setST in memory
 func (emitter *Emitter) setSTDeclaration ()error{
+	emitter.functions["setST"] = emitter.currentAddress
 	//setST only has a parameter (a byte) saved in v0, and it is a void function that save sound timer = v0
 	return emitter.saveOpcode(IFX18(0))
 }
 
-//setDTDeclaration save the instructions setDT in memory
+//setDTDeclaration save the function setDT in memory
 func (emitter *Emitter) setDTDeclaration ()error{
+	emitter.functions["setDT"] = emitter.currentAddress
 	//setST only has a parameter (a byte) saved in v0, and it is a void function that save delay timer = v0
 	return emitter.saveOpcode(IFX15(0))
 }
 
-//getDTDeclaration save the instructions getDT in memory
+//getDTDeclaration save the function getDT in memory
 func (emitter *Emitter) getDTDeclaration ()error{
+	emitter.functions["getDT"] = emitter.currentAddress
 	//getDT has no parameters and it return a byte (the value of delay timer) in v0
 	return emitter.saveOpcode(IFX07(0))
 }
 
-//randomDeclaration save the instructions random in memory
+//randomDeclaration save the function random in memory
 func (emitter *Emitter) randomDeclaration ()error{
+	emitter.functions["random"] = emitter.currentAddress
 	//random has no parameters and it returns a random byte (in v0)
 	return emitter.saveOpcode(ICXKK(0, 0xFF))
 }
 
-//waitKeyDeclaration save the instructions waitKey in memory
+//waitKeyDeclaration save the function waitKey in memory
 func (emitter *Emitter) waitKeyDeclaration ()error{
+	emitter.functions["waitKey"] = emitter.currentAddress
 	//waitKey has no parameters and it returns the value of a key pressed in v0
 	return emitter.saveOpcode(IFX0A(0))
 }
 
-//isKeyPressedDeclaration save the instructions isKeyPressed in memory
+//isKeyPressedDeclaration save the function isKeyPressed in memory
 func (emitter *Emitter) isKeyPressedDeclaration ()error{
+	emitter.functions["isKeyPressed"] = emitter.currentAddress
 	//isKeyPressed has one parameter in v0(a byte) and it returns a bool in v0
 	err := emitter.saveOpcode(I6XKK(1, True)) //V1 = True
 
@@ -189,7 +197,59 @@ func (emitter *Emitter) isKeyPressedDeclaration ()error{
 	return emitter.saveOpcode(I8XY0(0,1)) //V0=V1
 
 }
+//drawDeclaration save the function draw in memory
+func (emitter *Emitter) drawDeclaration ()error {
+	emitter.functions["draw"] = emitter.currentAddress
+	//draw has four parameters (a byte in v0, a byte in v1, a byte in v2, and pointer in v3 and v4)
+	//it returns a boolean (the value of vf) in v0
 
+
+	dxynAddress := emitter.functions["draw"]+8 //address in which we want dynamically write the opcode
+	err := emitter.saveOpcode(I8XY0(5, 0)) //v5=v0
+	if err != nil{
+		return err
+	}
+	err = emitter.saveOpcode(I8XY0(6, 1)) //v6=v1
+	if err != nil{
+		return err
+	}
+	err = emitter.saveOpcode(I6XKK(0, 0xD5)) //v0=0xD5
+	if err != nil{
+		return err
+	}
+	err = emitter.saveOpcode(I6XKK(1, 0X60)) //v1=0x60
+	if err != nil{
+		return err
+	}
+	err = emitter.saveOpcode(I8XY1(1, 2)) //v1=v1 | v2 (0x6N)
+	if err != nil{
+		return err
+	}
+	err = emitter.saveOpcode(IANNN(dxynAddress)) //I =dxynAddress
+	if err != nil{
+		return err
+	}
+	err = emitter.saveOpcode(IFX55(1)) //save v0 and v1 in dxynAddress (modifying the opcode)
+	if err != nil{
+		return err
+	}
+	err = emitter.saveOpcode(IAXY0(3,4)) //I=Pointer
+	if err != nil{
+		return err
+	}
+
+	//IDXYN dynamically generated
+	
+	err = emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	err = emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	return nil
+}
 //function declaration save all the instructions of a function in memory
 func (emitter *Emitter) functionDeclaration()error{
 	const ARG = 0
