@@ -119,7 +119,7 @@ func IFX65(x byte) Opcode{
 func IAXY0(x byte, y byte)Opcode{
 	var iaxy0 Opcode
 	iaxy0[0] = 0xA0 | x
-	iaxy0[1] = y
+	iaxy0[1] = y << 4
 	return iaxy0
 }
 
@@ -128,7 +128,7 @@ func IAXY0(x byte, y byte)Opcode{
 func IBXY0(x byte, y byte)Opcode{
 	var ibxy0 Opcode
 	ibxy0[0] = 0xB0 | x
-	ibxy0[1] = y
+	ibxy0[1] = y << 4
 	return ibxy0
 }
 
@@ -166,18 +166,18 @@ func I2NNN(nnn uint16)Opcode{
 
 //I00EE writes in an Opcode the chip 8 instruction 00EE which returns from a subroutine
 func I00EE()Opcode{
-	var i2nnn Opcode
-	i2nnn[0] = 0x00
-	i2nnn[1] = 0xEE
-	return i2nnn
+	var i00ee Opcode
+	i00ee[0] = 0x00
+	i00ee[1] = 0xEE
+	return i00ee
 }
 
 //I00E0 writes in an Opcode the chip 8 instruction 00E0 which cleans the monitor
 func I00E0()Opcode{
-	var i2nnn Opcode
-	i2nnn[0] = 0x00
-	i2nnn[1] = 0xE0
-	return i2nnn
+	var i00e0 Opcode
+	i00e0[0] = 0x00
+	i00e0[1] = 0xE0
+	return i00e0
 }
 
 //I7XKK writes in an Opcode the chip 8 instruction 7XKK (vx = vx + kk)
@@ -200,7 +200,7 @@ func IFX29(x byte)Opcode{
 func IFX07(x byte)Opcode{
 	var ifx07 Opcode
 	ifx07[0] = 0xf0 | x
-	ifx07[1] = 0x18
+	ifx07[1] = 0x07
 	return ifx07
 }
 
@@ -221,7 +221,13 @@ func IFX15(x byte)Opcode{
 	ifx15[1] = 0x15
 	return ifx15
 }
-
+//IFX0A writes in an Opcode the chip 8 instruction FX0A which waits for a key press, store the value of the key in Vx.
+func IFX0A(x byte)Opcode{
+	var ifx0a Opcode
+	ifx0a[0] = 0xf0 | x
+	ifx0a[1] = 0x0a
+	return ifx0a
+}
 
 //ICXKK writes in an Opcode the chip 8 instruction CXKK which set Vx = random byte & kk
 func ICXKK(x byte, kk byte)Opcode{
@@ -229,4 +235,20 @@ func ICXKK(x byte, kk byte)Opcode{
 	icxkk[0] = 0xc0 | x
 	icxkk[1] = kk
 	return icxkk
+}
+//IEXA1 writes in an Opcode the chip 8 instruction EXA1 which kip next instruction if key with the value of Vx is not pressed.
+func IEXA1(x byte)Opcode{
+	var iexa1 Opcode
+	iexa1[0] = 0xe0 | x
+	iexa1[1] = 0xa1
+	return iexa1
+}
+
+//IDXYN writes in an Opcode the chip 8 instruction DXYN
+//which displays n-byte sprite starting at memory location I at (Vx, Vy) and set VF = collision.
+func IDXYN(x byte, y byte, n byte)Opcode{
+	var idxyn Opcode
+	idxyn[0] = 0xd0 | x
+	idxyn[1] =(y << 4) | n
+	return idxyn
 }
