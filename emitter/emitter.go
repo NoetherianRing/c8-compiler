@@ -1126,6 +1126,182 @@ func (emitter *Emitter)ltgteq(functionCtx *FunctionCtx) (int, error) {
 		return 2, nil
 	}
 }
+//noteq translates a != to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter) noteq(functionCtx *FunctionCtx) (int, error) {
+	sizeOperands, err := emitter.saveOperands(functionCtx)
+	if err != nil {
+		return 0, err
+	}
+	//if the operands are simple data types we do a xor between v0 and v2,
+	//if they are equal v0 = 0
+	err = emitter.saveOpcode(I8XY3(0,2))
+	if err != nil{
+		return 0, err
+	}
+
+	if sizeOperands[0] == 2 {
+		//if not, we do v0 = v0 ^ v2, v1 = v1 ^ v3, v0 = v0 | v1
+		err = emitter.saveOpcode(I8XY3(1,3))
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.saveOpcode(I8XY1(0,1))
+		if err != nil{
+			return 0, err
+		}
+	}
+	return 1, nil
+
+}
+//eqeq translates a == to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter) eqeq(functionCtx *FunctionCtx) (int, error) {
+	//we do the same than in !=, but with a not at the end
+	_, err := emitter.noteq(functionCtx)
+	if err != nil{
+		return 0, err
+	}
+	err = emitter.saveOpcode(I6XKK(1,True))
+	if err != nil{
+		return 0, err
+	}
+	err = emitter.saveOpcode(I8XY3(0,1))
+	if err != nil{
+		return 0, err
+	}
+
+	return 1, nil
+
+}
+
+//not translates a ! to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter) not(functionCtx *FunctionCtx) (int, error) {
+	emitter.ctxNode = emitter.ctxNode.Children[0]
+	_, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	if err != nil{
+		return 0, err
+	}
+	//we set v0 = v0 ^ true
+	err = emitter.saveOpcode(I6XKK(1,True))
+	if err != nil{
+		return 0, err
+	}
+	err = emitter.saveOpcode(I8XY3(0,1))
+	if err != nil{
+		return 0, err
+	}
+
+	return 1, nil
+
+}
+
+
+//land translates a && to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter) land(functionCtx *FunctionCtx) (int, error) {
+	_, err := emitter.saveOperands(functionCtx)
+	if err != nil{
+		return 0, err
+	}
+	//V0 = V0 & V2
+	err = emitter.saveOpcode(I8XY2(0,2))
+	if err != nil{
+		return 0, err
+	}
+
+	return 1, nil
+}
+
+//lor translates a || to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter) lor(functionCtx *FunctionCtx) (int, error) {
+	_, err := emitter.saveOperands(functionCtx)
+	if err != nil{
+		return 0, err
+	}
+	//V0 = V0 | V2
+	err = emitter.saveOpcode(I8XY1(0,2))
+	if err != nil{
+		return 0, err
+	}
+
+	return 1, nil
+}
+
+//or translates a | to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter) or(functionCtx *FunctionCtx) (int, error) {
+	sizeOperands, err := emitter.saveOperands(functionCtx)
+	if err != nil{
+		return 0, err
+	}
+	//V0 = V0 | V2
+	err = emitter.saveOpcode(I8XY1(0,2))
+	if err != nil{
+		return 0, err
+	}
+
+	if sizeOperands[0] > 1{
+
+		//V1 = V1 | V3
+		err = emitter.saveOpcode(I8XY1(1,3))
+		if err != nil{
+			return 0, err
+		}
+	}
+	return sizeOperands[0], nil
+}
+
+//and translates a & to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter) and(functionCtx *FunctionCtx) (int, error) {
+	sizeOperands, err := emitter.saveOperands(functionCtx)
+	if err != nil{
+		return 0, err
+	}
+	//V0 = V0 & V2
+	err = emitter.saveOpcode(I8XY2(0,2))
+	if err != nil{
+		return 0, err
+	}
+
+	if sizeOperands[0] > 1{
+
+		//V1 = V1 & V3
+		err = emitter.saveOpcode(I8XY2(1,3))
+		if err != nil{
+			return 0, err
+		}
+	}
+	return sizeOperands[0], nil
+}
+
+//xor translates a ^ to opcodes and write it in emitter.machineCode,
+//returns the size of the datatype of the result and an error
+func (emitter *Emitter) xor(functionCtx *FunctionCtx) (int, error) {
+	sizeOperands, err := emitter.saveOperands(functionCtx)
+	if err != nil{
+		return 0, err
+	}
+	//V0 = V0 ^ V2
+	err = emitter.saveOpcode(I8XY3(0,2))
+	if err != nil{
+		return 0, err
+	}
+
+	if sizeOperands[0] > 1{
+
+		//V1 = V1 ^  V3
+		err = emitter.saveOpcode(I8XY3(1,3))
+		if err != nil{
+			return 0, err
+		}
+	}
+	return sizeOperands[0], nil
+}
+
 
 //sum translates a sum to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
