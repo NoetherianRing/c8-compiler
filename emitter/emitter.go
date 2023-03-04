@@ -140,17 +140,31 @@ func (emitter *Emitter) cleanDeclaration ()error{
 	return emitter.saveOpcode(I00E0())
 }
 
-//getSetSTDeclaration save the instructions setST in memory
-func (emitter *Emitter) getSetSTDeclaration ()error{
-	//getSetST only has a parameter (a byte) saved in v0, and it is a void function that save sound timer = v0
+//setSTDeclaration save the instructions setST in memory
+func (emitter *Emitter) setSTDeclaration ()error{
+	//setST only has a parameter (a byte) saved in v0, and it is a void function that save sound timer = v0
 	return emitter.saveOpcode(IFX18(0))
 }
 
-//getSetDTDeclaration save the instructions setDT in memory
-func (emitter *Emitter) getSetDTDeclaration ()error{
-	//getSetST only has a parameter (a byte) saved in v0, and it is a void function that save delay timer = v0
+//setDTDeclaration save the instructions setDT in memory
+func (emitter *Emitter) setDTDeclaration ()error{
+	//setST only has a parameter (a byte) saved in v0, and it is a void function that save delay timer = v0
 	return emitter.saveOpcode(IFX15(0))
 }
+
+//getDTDeclaration save the instructions getDT in memory
+func (emitter *Emitter) getDTDeclaration ()error{
+	//getDT has no parameters and it return a byte (the value of delay timer) in v0
+	return emitter.saveOpcode(IFX07(0))
+}
+
+//randomDeclaration save the instructions random in memory
+func (emitter *Emitter) randomDeclaration ()error{
+	//random has no parameters and it returns a random byte (in v0)
+	return emitter.saveOpcode(ICXKK(0, 1))
+}
+
+
 
 //function declaration save all the instructions of a function in memory
 func (emitter *Emitter) functionDeclaration()error{

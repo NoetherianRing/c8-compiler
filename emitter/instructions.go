@@ -196,6 +196,14 @@ func IFX29(x byte)Opcode{
 	return ifx29
 }
 
+//IFX07 writes in an Opcode the chip 8 instruction FX07 which set Vx =delay timer.
+func IFX07(x byte)Opcode{
+	var ifx07 Opcode
+	ifx07[0] = 0xf0 | x
+	ifx07[1] = 0x18
+	return ifx07
+}
+
 
 //IFX18 writes in an Opcode the chip 8 instruction FX18 which  set sound timer = Vx.
 func IFX18(x byte)Opcode{
@@ -212,4 +220,13 @@ func IFX15(x byte)Opcode{
 	ifx15[0] = 0xf0 | x
 	ifx15[1] = 0x15
 	return ifx15
+}
+
+
+//ICXKK writes in an Opcode the chip 8 instruction CXKK which set Vx = random byte & kk
+func ICXKK(x byte, kk byte)Opcode{
+	var icxkk Opcode
+	icxkk[0] = 0xc0 | x
+	icxkk[1] = kk
+	return icxkk
 }
