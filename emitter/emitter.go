@@ -161,10 +161,34 @@ func (emitter *Emitter) getDTDeclaration ()error{
 //randomDeclaration save the instructions random in memory
 func (emitter *Emitter) randomDeclaration ()error{
 	//random has no parameters and it returns a random byte (in v0)
-	return emitter.saveOpcode(ICXKK(0, 1))
+	return emitter.saveOpcode(ICXKK(0, 0xFF))
 }
 
+//waitKeyDeclaration save the instructions waitKey in memory
+func (emitter *Emitter) waitKeyDeclaration ()error{
+	//waitKey has no parameters and it returns the value of a key pressed in v0
+	return emitter.saveOpcode(IFX0A(0))
+}
 
+//isKeyPressedDeclaration save the instructions isKeyPressed in memory
+func (emitter *Emitter) isKeyPressedDeclaration ()error{
+	//isKeyPressed has one parameter in v0(a byte) and it returns a bool in v0
+	err := emitter.saveOpcode(I6XKK(1, True)) //V1 = True
+
+	if err != nil{
+		return err
+	}
+	err = emitter.saveOpcode(IEX9E(0)) //If the key saved in v0 was pressed we skip the next instruction
+	if err != nil{
+		return err
+	}
+	err = emitter.saveOpcode(I6XKK(1, False)) //If the key saved in v0 was not pressed we set v1 = False
+	if err != nil{
+		return err
+	}
+	return emitter.saveOpcode(I8XY0(0,1)) //V0=V1
+
+}
 
 //function declaration save all the instructions of a function in memory
 func (emitter *Emitter) functionDeclaration()error{

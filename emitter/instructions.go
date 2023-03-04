@@ -236,12 +236,12 @@ func ICXKK(x byte, kk byte)Opcode{
 	icxkk[1] = kk
 	return icxkk
 }
-//IEXA1 writes in an Opcode the chip 8 instruction EXA1 which kip next instruction if key with the value of Vx is not pressed.
-func IEXA1(x byte)Opcode{
-	var iexa1 Opcode
-	iexa1[0] = 0xe0 | x
-	iexa1[1] = 0xa1
-	return iexa1
+//IEX9E writes in an Opcode the chip 8 instruction EX9E which skip the next instruction if a key with the value of Vx is pressed.
+func IEX9E(x byte)Opcode{
+	var iexae Opcode
+	iexae[0] = 0xe0 | x
+	iexae[1] = 0xae
+	return iexae
 }
 
 //IDXYN writes in an Opcode the chip 8 instruction DXYN
