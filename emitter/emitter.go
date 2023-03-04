@@ -221,7 +221,7 @@ func (emitter *Emitter) drawDeclaration ()error {
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(I8XY1(1, 2)) //v1=v1 | v2 (0x6N)
+	err = emitter.saveOpcode(I8XY1(1, 2)) //v1=v1 | v2, (v1 = 0x6N)
 	if err != nil{
 		return err
 	}
@@ -239,7 +239,7 @@ func (emitter *Emitter) drawDeclaration ()error {
 	}
 
 	//IDXYN dynamically generated
-	
+
 	err = emitter.moveCurrentAddress()
 	if err != nil{
 		return err

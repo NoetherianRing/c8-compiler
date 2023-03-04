@@ -21,7 +21,7 @@ func I8XY0(x byte, y byte) Opcode {
 func I8XY1(x byte, y byte) Opcode {
 	var i8xy1 Opcode
 	i8xy1[0] =0x80 | (x)
-	i8xy1[1] = 0x00 | (y << 4)
+	i8xy1[1] = 0x01 | (y << 4)
 	return i8xy1
 }
 
@@ -29,7 +29,7 @@ func I8XY1(x byte, y byte) Opcode {
 func I8XY2(x byte, y byte) Opcode {
 	var i8xy2 Opcode
 	i8xy2[0] =0x80 | (x)
-	i8xy2[1] = 0x00 | (y << 4)
+	i8xy2[1] = 0x02 | (y << 4)
 	return i8xy2
 }
 
@@ -37,7 +37,7 @@ func I8XY2(x byte, y byte) Opcode {
 func I8XY3(x byte, y byte) Opcode {
 	var i8xy3 Opcode
 	i8xy3[0] =0x80 | (x)
-	i8xy3[1] = 0x00 | (y << 4)
+	i8xy3[1] = 0x03 | (y << 4)
 	return i8xy3
 }
 //I8XY4 writes in an Opcode the chip 8 instruction 8XY4 which set Vx = Vx + Vy
@@ -45,7 +45,7 @@ func I8XY3(x byte, y byte) Opcode {
 func I8XY4(x byte, y byte) Opcode {
 	var i8xy4 Opcode
 	i8xy4[0] =0x80 | (x)
-	i8xy4[1] = 0x00 | (y << 4)
+	i8xy4[1] = 0x04 | (y << 4)
 	return i8xy4
 }
 
@@ -54,7 +54,7 @@ func I8XY4(x byte, y byte) Opcode {
 func I8XY7(x byte, y byte)Opcode{
 	var i8xy7 Opcode
 	i8xy7[0] = 0x80 | x
-	i8xy7[1] = 0x05 | (y << 4)
+	i8xy7[1] = 0x07 | (y << 4)
 	return i8xy7
 }
 
@@ -70,7 +70,7 @@ func I8XY5(x byte, y byte)Opcode{
 func I8XY6(x byte) Opcode {
 	var i8xy6 Opcode
 	i8xy6[0] =0x80 | (x)
-	i8xy6[1] = 0x00
+	i8xy6[1] = 0x06
 	return i8xy6
 }
 
@@ -79,7 +79,7 @@ func I8XY6(x byte) Opcode {
 func I8XYE(x byte) Opcode {
 	var i8xyE Opcode
 	i8xyE[0] =0x80 | (x)
-	i8xyE[1] = 0x00
+	i8xyE[1] = 0x0e
 	return i8xyE
 }
 
@@ -183,7 +183,7 @@ func I00E0()Opcode{
 //I7XKK writes in an Opcode the chip 8 instruction 7XKK (vx = vx + kk)
 func I7XKK(x byte, kk byte)Opcode{
 	var i7xkk Opcode
-	i7xkk[0] = 0x40 | x
+	i7xkk[0] = 0x70 | x
 	i7xkk[1] = kk
 	return i7xkk
 }
@@ -240,7 +240,7 @@ func ICXKK(x byte, kk byte)Opcode{
 func IEX9E(x byte)Opcode{
 	var iexae Opcode
 	iexae[0] = 0xe0 | x
-	iexae[1] = 0xae
+	iexae[1] = 0x9e
 	return iexae
 }
 
