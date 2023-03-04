@@ -172,6 +172,13 @@ func I00EE()Opcode{
 	return i2nnn
 }
 
+//I00E0 writes in an Opcode the chip 8 instruction 00E0 which cleans the monitor
+func I00E0()Opcode{
+	var i2nnn Opcode
+	i2nnn[0] = 0x00
+	i2nnn[1] = 0xE0
+	return i2nnn
+}
 
 //I7XKK writes in an Opcode the chip 8 instruction 7XKK (vx = vx + kk)
 func I7XKK(x byte, kk byte)Opcode{
@@ -179,4 +186,30 @@ func I7XKK(x byte, kk byte)Opcode{
 	i7xkk[0] = 0x40 | x
 	i7xkk[1] = kk
 	return i7xkk
+}
+
+//IFX29 writes in an Opcode the chip 8 instruction FX29 which  set I = location of sprite for digit Vx.
+func IFX29(x byte)Opcode{
+	var ifx29 Opcode
+	ifx29[0] = 0xf0 | x
+	ifx29[1] = 0x29
+	return ifx29
+}
+
+
+//IFX18 writes in an Opcode the chip 8 instruction FX18 which  set sound timer = Vx.
+func IFX18(x byte)Opcode{
+	var ifx18 Opcode
+	ifx18[0] = 0xf0 | x
+	ifx18[1] = 0x18
+	return ifx18
+}
+
+
+//IFX15 writes in an Opcode the chip 8 instruction FX15 which set delay timer = Vx.
+func IFX15(x byte)Opcode{
+	var ifx15 Opcode
+	ifx15[0] = 0xf0 | x
+	ifx15[1] = 0x15
+	return ifx15
 }

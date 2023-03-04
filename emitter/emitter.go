@@ -91,8 +91,8 @@ func (emitter *Emitter) Start() ([MEMORY]byte, error){
 	//The stack section will start in the last available address, which is saved in the vD and vE registers
 	vD := byte(emitter.currentAddress & 0xFF00 >> 8)
 	VE := byte(emitter.currentAddress & 0x00FF)
-	x := byte(RegisterStackAddres1)
-	y := byte(RegisterStackAddres2)
+	x := byte(RegisterStackAddress1)
+	y := byte(RegisterStackAddress2)
 	saveV4 := I6XKK(x, vD)
 	emitter.machineCode[0] = saveV4[0]
 	emitter.machineCode[1] = saveV4[1]
@@ -120,6 +120,37 @@ func (emitter *Emitter) primitiveFunctionsDeclaration()error{
 
 }
 
+//getFontDeclaration save the instructions getFont in memory
+func (emitter *Emitter) getFontDeclaration ()error{
+	//getFont only has a parameter (a byte) saved in v0, and it return a pointer saving it in v0 and v1
+	err := emitter.saveOpcode(IFX29(0)) // I = location of sprite for digit V0.
+	if err != nil{
+		return err
+	}
+	err = emitter.saveOpcode(IBXY0(0, 1)) //we save the I value in v0 and v1
+	if err != nil{
+		return err
+	}
+	return nil
+}
+
+//cleanDeclaration save the instructions clean in memory
+func (emitter *Emitter) cleanDeclaration ()error{
+	//clean has not parameters and is a void function that clean the screen
+	return emitter.saveOpcode(I00E0())
+}
+
+//getSetSTDeclaration save the instructions setST in memory
+func (emitter *Emitter) getSetSTDeclaration ()error{
+	//getSetST only has a parameter (a byte) saved in v0, and it is a void function that save sound timer = v0
+	return emitter.saveOpcode(IFX18(0))
+}
+
+//getSetDTDeclaration save the instructions setDT in memory
+func (emitter *Emitter) getSetDTDeclaration ()error{
+	//getSetST only has a parameter (a byte) saved in v0, and it is a void function that save delay timer = v0
+	return emitter.saveOpcode(IFX15(0))
+}
 
 //function declaration save all the instructions of a function in memory
 func (emitter *Emitter) functionDeclaration()error{
@@ -181,7 +212,7 @@ func (emitter *Emitter) functionDeclaration()error{
 		reference, _ := ctxAddresses.GetReference(param)
 		index, isInRegister := registers.guide[reference]
 		if isInRegister {
-			iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2)
+			iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2)
 			err = emitter.saveOpcode(iaxy0)
 			if err != nil {
 				return err
@@ -252,7 +283,7 @@ func (emitter *Emitter) saveParamsInStack(params *[]string, ctxAddresses *Addres
 		i++
 
 	}
-	iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2)
+	iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2)
 	err = emitter.saveOpcode(iaxy0)
 	if err != nil {
 		return i, err
@@ -426,10 +457,10 @@ func (emitter *Emitter) let(ctxAddresses *Addresses) error{
 func (emitter *Emitter)saveInStack(size byte)[]byte{
 	instructions := make([]byte,8)
 
-	iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2) //I = (Vi << 8 | Vj)
-	i6xkk := I6XKK(0, byte(emitter.offsetStack)) //v0 = offset
-	ifx1e := IFX1E(0) // I = I + V0
-	ifx55 := IFX55(size) // fx55 stores registers V0 through Vsize in memory starting at location I
+	iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2) //I = (Vi << 8 | Vj)
+	i6xkk := I6XKK(0, byte(emitter.offsetStack))                 //v0 = offset
+	ifx1e := IFX1E(0)                                            // I = I + V0
+	ifx55 := IFX55(size)                                         // fx55 stores registers V0 through Vsize in memory starting at location I
 
 	instructions[0] = iaxy0[0]
 	instructions[1] = iaxy0[1]
@@ -787,7 +818,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
   	const PARAMS = 1
 	ident := emitter.ctxNode.Children[IDENT].Value.Literal
 	//we first backup all registers of the current function in a the stack
-	iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2)
+	iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2)
 	backupOffset := emitter.offsetStack
 	emitter.offsetStack += 16
 	ifx55 := IFX55(16)
@@ -1925,7 +1956,7 @@ func (emitter *Emitter)saveStackReferenceAddressInI( x byte, functionCtx *Functi
 	size := symboltable.GetSize(emitter.scope.Symbols[ident].DataType)
 
 	//we set I = address position 0 of stack
-	iaxy0 := IAXY0(RegisterStackAddres1, RegisterStackAddres2)
+	iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2)
 
 
 	err := emitter.saveOpcode(iaxy0)
