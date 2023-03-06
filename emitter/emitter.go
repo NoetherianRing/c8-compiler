@@ -30,14 +30,16 @@ type Emitter struct{
 func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 	emitter := new(Emitter)
 
+
+	//TODO: LLenar mapas
 	emitter.globalVariables = make(map[string]uint16)
 	emitter.scope = scope
 	emitter.lastIndexSubScope = 0
 	emitter.ctxNode = tree.Head
 	emitter.translateStatement = make(map[token.Type]func(*FunctionCtx)error)
-//	emitter.translateStatement[token.IF] = emitter._if
-//	emitter.translateStatement[token.ELSE] = emitter._else
-//	emitter.translateStatement[token.WHILE] = emitter._while
+	emitter.translateStatement[token.IF] = emitter._if
+	emitter.translateStatement[token.ELSE] = emitter._else
+	emitter.translateStatement[token.WHILE] = emitter._while
 	emitter.translateStatement[token.EQ] = emitter.assign
 	emitter.translateStatement[token.RPAREN] = emitter.voidCall
 
@@ -114,6 +116,8 @@ func (emitter *Emitter) Start() ([MEMORY]byte, error){
 	return emitter.machineCode, nil
 }
 
+
+//TODO: In all primitive functions parameters starts at v2
 //function declaration save the instructions of all primitive function in memory
 func (emitter *Emitter) primitiveFunctionsDeclaration()error{
 	return nil
@@ -918,10 +922,14 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 	//we first backup all registers of the current function in a the stack
 	iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2)
 	backupOffset := emitter.offsetStack
-	emitter.offsetStack += 16
-	ifx55 := IFX55(16)
+	err := emitter.executeFX1ESafe(0, emitter.offsetStack)
+	if err != nil{
+		return 0, err
+	}
+	emitter.offsetStack += 13
+	ifx55 := IFX55(13) //we don't save the last 3 registers because we use them as auxiliary
 
-	err := emitter.saveOpcode(iaxy0)
+	err = emitter.saveOpcode(iaxy0)
 	if err != nil{
 		return 0, err
 	}
@@ -991,23 +999,60 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 		return 0, err
 	}
 
-	//when we return, we save again the registers in memory
-	emitter.offsetStack = backupOffset
+	//if the function we call was not a void function, then we save in memory a backup of the return value,
+	//because we will need the registers v0 and v1 to operate
+	size := symboltable.GetSize(emitter.scope.Symbols[ident].DataType.(symboltable.Function).Return)
+	if size != 0{
+		err := emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2))	 // I = stack address
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.executeFX1ESafe(0, emitter.offsetStack) //I = stack + ofset
+		if err != nil{
+			return 0, err
+		}
+		emitter.offsetStack += size
+		ifx55 := IFX55(byte(size))
+		err = emitter.saveOpcode(ifx55)
+		if err != nil{
+			return 0, err
+		}
+	}
+
+	//then we save again the previous registers in memory
 	err = emitter.saveOpcode(iaxy0)
 	if err != nil{
 		return 0, err
 	}
-	err = emitter.executeFX1ESafe(0, emitter.offsetStack)
+	err = emitter.executeFX1ESafe(0, emitter.offsetStack-13-size)
 	if err != nil{
 		return 0, err
 	}
-	ifx65 := IFX65(16)
+	ifx65 := IFX65(13)
 	err = emitter.saveOpcode(ifx65)
 	if err != nil{
 		return 0, err
 	}
 
-	size := symboltable.GetSize(emitter.scope.Symbols[ident].DataType.(symboltable.Function).Return)
+	//and if it wasn't a void function, we save again the return values in v0 (and v1)
+	if size != 0{
+		err = emitter.saveOpcode(iaxy0)
+		if err != nil{
+			return 0, err
+		}
+		err = emitter.executeFX1ESafe(0, emitter.offsetStack-size)
+		if err != nil{
+			return 0, err
+		}
+		ifx65 := IFX65(byte(size))
+		err = emitter.saveOpcode(ifx65)
+		if err != nil{
+			return 0, err
+		}
+
+	}
+	emitter.offsetStack = backupOffset
+
 	return size, nil
 }
 

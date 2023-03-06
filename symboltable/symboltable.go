@@ -161,7 +161,7 @@ func NewByte() Simple {
 }
 
 func NewVoid() Simple {
-	return Simple{Size: 1, Kind: KindVoid}
+	return Simple{Size: 0, Kind: KindVoid}
 }
 
 func newSymbol(identifier string, datatype interface{})*Symbol{
