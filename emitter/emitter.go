@@ -127,8 +127,8 @@ func (emitter *Emitter) primitiveFunctionsDeclaration()error{
 //getFontDeclaration save the function getFont in memory
 func (emitter *Emitter) getFontDeclaration ()error{
 	emitter.functions["getFont"] = emitter.currentAddress
-	//getFont only has a parameter (a byte) saved in v0, and it return a pointer saving it in v0 and v1
-	err := emitter.saveOpcode(IFX29(0)) // I = location of sprite for digit V0.
+	//getFont only has a parameter (a byte) saved in v2, and it return a pointer saving it in v1 and v2
+	err := emitter.saveOpcode(IFX29(2)) // I = location of sprite for digit V2.
 	if err != nil{
 		return err
 	}
@@ -149,15 +149,15 @@ func (emitter *Emitter) cleanDeclaration ()error{
 //setSTDeclaration save the function setST in memory
 func (emitter *Emitter) setSTDeclaration ()error{
 	emitter.functions["setST"] = emitter.currentAddress
-	//setST only has a parameter (a byte) saved in v0, and it is a void function that save sound timer = v0
-	return emitter.saveOpcode(IFX18(0))
+	//setST only has a parameter (a byte) saved in v2, and it is a void function that save sound timer = v0
+	return emitter.saveOpcode(IFX18(2))
 }
 
 //setDTDeclaration save the function setDT in memory
 func (emitter *Emitter) setDTDeclaration ()error{
 	emitter.functions["setDT"] = emitter.currentAddress
-	//setST only has a parameter (a byte) saved in v0, and it is a void function that save delay timer = v0
-	return emitter.saveOpcode(IFX15(0))
+	//setST only has a parameter (a byte) saved in v2, and it is a void function that save delay timer = v2
+	return emitter.saveOpcode(IFX15(2))
 }
 
 //getDTDeclaration save the function getDT in memory
@@ -184,17 +184,17 @@ func (emitter *Emitter) waitKeyDeclaration ()error{
 //isKeyPressedDeclaration save the function isKeyPressed in memory
 func (emitter *Emitter) isKeyPressedDeclaration ()error{
 	emitter.functions["isKeyPressed"] = emitter.currentAddress
-	//isKeyPressed has one parameter in v0(a byte) and it returns a bool in v0
+	//isKeyPressed has one parameter in v2(a byte) and it returns a bool in v0
 	err := emitter.saveOpcode(I6XKK(1, True)) //V1 = True
 
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(IEX9E(0)) //If the key saved in v0 was pressed we skip the next instruction
+	err = emitter.saveOpcode(IEX9E(2)) //If the key saved in v2 was pressed we skip the next instruction
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(I6XKK(1, False)) //If the key saved in v0 was not pressed we set v1 = False
+	err = emitter.saveOpcode(I6XKK(1, False)) //If the key saved in v2 was not pressed we set v1 = False
 	if err != nil{
 		return err
 	}
@@ -204,28 +204,21 @@ func (emitter *Emitter) isKeyPressedDeclaration ()error{
 //drawDeclaration save the function draw in memory
 func (emitter *Emitter) drawDeclaration ()error {
 	emitter.functions["draw"] = emitter.currentAddress
-	//draw has four parameters (a byte in v0, a byte in v1, a byte in v2, and pointer in v3 and v4)
+	//draw has four parameters (a byte in v2, a byte in v3, a byte in v4, and pointer in v5 and v6)
 	//it returns a boolean (the value of vf) in v0
 
 
 	dxynAddress := emitter.functions["draw"]+8 //address in which we want dynamically write the opcode
-	err := emitter.saveOpcode(I8XY0(5, 0)) //v5=v0
+
+	err := emitter.saveOpcode(I6XKK(0, 0xD2)) //v0=0xD2 (v0 =0xDX)
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(I8XY0(6, 1)) //v6=v1
+	err = emitter.saveOpcode(I6XKK(1, 0X30)) //v1=0x30 (v1 = 0xY0)
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(I6XKK(0, 0xD5)) //v0=0xD5
-	if err != nil{
-		return err
-	}
-	err = emitter.saveOpcode(I6XKK(1, 0X60)) //v1=0x60
-	if err != nil{
-		return err
-	}
-	err = emitter.saveOpcode(I8XY1(1, 2)) //v1=v1 | v2, (v1 = 0x6N)
+	err = emitter.saveOpcode(I8XY1(1, 4)) //v1=v1 | v4, (v1 = 0xYN)
 	if err != nil{
 		return err
 	}
@@ -237,12 +230,12 @@ func (emitter *Emitter) drawDeclaration ()error {
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(IAXY0(3,4)) //I=Pointer
+	err = emitter.saveOpcode(IAXY0(5,6)) //I=Pointer
 	if err != nil{
 		return err
 	}
 
-	//IDXYN dynamically generated
+	//the next 2 bytes in memory are for the DXYN opcode that was just dynamically generated
 
 	err = emitter.moveCurrentAddress()
 	if err != nil{
