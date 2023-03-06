@@ -30,8 +30,6 @@ type Emitter struct{
 func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 	emitter := new(Emitter)
 
-
-	//TODO: LLenar mapas
 	emitter.globalVariables = make(map[string]uint16)
 	emitter.scope = scope
 	emitter.lastIndexSubScope = 0
