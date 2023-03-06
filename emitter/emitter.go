@@ -37,15 +37,41 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 	emitter.lastIndexSubScope = 0
 	emitter.ctxNode = tree.Head
 	emitter.translateStatement = make(map[token.Type]func(*FunctionCtx)error)
+
 	emitter.translateStatement[token.IF] = emitter._if
 	emitter.translateStatement[token.ELSE] = emitter._else
 	emitter.translateStatement[token.WHILE] = emitter._while
 	emitter.translateStatement[token.EQ] = emitter.assign
 	emitter.translateStatement[token.RPAREN] = emitter.voidCall
+	emitter.translateStatement[token.RETURN] = emitter._return
 
 	emitter.translateOperation = make(map[token.Type]func(*FunctionCtx)(int,error))
 	emitter.translateOperation[token.DOLLAR] = emitter.address
 	emitter.translateOperation[token.RPAREN] = emitter.parenthesis
+	emitter.translateOperation[token.PLUS] = emitter.sum
+	emitter.translateOperation[token.MINUS] = emitter.subtraction
+	emitter.translateOperation[token.ASTERISK] = emitter.asterisk
+	emitter.translateOperation[token.PERCENT] = emitter.mod
+	emitter.translateOperation[token.SLASH] = emitter.division
+	emitter.translateOperation[token.LTLT] = emitter.shift
+	emitter.translateOperation[token.GTGT] = emitter.shift
+	emitter.translateOperation[token.OR] = emitter.or
+	emitter.translateOperation[token.AND] = emitter.and
+	emitter.translateOperation[token.XOR] = emitter.xor
+	emitter.translateOperation[token.LAND] = emitter.land
+	emitter.translateOperation[token.LOR] = emitter.lor
+	emitter.translateOperation[token.EQEQ] = emitter.eqeq
+	emitter.translateOperation[token.NOTEQ] = emitter.noteq
+	emitter.translateOperation[token.BANG] = emitter.not
+	emitter.translateOperation[token.LT] = emitter.ltgt
+	emitter.translateOperation[token.GT] = emitter.ltgt
+	emitter.translateOperation[token.GTEQ] = emitter.ltgteq
+	emitter.translateOperation[token.LTEQ] = emitter.ltgteq
+	emitter.translateOperation[token.BOOL] = emitter.boolean
+	emitter.translateOperation[token.BYTE] = emitter.literal
+	emitter.translateOperation[token.IDENT] = emitter.ident
+
+
 	emitter.currentAddress = AddressGlobalSection
 	return emitter
 }
@@ -116,11 +142,43 @@ func (emitter *Emitter) Start() ([MEMORY]byte, error){
 	return emitter.machineCode, nil
 }
 
-
-//TODO: In all primitive functions parameters starts at v2
 //function declaration save the instructions of all primitive function in memory
 func (emitter *Emitter) primitiveFunctionsDeclaration()error{
-	return nil
+	err := emitter.getFontDeclaration()
+	if err != nil{
+		return err
+	}
+	err = emitter.cleanDeclaration()
+	if err != nil{
+		return err
+	}
+	err = emitter.setSTDeclaration()
+	if err != nil{
+		return err
+	}
+	err = emitter.setDTDeclaration()
+	if err != nil{
+		return err
+	}
+	err = emitter.getDTDeclaration()
+	if err != nil{
+		return err
+	}
+	err = emitter.randomDeclaration()
+	if err != nil{
+		return err
+	}
+	err = emitter.waitKeyDeclaration()
+	if err != nil{
+		return err
+	}
+	err = emitter.isKeyPressedDeclaration()
+	if err != nil{
+		return err
+	}
+	err = emitter.drawDeclaration()
+
+	return err
 
 }
 
@@ -208,7 +266,7 @@ func (emitter *Emitter) drawDeclaration ()error {
 	//it returns a boolean (the value of vf) in v0
 
 
-	dxynAddress := emitter.functions["draw"]+8 //address in which we want dynamically write the opcode
+	dxynAddress := emitter.functions["draw"]+6 //address in which we want dynamically write the opcode
 
 	err := emitter.saveOpcode(I6XKK(0, 0xD2)) //v0=0xD2 (v0 =0xDX)
 	if err != nil{
