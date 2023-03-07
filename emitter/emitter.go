@@ -10,20 +10,16 @@ import (
 )
 
 type Emitter struct{
-	currentAddress uint16
-	offsetStack    int //we use this field to know the last address in which we save a variable in the stack
-	//globalVariables		map[string]uint16
-	globalVariables map[string]uint16 //we save the address in which the global variable is stored
-	variables 		map[string]int //we save the position (counting from the first variable of the list of stacks)
-	// where we stored the variable. With this we can calculate the address where a variable is stored, by adding this position to
-	// the address in which the stack section starts
-	scope           *symboltable.Scope
-	ctxNode         *ast.Node
+	currentAddress 		   uint16
+	offsetStack    		   int //we use this field to know the last address in which we save a variable in the stack
+	globalVariables		   map[string]uint16 //we save in globalVariables the address in which each global variable is stored
+	scope           	   *symboltable.Scope
+	ctxNode         	   *ast.Node
 	machineCode    		   [MEMORY]byte
 	translateStatement     map[token.Type]func(*FunctionCtx)error
 	translateOperation	   map[token.Type]func(function *FunctionCtx) (int, error)
-	functions       	   map[string]uint16
-	lastIndexSubScope	   int //in the context of a scope, tells the numbers of sub-scopes already written in machine code
+	functions       	   map[string]uint16//we save in functions the address in which each function is stored
+	lastIndexSubScope	   int //in the context of a scope, lastIndexSubScope tells the numbers of sub-scopes already written in machineCode
 
 }
 
@@ -34,6 +30,7 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 	emitter.scope = scope
 	emitter.lastIndexSubScope = 0
 	emitter.ctxNode = tree.Head
+
 	emitter.translateStatement = make(map[token.Type]func(*FunctionCtx)error)
 
 	emitter.translateStatement[token.IF] = emitter._if
@@ -44,6 +41,7 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 	emitter.translateStatement[token.RETURN] = emitter._return
 
 	emitter.translateOperation = make(map[token.Type]func(*FunctionCtx)(int,error))
+
 	emitter.translateOperation[token.DOLLAR] = emitter.address
 	emitter.translateOperation[token.RPAREN] = emitter.parenthesis
 	emitter.translateOperation[token.PLUS] = emitter.sum
@@ -75,7 +73,7 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 }
 
 
-//Start translates the syntax tree into machine code and returns it
+//Start translates the syntax tree into machine code and returns it, return an error if needed
 func (emitter *Emitter) Start() ([MEMORY]byte, error){
 	emitter.ctxNode = emitter.ctxNode.Children[0] //The tree start with a EOF node, so we move to the next one
 
@@ -97,6 +95,7 @@ func (emitter *Emitter) Start() ([MEMORY]byte, error){
 	if err != nil{
 		return emitter.machineCode, err
 	}
+
 	mainScope := emitter.scope
 	//we save into memory all the functions (including main)
 	for i, child := range block.Children{
@@ -115,7 +114,7 @@ func (emitter *Emitter) Start() ([MEMORY]byte, error){
 
 
 	//The stack section will start in the last available address, which is saved in the vD and vE registers
-	vD := byte(emitter.currentAddress & 0xFF00 >> 8)
+	vD := byte((emitter.currentAddress & 0xFF00) >> 8)
 	VE := byte(emitter.currentAddress & 0x00FF)
 	x := byte(RegisterStackAddress1)
 	y := byte(RegisterStackAddress2)
@@ -205,14 +204,14 @@ func (emitter *Emitter) cleanDeclaration ()error{
 //setSTDeclaration save the function setST in memory
 func (emitter *Emitter) setSTDeclaration ()error{
 	emitter.functions["setST"] = emitter.currentAddress
-	//setST only has a parameter (a byte) saved in v2, and it is a void function that save sound timer = v0
+	//setST only has a parameter (a byte) saved in v2, and it is a void function that set sound timer = v2
 	return emitter.saveOpcode(IFX18(2))
 }
 
 //setDTDeclaration save the function setDT in memory
 func (emitter *Emitter) setDTDeclaration ()error{
 	emitter.functions["setDT"] = emitter.currentAddress
-	//setST only has a parameter (a byte) saved in v2, and it is a void function that save delay timer = v2
+	//setST only has a parameter (a byte) saved in v2, and it is a void function that set delay timer = v2
 	return emitter.saveOpcode(IFX15(2))
 }
 
@@ -282,7 +281,7 @@ func (emitter *Emitter) drawDeclaration ()error {
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(IFX55(1)) //save v0 and v1 in dxynAddress (modifying the opcode)
+	err = emitter.saveOpcode(IFX55(1)) //save v0 and v1 in dxynAddress (writing the opcode)
 	if err != nil{
 		return err
 	}
@@ -332,14 +331,16 @@ func (emitter *Emitter) functionDeclaration()error{
 		for emitter.ctxNode.Value.Type == token.COMMA{
 			comma := emitter.ctxNode
 			emitter.ctxNode = emitter.ctxNode.Children[0]
-			i, err = emitter.saveParamsInStack(&params, ctxAddresses, i, sizeParams)
+			err = emitter.saveParamsInStack(&params, ctxAddresses, i, sizeParams)
 			if err != nil {
 				return err
 			}
+			i++
 			emitter.ctxNode = comma
 			emitter.ctxNode = emitter.ctxNode.Children[1]
 		}
-		i, err = emitter.saveParamsInStack(&params, ctxAddresses, i, sizeParams)
+		err = emitter.saveParamsInStack(&params, ctxAddresses, i, sizeParams)
+
 		if err != nil {
 			return err
 		}
@@ -407,53 +408,52 @@ func (emitter *Emitter) functionDeclaration()error{
 	return nil
 }
 
-//saveParamsInStack declare params in the stack and save its values there, returns the amount of params saved
-func (emitter *Emitter) saveParamsInStack(params *[]string, ctxAddresses *Addresses, i int, sizeParams []int) (int, error) {
+//saveParamsInStack declare params in the stack and save its values there, returns the an error if needed
+func (emitter *Emitter) saveParamsInStack(params *[]string, ctxAddresses *Addresses, i int, sizeParams []int) error {
 
 	//first we declare them in the stack
 	paramIdent := emitter.ctxNode.Value.Literal
 	*params = append(*params, paramIdent)
 	err := emitter.let(ctxAddresses)
 	if err != nil {
-		return i, err
+		return  err
 	}
 	//then we set its value
 	//the argument i is the register i + 2 (we use v0 and v1 to operate)
 	i8xy0 := I8XY0(0, byte(i+2))
-	err = emitter.saveOpcode(i8xy0)
+	err = emitter.saveOpcode(i8xy0) //v0 = v(i+2)
 	if err != nil {
-		return i, err
+		return  err
 	}
-	i++
 	if sizeParams[i] == 2 {
-		i8xy0 = I8XY0(1, byte(i+2))
+		i8xy0 = I8XY0(1, byte(i+3)) //v1 = v(i+2)
 		err = emitter.saveOpcode(i8xy0)
 		if err != nil {
-			return i, err
+			return err
 		}
-		i++
 
 	}
-	iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2)
+	iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2) // I = stack address
 	err = emitter.saveOpcode(iaxy0)
 	if err != nil {
-		return i, err
+		return err
 	}
 	reference, _ := ctxAddresses.GetReference(paramIdent)
 
-	err = emitter.executeFX1ESafe(2, reference.positionStack)
+	err = emitter.executeFX1ESafe(2, reference.positionStack) // I = I + V2
 	if err != nil {
-		return i, err
+		return err
 	}
 	ifx55 := IFX55(byte(sizeParams[i]))
-	err = emitter.saveOpcode(ifx55)
+	err = emitter.saveOpcode(ifx55) //we save v0 (or v0 and v1) in memory
 	if err != nil {
-		return i, err
+		return err
 	}
-	return i, nil
+
+	return nil
 }
 
-//globalVariableDeclaration assigns an address to a global variable and updates the current address
+//globalVariableDeclaration assigns an address to a global variable and updates the current address.
 func (emitter *Emitter) globalVariableDeclaration() error{
 	let := emitter.ctxNode
 	ident := let.Children[0].Value.Literal
@@ -515,22 +515,25 @@ func (emitter *Emitter) declareInStack(ctxAddresses *Addresses) error {
 	for _, child := range emitter.ctxNode.Children{
 		switch child.Value.Type {
 		case token.WHILE:
-				iSubScope++
-				emitter.ctxNode = child.Children[1]
-				emitter.scope = emitter.scope.SubScopes[iSubScope]
-				ctxAddresses.AddSubAddresses()
+			emitter.ctxNode = child.Children[1]
+			emitter.scope = emitter.scope.SubScopes[iSubScope]
+			ctxAddresses.AddSubAddresses()
 
-				err := emitter.declareInStack(ctxAddresses.SubAddresses[iSubScope])
-				emitter.ctxNode = backupCtxNode
-				emitter.scope = backupScope
-				if err != nil{
-						return err
-				}
+			err := emitter.declareInStack(ctxAddresses.SubAddresses[iSubScope])
+			iSubScope++
+
+			emitter.ctxNode = backupCtxNode
+			emitter.scope = backupScope
+			if err != nil{
+					return err
+			}
+
 		case token.IF:
 			emitter.ctxNode = child.Children[1]
 			emitter.scope = emitter.scope.SubScopes[iSubScope]
 			ctxAddresses.AddSubAddresses()
 			err := emitter.declareInStack(ctxAddresses.SubAddresses[iSubScope])
+			iSubScope++
 			emitter.ctxNode = backupCtxNode
 			emitter.scope = backupScope
 			if err != nil{
@@ -538,12 +541,11 @@ func (emitter *Emitter) declareInStack(ctxAddresses *Addresses) error {
 			}
 		case token.ELSE:
 			for j:=0; j<2;j++{
-				iSubScope = iSubScope + j
 				emitter.ctxNode = child.Children[j]
 				emitter.scope = emitter.scope.SubScopes[iSubScope]
 				ctxAddresses.AddSubAddresses()
-
 				err := emitter.declareInStack(ctxAddresses.SubAddresses[iSubScope])
+				iSubScope++
 				emitter.ctxNode = backupCtxNode
 				emitter.scope = backupScope
 				if err != nil{
@@ -585,30 +587,47 @@ func (emitter *Emitter) let(ctxAddresses *Addresses) error{
 		return errors.New(errorhandler.UnexpectedCompilerError())
 
 	}
-	if size > 16{
-		for i:=size-1; i>=0; i=i-16{
-			instructionsToSave := emitter.saveInStack(byte(size))
-			for _, toSave := range instructionsToSave{
-				emitter.machineCode[emitter.currentAddress] = toSave
-				emitter.currentAddress++
-			}
+	for size > 16{
+		err := emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2)) //I = stack
+		if err != nil{
+			return err
 		}
-	}else{
-		instructionsToSave := emitter.saveInStack(byte(size))
-		for _, toSave := range instructionsToSave{
-			emitter.machineCode[emitter.currentAddress] = toSave
-			emitter.currentAddress++
+		err = emitter.saveOpcode(I6XKK(0, byte(emitter.offsetStack)))                 //v0 = offset
+		if err != nil{
+			return err
 		}
+		err = emitter.saveOpcode(IFX1E(0))                  // I = I + V0
+		if err != nil{
+			return err
+		}
+		err = emitter.saveOpcode(IFX55(16))
+		emitter.offsetStack += 16
+	}
+	if size > 0{
+		err := emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2)) //I = stack
+		if err != nil{
+			return err
+		}
+		err = emitter.saveOpcode(I6XKK(0, byte(emitter.offsetStack)))                 //v0 = offset
+		if err != nil{
+			return err
+		}
+		err = emitter.saveOpcode(IFX1E(0))                  // I = I + V0
+		if err != nil{
+			return err
+		}
+		err = emitter.saveOpcode(IFX55(byte(size)))
+		emitter.offsetStack += size
 	}
 
 	return nil
 }
 
-//saveInStack return the instructions needed to save a variable of size "size" in the stack
+//saveInStack return the instructions needed to save a variable of size "size" in the stack, it also modified the offset
 func (emitter *Emitter)saveInStack(size byte)[]byte{
 	instructions := make([]byte,8)
 
-	iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2) //I = (Vi << 8 | Vj)
+	iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2) //I = stack
 	i6xkk := I6XKK(0, byte(emitter.offsetStack))                 //v0 = offset
 	ifx1e := IFX1E(0)                                            // I = I + V0
 	ifx55 := IFX55(size)                                         // fx55 stores registers V0 through Vsize in memory starting at location I

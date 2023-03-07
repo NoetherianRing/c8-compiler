@@ -36,7 +36,7 @@ func NewSemanticAnalyzer(tree *ast.SyntaxTree)*SemanticAnalyzer{
 
 //Start save in the symbol table the primitive functions, and validates the semantic of global declarations
 //It also checks the declaration of a main function
-func (analyzer *SemanticAnalyzer) Start() error{
+func (analyzer *SemanticAnalyzer) Start() (*symboltable.Scope, error){
 	ok := analyzer.savePrimitiveFunctions()
 	if !ok{
 		panic(errorhandler.UnexpectedCompilerError())
@@ -49,20 +49,20 @@ func (analyzer *SemanticAnalyzer) Start() error{
 		next := declaration.Value.Type
 		if next != token.FUNCTION && next != token.LET{
 			line := analyzer.ctxNode.Value.Line
-			return errors.New(errorhandler.GlobalScopeOnlyAllowsDeclarations(line))
+			return globalScope, errors.New(errorhandler.GlobalScopeOnlyAllowsDeclarations(line))
 		}
 		err := analyzer.validate[next]()
 		if err != nil{
-			return err
+			return globalScope, err
 		}
 	}
 	_, existMain := globalScope.Symbols[token.MAIN]
 
 	if !existMain{
-		return errors.New(errorhandler.MainFunctionNeeded())
+		return globalScope, errors.New(errorhandler.MainFunctionNeeded())
 	}
 
-	return nil
+	return globalScope, nil
 }
 
 //block creates a new sub scope and validates the semantic of all the statements within the block
