@@ -228,5 +228,29 @@ func IsAnArray(datatype interface{})bool{
 		return false
 	}
 
+}
+
+func IsNumeric(datatype interface{})bool{
+	switch datatype.(type){
+	case Pointer:
+		return true
+	case Simple:
+		return IsByte(datatype)
+	default:
+		return false
+	}
+
+}
+func IsByte(datatype interface{})bool{
+	switch datatype.(type){
+	case Simple:
+		if datatype.(Simple).Kind == KindByte{
+			return true
+		}else{
+			return false
+		}
+	default:
+		return false
+	}
 
 }
