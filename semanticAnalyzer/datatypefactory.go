@@ -9,8 +9,6 @@ import (
 	"strconv"
 )
 
-//TODO: No poder sumar, ni hacer ningún tipo de operación sobre matrices
-
 type DataTypeFactory struct{
 	scope *symboltable.Scope
 	ctxNode      *ast.Node
@@ -528,15 +526,7 @@ func (getter *DataTypeFactory) dereference() (interface{}, error){
 func (getter *DataTypeFactory) validateIndex(compare interface{}) error {
 
 	if getter.ctxNode.Value.Type != token.BYTE{
-		dataTypeIndex, err := getter.GetDataType()
-		if err != nil{
-			return err
-		}
-		if !symboltable.NewByte().Compare(dataTypeIndex){
-			line := getter.ctxNode.Value.Line
-			err := errors.New(errorhandler.IndexMustBeAByte(line))
-			return err
-		}
+		return errors.New(errorhandler.UnexpectedCompilerError())
 
 	}else{
 		length, err := strconv.Atoi(getter.ctxNode.Value.Literal)
@@ -549,14 +539,13 @@ func (getter *DataTypeFactory) validateIndex(compare interface{}) error {
 			return err
 		}
 		arrayToCompare := compare.(symboltable.Array)
-		if  arrayToCompare.Length != symboltable.UnknownLength{
-			if length >= arrayToCompare.Length{
-				line := getter.ctxNode.Value.Line
-				err := errors.New(errorhandler.IndexOutOfBounds(line))
-				return err
-			}
+		if length >= arrayToCompare.Length{
+			line := getter.ctxNode.Value.Line
+			err := errors.New(errorhandler.IndexOutOfBounds(line))
+			return err
 		}
 	}
+
 	return nil
 }
 
@@ -621,34 +610,22 @@ func (getter *DataTypeFactory) declarationFactoryPointer() (interface{}, error) 
 //declarationFactoryArray validates that the index of an array is valid (by checking its data type) and return a array data type
 //the data type of the elements of the array is obtained by moving the context and calling to declarationFactory()
 func (getter *DataTypeFactory) declarationFactoryArray() (interface{}, error) {
-	length := symboltable.UnknownLength
 	index := getter.ctxNode.Children[0]
 	if index.Value.Type != token.BYTE{
-		backup := getter.ctxNode
-		getter.ctxNode = index
-		dataTypeIndex, err := getter.GetDataType()
-		if err != nil{
-			return nil, err
-		}
-		if !symboltable.NewByte().Compare(dataTypeIndex){
-			line := getter.ctxNode.Value.Line
-			err := errors.New(errorhandler.IndexMustBeAByte(line))
-			return nil, err
-		}
-		getter.ctxNode = backup
-
-	}else{
-		literal, err := strconv.Atoi(index.Value.Literal)
-		if err != nil{
-			panic(errorhandler.UnexpectedCompilerError())
-		}
-		length = literal
-		if length < 0{
-			line := getter.ctxNode.Value.Line
-			err := errors.New(errorhandler.NegativeIndex(line))
-			return nil, err
-		}
+		return nil, errors.New(errorhandler.UnexpectedCompilerError())
 	}
+
+	literal, err := strconv.Atoi(index.Value.Literal)
+	if err != nil{
+		panic(errorhandler.UnexpectedCompilerError())
+	}
+	length := literal
+	if length < 0{
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.NegativeIndex(line))
+		return nil, err
+	}
+
 	getter.ctxNode = getter.ctxNode.Children[1]
 	of, err := getter.declarationFactory()
 	if err != nil {

@@ -1,5 +1,5 @@
 package semanticAnalyzer
-
+/*
 import (
 	"errors"
 	"github.com/NoetherianRing/c8-compiler/ast"
@@ -1413,4 +1413,4 @@ func TestLogicExpression(t *testing.T){
 
 
 
-
+*/

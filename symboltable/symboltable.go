@@ -53,7 +53,7 @@ func (array Array) SizeOfElements() int{
 		return array.Of.(Simple).Size
 	case Array:
 		of := array.Of.(Array)
-		return of.SizeOfElements() * array.Length
+		return of.SizeOfElements() * of.Length
 	default:
 		return 0
 	}
@@ -66,7 +66,7 @@ func (t Simple)Compare(datatype interface{})bool{
 		return false
 	}
 
-	return toCompare.Kind == t.Kind// && toCompare.Size == t.Size
+	return toCompare.Kind == t.Kind
 
 }
 
@@ -211,7 +211,7 @@ func GetSize(datatype interface{}) int{
 	case Pointer:
 		return datatype.(Pointer).Size
 	case Array:
-		return datatype.(Array).Size
+		return datatype.(Array).SizeOfElements() * datatype.(Array).Length
 	case Simple:
 		return datatype.(Simple).Size
 	default:

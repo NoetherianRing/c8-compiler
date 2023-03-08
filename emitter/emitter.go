@@ -474,32 +474,15 @@ func (emitter *Emitter) globalVariableDeclaration() error{
 		return errors.New(errorhandler.UnexpectedCompilerError())
 	}
 
-	switch symbol.DataType.(type) {
-	case symboltable.Simple:
-		emitter.globalVariables[ident] = emitter.currentAddress
-		emitter.machineCode[emitter.currentAddress] = 0
-		return emitter.moveCurrentAddress()
-	case symboltable.Pointer:
-		emitter.globalVariables[ident] = emitter.currentAddress
+	size := symboltable.GetSize(symbol.DataType)
+	emitter.globalVariables[ident] = emitter.currentAddress
+
+	for i := 0; i < size; i++{
 		emitter.machineCode[emitter.currentAddress] = 0
 		err := emitter.moveCurrentAddress()
 		if err != nil{
 			return err
 		}
-		emitter.machineCode[emitter.currentAddress] = 0
-		return emitter.moveCurrentAddress()
-
-	case symboltable.Array:
-		emitter.globalVariables[ident] = emitter.currentAddress
-		for i := 0; i< symbol.DataType.(symboltable.Array).Length  * symbol.DataType.(symboltable.Array).SizeOfElements(); i++{
-			emitter.machineCode[emitter.currentAddress] = 0
-			err := emitter.moveCurrentAddress()
-			if err != nil{
-				return err
-			}
-		}
-	default:
-		return errors.New(errorhandler.UnexpectedCompilerError())
 	}
 	return nil
 
@@ -587,18 +570,8 @@ func (emitter *Emitter) let(ctxAddresses *StackReferences) error{
 	if !ok{
 		return errors.New(errorhandler.UnexpectedCompilerError())
 	}
-	size := 0
-	switch symbol.DataType.(type){
-	case symboltable.Simple:
-		size = symbol.DataType.(symboltable.Simple).Size
-	case symboltable.Pointer:
-		size = symbol.DataType.(symboltable.Pointer).Size
-	case symboltable.Array:
-		size = symbol.DataType.(symboltable.Array).SizeOfElements() * symbol.DataType.(symboltable.Array).Length
-	default:
-		return errors.New(errorhandler.UnexpectedCompilerError())
+	size := symboltable.GetSize(symbol.DataType)
 
-	}
 	for size > 16{
 		err := emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2)) //I = stack
 		if err != nil{

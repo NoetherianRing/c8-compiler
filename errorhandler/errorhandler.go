@@ -122,6 +122,16 @@ func InvalidReturnType(line int, returnType string)string{
 	return errorString
 }
 
+func InvalidParamType(line int, paramType string)string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) + "\n: "+ paramType + " is a invalid parameter"
+	return errorString
+}
+
+func ToManyParams(line int)string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) + "\nparams exceed the limit of nine bytes"
+	return errorString
+}
+
 func NotEnoughMemory()string{
 	errorString := "Not Enough Memory"
 	return errorString

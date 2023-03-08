@@ -377,20 +377,24 @@ func (analyzer *SemanticAnalyzer) handleParams()([]interface{},error) {
 	analyzer.currentScope.AddSubScope()
 	lastAdded := len(analyzer.currentScope.SubScopes)-1
 	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded]
-
+	totalSize := 0
 	for len(analyzer.ctxNode.Children) == 2{
 		 param, err := analyzer.handleParam(0)
 		 if err != nil{
 		 	return nil, err
 		 }
+
+		totalSize += symboltable.GetSize(param)
     	args = append(args, param)
 
     	if analyzer.ctxNode.Children[1].Value.Type != token.COMMA{
 			param, err = analyzer.handleParam(1)
+			totalSize += symboltable.GetSize(param)
 
 			if err != nil{
 			  return nil, err
 			}
+
 			args = append(args, param)
 		}else{
 			analyzer.ctxNode = analyzer.ctxNode.Children[1]
@@ -400,11 +404,18 @@ func (analyzer *SemanticAnalyzer) handleParams()([]interface{},error) {
 	}
 	if len(analyzer.ctxNode.Children) == 1{
 		param, err := analyzer.handleParam(0)
+		totalSize += symboltable.GetSize(param)
+
 		if err != nil{
 			return nil, err
 		}
 
 		args = append(args, param)
+	}
+	if totalSize > LimitParamSize{
+		line := analyzer.ctxNode.Value.Line
+		err := errors.New(errorhandler.ToManyParams(line))
+		return nil, err
 	}
 	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded].Parent
 
@@ -422,7 +433,15 @@ func (analyzer *SemanticAnalyzer) handleParam(i int) (interface{}, error) {
 	}
 	analyzer.ctxNode = backup
 	analyzer.updateDataTypeFactoryCtx(analyzer.ctxNode.Children[i])
-	datatype, err2 := analyzer.datatypeFactory.GetDataType()
-	return datatype, err2
+	datatype, err := analyzer.datatypeFactory.GetDataType()
+
+	switch datatype.(type){
+	case symboltable.Array:
+		line := analyzer.ctxNode.Value.Line
+		err := errors.New(errorhandler.InvalidParamType(line, symboltable.Fmt(datatype)))
+		return nil, err
+	}
+
+	return datatype, err
 
 }
