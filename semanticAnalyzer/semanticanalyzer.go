@@ -113,9 +113,17 @@ func(analyzer *SemanticAnalyzer) assign()error{
 	leftTree := analyzer.ctxNode.Children[0]
 	analyzer.updateDataTypeFactoryCtx(leftTree)
 	leftDataType, err :=analyzer.datatypeFactory.GetDataType()
+
 	if err != nil{
 		return err
 	}
+	if symboltable.IsAnArray(leftDataType){
+		line := analyzer.ctxNode.Value.Line
+		err = errors.New(errorhandler.InvalidAssignation(line, symboltable.Fmt(leftDataType)))
+		return err
+
+	}
+
 	rightTree := analyzer.ctxNode.Children[0]
 	analyzer.updateDataTypeFactoryCtx(rightTree)
 	rightDataType, err2 :=analyzer.datatypeFactory.GetDataType()

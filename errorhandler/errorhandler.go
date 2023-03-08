@@ -28,6 +28,15 @@ func ByteOutOfRange(line int, number int) string{
 	return errorString
 
 }
+
+func InvalidAssignation(line int, datatype string) string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
+		"\nInvalid assignation to: " +  datatype
+	return errorString
+
+}
+
+
 func UnexpectedCompilerError() string {
 	errorString := "\nunexpected compiler error\n"
 	return errorString

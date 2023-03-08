@@ -218,3 +218,15 @@ func GetSize(datatype interface{}) int{
 	}
 
 }
+
+func IsAnArray(datatype interface{})bool{
+	switch datatype.(type){
+	case Array:
+		return true
+
+	default:
+		return false
+	}
+
+
+}
