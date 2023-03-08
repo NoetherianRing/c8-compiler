@@ -22,6 +22,12 @@ func DataTypesMismatch(line int, actualDatatype string, symbol string, expectedD
 	return errorString
 
 }
+func ByteOutOfRange(line int, number int) string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
+		"\nNumber: " +  strconv.Itoa(number) + " is not a byte"
+	return errorString
+
+}
 func UnexpectedCompilerError() string {
 	errorString := "\nunexpected compiler error\n"
 	return errorString

@@ -640,6 +640,15 @@ func (getter *DataTypeFactory) simple() (interface{}, error) {
 	case token.BOOL:
 		return symboltable.NewBool(), nil
 	case token.BYTE:
+		_byte, err := strconv.Atoi(getter.ctxNode.Value.Literal)
+		if err != nil{
+			return nil, errors.New(errorhandler.UnexpectedCompilerError())
+		}
+		if  _byte > 255 || _byte < 0 {
+			line := getter.ctxNode.Value.Line
+			return nil, errors.New(errorhandler.ByteOutOfRange(line, _byte))
+
+		}
 		return symboltable.NewByte(), nil
 	default:
 		panic(errorhandler.UnexpectedCompilerError())

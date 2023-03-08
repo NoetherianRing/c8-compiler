@@ -26,7 +26,6 @@ type Simple struct{
 	Kind int
 }
 type Array struct{
-	Size int
 	Length int
 	Of interface{}
 }
@@ -144,7 +143,7 @@ func NewPointer(pointsTo interface{})Pointer{
 }
 
 func NewArray(length int, datatype interface{}) Array{
-	return Array{Size : 2,Length: length, Of: datatype}
+	return Array{Length: length, Of: datatype}
 }
 
 func NewBool() Simple {
