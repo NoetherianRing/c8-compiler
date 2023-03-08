@@ -15,7 +15,7 @@ type Emitter struct{
 	globalVariables		   map[string]uint16 //we save in globalVariables the address in which each global variable is stored
 	scope           	   *symboltable.Scope
 	ctxNode         	   *ast.Node
-	machineCode    		   [MEMORY]byte
+	machineCode    		   [Memory]byte
 	translateStatement     map[token.Type]func(*FunctionCtx)error
 	translateOperation	   map[token.Type]func(function *FunctionCtx) (int, error)
 	functions       	   map[string]uint16//we save in functions the address in which each function is stored
@@ -74,7 +74,7 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 
 
 //Start translates the syntax tree into machine code and returns it, return an error if needed
-func (emitter *Emitter) Start() ([MEMORY]byte, error){
+func (emitter *Emitter) Start() ([]byte, error){
 	emitter.ctxNode = emitter.ctxNode.Children[0] //The tree start with a EOF node, so we move to the next one
 
 	//we save all the global globalVariables into memory
@@ -84,7 +84,7 @@ func (emitter *Emitter) Start() ([MEMORY]byte, error){
 			emitter.ctxNode = child
 			err := emitter.globalVariableDeclaration()
 			if err != nil{
-				return emitter.machineCode, err
+				return nil, err
 			}
 		}
 	}
@@ -93,7 +93,7 @@ func (emitter *Emitter) Start() ([MEMORY]byte, error){
 	//we save into memory the primitive functions
 	err := emitter.primitiveFunctionsDeclaration()
 	if err != nil{
-		return emitter.machineCode, err
+		return nil, err
 	}
 
 	mainScope := emitter.scope
@@ -104,7 +104,7 @@ func (emitter *Emitter) Start() ([MEMORY]byte, error){
 			emitter.ctxNode = child
 			err = emitter.functionDeclaration()
 			if err != nil{
-				return emitter.machineCode, err
+				return nil, err
 			}
 
 		}
@@ -119,29 +119,29 @@ func (emitter *Emitter) Start() ([MEMORY]byte, error){
 	x := byte(RegisterStackAddress1)
 	y := byte(RegisterStackAddress2)
 	saveV4 := I6XKK(x, vD)
-	emitter.machineCode[0] = saveV4[0]
-	emitter.machineCode[1] = saveV4[1]
+	emitter.machineCode[RomStart] = saveV4[0]
+	emitter.machineCode[RomStart+1] = saveV4[1]
 
 	saveV5 := I6XKK(y, VE)
-	emitter.machineCode[2] = saveV5[0]
-	emitter.machineCode[3] = saveV5[1]
+	emitter.machineCode[RomStart+2] = saveV5[0]
+	emitter.machineCode[RomStart+3] = saveV5[1]
 
 	//The program will start in the main function, so we jump there
 	mainAddress, ok := emitter.functions[token.MAIN]
 	if !ok{
-		return emitter.machineCode, errors.New(errorhandler.UnexpectedCompilerError())
+		return nil, errors.New(errorhandler.UnexpectedCompilerError())
 	}
 	callMain := I2NNN(mainAddress)
-	emitter.machineCode[4] = callMain[0]
-	emitter.machineCode[5] = callMain[1]
+	emitter.machineCode[RomStart+4] = callMain[0]
+	emitter.machineCode[RomStart+5] = callMain[1]
 
 
-	return emitter.machineCode, nil
+	return emitter.machineCode[RomStart:], nil
 }
 
 //function declaration save the instructions of all primitive function in memory
 func (emitter *Emitter) primitiveFunctionsDeclaration()error{
-	err := emitter.getFontDeclaration()
+	err := emitter.drawFontDeclaration()
 	if err != nil{
 		return err
 	}
@@ -179,19 +179,31 @@ func (emitter *Emitter) primitiveFunctionsDeclaration()error{
 
 }
 
-//getFontDeclaration save the function getFont in memory
-func (emitter *Emitter) getFontDeclaration ()error{
-	emitter.functions["getFont"] = emitter.currentAddress
-	//getFont only has a parameter (a byte) saved in v2, and it return a pointer saving it in v1 and v2
-	err := emitter.saveOpcode(IFX29(2)) // I = location of sprite for digit V2.
+//drawFontDeclaration save the function drawFont in memory
+func (emitter *Emitter) drawFontDeclaration()error{
+	emitter.functions["drawFont"] = emitter.currentAddress
+	//drawFont has three parameters (a byte in v2, a byte in v3, and byte in v4)
+	//it returns a boolean (the value of vf) in v0
+
+	err := emitter.saveOpcode(IFX29(4)) // I = location of sprite for digit V4.
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(IBXY0(0, 1)) //we save the I value in v0 and v1
+
+	fontSize :=  byte(5) //every font is represented by 5 bytes
+
+	err = emitter.saveOpcode(IDXYN(2,3,fontSize))
 	if err != nil{
 		return err
 	}
+
+	err = emitter.saveOpcode(I8XY0(0,0xf)) //V0 = Vf
+	if err != nil{
+		return err
+	}
+
 	return nil
+
 }
 
 //cleanDeclaration save the function clean in memory
@@ -497,7 +509,7 @@ func (emitter *Emitter) globalVariableDeclaration() error{
 //moveCurrentAddress moves the current address by one, and if it's out of bounds of the memory it return a error
 func (emitter *Emitter) moveCurrentAddress() error{
 	emitter.currentAddress++
-	if emitter.currentAddress > MEMORY{
+	if emitter.currentAddress > Memory{
 		return errors.New(errorhandler.NotEnoughMemory())
 	}else {
 		return nil
@@ -675,7 +687,7 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error {
 				if err != nil{
 					return err
 				}
-				//the we save v0 (and maybe v1) there
+				//then we save v0 (and maybe v1) there
 				err =emitter.saveOpcode(IFX55(byte(size)))
 
 				if err != nil{
@@ -683,8 +695,20 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error {
 				}
 				return nil
 
-			}else{//if it is stored in a register, we just do v(indexreg) = v0 (because in order to be in a register the variable msut be a simple)
+			}else{
+				//if it is stored in a register, we just do v(indexreg) = v0
+				//(because in order to be in a register the variable must be a simple). We also update it in memory
 				err = emitter.saveOpcode(I8XY0(byte(indexReg), 0))
+				if err != nil{
+					return err
+				}
+				_,err := emitter.saveStackReferenceAddressInI(2, functionCtx)
+				if err != nil{
+					return err
+				}
+				//then we save v0 there
+				err =emitter.saveOpcode(IFX55(byte(1)))
+
 				if err != nil{
 					return err
 				}
@@ -740,7 +764,7 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error {
 
 }
 
-//_return save in v0(and maybe v1)the value a function returns
+//_return save in v0 the value a function returns
 func (emitter *Emitter) _return(functionCtx *FunctionCtx) error {
 	if len(emitter.ctxNode.Children) != 0{
 		returnBackup := emitter.ctxNode
@@ -1070,7 +1094,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 	}
 
 	//if the function we call was not a void function, then we save in memory a backup of the return value,
-	//because we will need the registers v0 and v1 to operate
+	//because we will need the registers v0
 	size := symboltable.GetSize(emitter.scope.Symbols[ident].DataType.(symboltable.Function).Return)
 	if size != 0{
 		err := emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2))	 // I = stack address
@@ -1082,7 +1106,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 			return 0, err
 		}
 		emitter.offsetStack += size
-		err = emitter.saveOpcode(IFX55(byte(size)))
+		err = emitter.saveOpcode(IFX55(byte(size))) //TODO: By now size is always 1
 		if err != nil{
 			return 0, err
 		}

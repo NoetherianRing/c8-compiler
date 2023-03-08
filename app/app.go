@@ -71,7 +71,7 @@ func (app *App) Program(){
 		panic(err)
 	}
 	defer f.Close()
-	_, err = f.Write(machineCode[:])
+	_, err = f.Write(machineCode)
 
 	if err != nil{
 		panic(err)
