@@ -116,3 +116,7 @@ func SyntaxError(line int, symbol string)string{
 	errorString := "syntactic error\nin line: "+ strconv.Itoa(line) + "\nin symbol: "+ symbol
 	return errorString
 }
+func NotEnoughMemory()string{
+	errorString := "Not Enough Memory"
+	return errorString
+}

@@ -8,6 +8,9 @@ const (
 	BYTE  = "BYTE"
 	BOOL  = "BOOL"
 
+	TRUE  = "true"
+	FALSE  = "false"
+
 	EQ   = "="
 
 	DOLLAR   = "$"

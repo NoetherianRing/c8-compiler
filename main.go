@@ -7,10 +7,10 @@ import (
 
 func main (){
 
-	compiler, err := app.NewApp(os.Args[1])
+	compiler, err := app.NewApp(os.Args[1], os.Args[2])
 	if err != nil{
 		panic(err)
-	}else{
-		compiler.Program()
 	}
+	compiler.Program()
+
 }
