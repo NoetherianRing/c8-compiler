@@ -67,6 +67,7 @@ func (optimizer *RegisterOptimizer)toCount(ctxNode *ast.Node,ctxAddresses *Addre
 		subScopesFounded := 0
 		for _, child := range ctxNode.Children{
 			if child.Value.Type == token.RBRACE{
+				subScopesFounded++
 				nextCtxAddresses := ctxAddresses.SubAddresses[subScopesFounded]
 				optimizer.toCount(child, nextCtxAddresses)
 			}else{
