@@ -30,10 +30,10 @@ func  newRegisters()*RegistersGuide {
 	return registers
 }
 
-//optimizeRegisters receive a node and an Addresses, counts how many times each variable appears in the given context,
+//optimizeRegisters receive a node and an StackReferences, counts how many times each variable appears in the given context,
 //decide which ones would be optimus to save in registers, and returns a RegistersGuide which contains a map whith the reference of the variable
 //as key, and the register in which is saved as value
-func (optimizer *RegisterOptimizer)optimizeRegisters(ctxNode *ast.Node,ctxAddresses *Addresses) *RegistersGuide {
+func (optimizer *RegisterOptimizer)optimizeRegisters(ctxNode *ast.Node,ctxAddresses *StackReferences) *RegistersGuide {
 
 	optimizer.toCount(ctxNode, ctxAddresses)
 	keys := make([]*Reference, 0, len(optimizer.count))
@@ -56,7 +56,7 @@ func (optimizer *RegisterOptimizer)optimizeRegisters(ctxNode *ast.Node,ctxAddres
 	return optimizer.registers
 }
 
-func (optimizer *RegisterOptimizer)toCount(ctxNode *ast.Node,ctxAddresses *Addresses) {
+func (optimizer *RegisterOptimizer)toCount(ctxNode *ast.Node,ctxAddresses *StackReferences) {
 
 	if ctxNode.Value.Type == token.IDENT{
 		reference, ok := ctxAddresses.References[ctxNode.Value.Literal]

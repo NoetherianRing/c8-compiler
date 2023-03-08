@@ -1,9 +1,9 @@
 package emitter
 
 
-type Addresses struct {
-	References   map[string]*Reference //by address we meant the position of the variable in the stack
-	SubAddresses []*Addresses
+type StackReferences struct {
+	References   map[string]*Reference
+	SubAddresses []*StackReferences
 }
 
 type Reference struct{
@@ -11,14 +11,14 @@ type Reference struct{
 	positionStack int
 }
 
-func NewAddresses() *Addresses{
-	addresses := new(Addresses)
-	addresses.SubAddresses = make([]*Addresses,0)
-	addresses.References = make(map[string]*Reference)
-	return addresses
+func NewAddresses() *StackReferences {
+	stackReferences := new(StackReferences)
+	stackReferences.SubAddresses = make([]*StackReferences,0)
+	stackReferences.References = make(map[string]*Reference)
+	return stackReferences
 }
 
-func (addresses Addresses) AddSubAddresses() {
+func (addresses StackReferences) AddSubAddresses() {
 	subAddress := NewAddresses()
 	for key, val := range addresses.References {
 		subAddress.References[key] = val
@@ -26,12 +26,12 @@ func (addresses Addresses) AddSubAddresses() {
 	addresses.SubAddresses = append(addresses.SubAddresses, subAddress)
 }
 
-func (addresses Addresses) AddAddress(ident string, positionStack int) {
+func (addresses StackReferences) AddReference(ident string, positionStack int) {
 	addresses.References[ident] = &Reference{ident, positionStack}
 }
 
 
-func (addresses Addresses) GetReference(ident string) (*Reference, bool) {
+func (addresses StackReferences) GetReference(ident string) (*Reference, bool) {
 	val, ok:= addresses.References[ident]
 	return val, ok
 }
