@@ -44,8 +44,6 @@ func (getter *DataTypeFactory) GetDataType()(interface{}, error){
 		panic(errorhandler.UnexpectedCompilerError())
 	}
 	get := getter.redirect()
-//	getter.currentScope = nil
-//	getter.ctxNode = nil
 	return get()
 }
 

@@ -150,6 +150,16 @@ func(analyzer *SemanticAnalyzer) fn()error{
 	if err2 != nil{
 		return err2
 	}
+
+	if !symboltable.Compare(expectedReturnDataType, symboltable.NewVoid()) &&
+		!symboltable.Compare(expectedReturnDataType, symboltable.NewBool()) &&
+		!symboltable.Compare(expectedReturnDataType, symboltable.NewByte()){
+
+		line := analyzer.ctxNode.Value.Line
+		err = errors.New(errorhandler.InvalidReturnType(line, symboltable.Fmt(expectedReturnDataType)))
+		return err
+
+	}
 	analyzer.ctxNode = analyzer.ctxNode.Children[3]
 
 	actualReturnDataType, err3 := analyzer.funcBlock()
@@ -236,7 +246,9 @@ func (analyzer *SemanticAnalyzer) validateConditionAndBlock() error {
 func(analyzer *SemanticAnalyzer) savePrimitiveFunctions() bool{
 	return analyzer.saveDraw()  && analyzer.saveClean() &&
 		analyzer.saveSetDT() && analyzer.saveGetDT() &&
-		analyzer.saveSetST() && analyzer.saveWaitKey()
+		analyzer.saveSetST() && analyzer.saveWaitKey() &&
+		analyzer.saveDrawFont() && analyzer.saveIsKeyPressed() &&
+		analyzer.saveRandom()
 }
 
 //saveDraw save into the symbol table a function named Draw that represents the chip-8 opcode DXYN
@@ -250,6 +262,18 @@ func(analyzer *SemanticAnalyzer) saveDraw() bool{
 	returnType := symboltable.NewBool() //collision
 	functionType := symboltable.NewFunction(returnType, paramType)
 	return analyzer.currentScope.AddSymbol("Draw", functionType)
+}
+
+//saveDrawFont save into the symbol table a function named DrawFont that represents the chip-8 opcode DXYN with I = font
+func(analyzer *SemanticAnalyzer) saveDrawFont() bool{
+	byteType := symboltable.NewByte()
+	paramType := make([]interface{},4)
+	paramType[0] = byteType //x
+	paramType[1] = byteType//y
+	paramType[2] = byteType //font
+	returnType := symboltable.NewBool() //collision
+	functionType := symboltable.NewFunction(returnType, paramType)
+	return analyzer.currentScope.AddSymbol("DrawFont", functionType)
 }
 
 //saveClean save into the symbol table a function named Clean that represents the chip-8 opcode I00E0
@@ -283,6 +307,13 @@ func(analyzer *SemanticAnalyzer) saveSetST() bool{
 	returnType := symboltable.NewVoid()
 	functionType := symboltable.NewFunction(returnType, paramType)
 	return analyzer.currentScope.AddSymbol("SetST", functionType)
+}
+
+//saveRandom save into the symbol table a function named Random that represents the chip-8 opcode CXKK
+func(analyzer *SemanticAnalyzer) saveRandom() bool{
+	returnType := symboltable.NewVoid()
+	functionType := symboltable.NewFunction(returnType, nil)
+	return analyzer.currentScope.AddSymbol("Random", functionType)
 }
 
 //saveWaitKey save into the symbol table a function named WaitKey that represents the chip-8 opcode FX0A
