@@ -318,7 +318,7 @@ func (emitter *Emitter) functionDeclaration()error{
 
 	mainScope := emitter.scope
 	emitter.scope = emitter.scope.SubScopes[len(emitter.functions)]
-	ctxAddresses := NewAddresses()
+	ctxReferences := NewStackReferences()
 
 	//we save the arguments in the stack
 	fn  := emitter.ctxNode
@@ -331,7 +331,7 @@ func (emitter *Emitter) functionDeclaration()error{
 		for emitter.ctxNode.Value.Type == token.COMMA{
 			comma := emitter.ctxNode
 			emitter.ctxNode = emitter.ctxNode.Children[0]
-			err = emitter.saveParamsInStack(&params, ctxAddresses, i, sizeParams)
+			err = emitter.saveParamsInStack(&params, ctxReferences, i, sizeParams)
 			if err != nil {
 				return err
 			}
@@ -339,7 +339,7 @@ func (emitter *Emitter) functionDeclaration()error{
 			emitter.ctxNode = comma
 			emitter.ctxNode = emitter.ctxNode.Children[1]
 		}
-		err = emitter.saveParamsInStack(&params, ctxAddresses, i, sizeParams)
+		err = emitter.saveParamsInStack(&params, ctxReferences, i, sizeParams)
 
 		if err != nil {
 			return err
@@ -350,18 +350,18 @@ func (emitter *Emitter) functionDeclaration()error{
 
 	//we declare all variables in the stack
 	emitter.ctxNode = emitter.ctxNode.Children[BLOCK]
-	err := emitter.declareInStack(ctxAddresses)
+	err := emitter.declareInStack(ctxReferences)
 	emitter.ctxNode = fn
 	if err != nil {
 		return err
 	}
 
-	registers := NewRegisterOptimizer().optimizeRegisters(emitter.ctxNode, ctxAddresses)
+	registers := NewRegisterOptimizer().optimizeRegisters(emitter.ctxNode, ctxReferences)
 
 	//for each parameter we check if the register optimizer put it in a register, and if it did
 	//we save its value in that register
 	for _, param := range params {
-		reference, _ := ctxAddresses.GetReference(param)
+		reference, _ := ctxReferences.GetReference(param)
 		index, isInRegister := registers.guide[reference]
 		if isInRegister {
 			iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2)
@@ -386,7 +386,7 @@ func (emitter *Emitter) functionDeclaration()error{
 
 	}
 
-	ctxFunction := NewCtxFunction(registers, ctxAddresses)
+	ctxFunction := NewCtxFunction(registers, ctxReferences)
 
 	//we write the rest of the statements in memory
 	for _, child := range fn.Children[BLOCK].Children {
@@ -643,8 +643,8 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error {
 	//if in the right side of the assign there is only a identifier, then it is a reference to a variable
 	if emitter.ctxNode.Value.Type == token.IDENT {
 		ident := emitter.ctxNode.Value.Literal
-		reference, referenceExists := functionCtx.Addresses.GetReference(ident) //we check if it is saved in the stack
-		if !referenceExists{ //if it is not saved in the stack it must be a global variable
+		reference, referenceExists := functionCtx.StackReferences.GetReference(ident) //we check if it is saved in the stack
+		if !referenceExists{                                                          //if it is not saved in the stack it must be a global variable
 
 			_, isAGlobalVariable := emitter.globalVariables[ident]
 			if !isAGlobalVariable{
@@ -922,9 +922,9 @@ func (emitter *Emitter)_while(functionCtx *FunctionCtx) error {
 func (emitter *Emitter)block(functionCtx *FunctionCtx) error {
 	lastIndexSubScopeBackup := emitter.lastIndexSubScope
 	scopeBackup := emitter.scope
-	addressesBackup := functionCtx.Addresses
+	addressesBackup := functionCtx.StackReferences
 	emitter.scope = emitter.scope.SubScopes[emitter.lastIndexSubScope]
-	functionCtx.Addresses = functionCtx.Addresses.SubAddresses[emitter.lastIndexSubScope]
+	functionCtx.StackReferences = functionCtx.StackReferences.SubAddresses[emitter.lastIndexSubScope]
 	emitter.lastIndexSubScope = 0
 
 	block := emitter.ctxNode
@@ -942,7 +942,7 @@ func (emitter *Emitter)block(functionCtx *FunctionCtx) error {
 
 	emitter.lastIndexSubScope = lastIndexSubScopeBackup + 1
 	emitter.scope = scopeBackup
-	functionCtx.Addresses = addressesBackup
+	functionCtx.StackReferences = addressesBackup
 	return nil
 }
 
@@ -1988,7 +1988,7 @@ func (emitter *Emitter)ident(functionCtx *FunctionCtx) (int, error){
 	ident := emitter.ctxNode.Value.Literal
 	var err error
 	var size int
-	indexReference, isInRegister := functionCtx.Registers.guide[functionCtx.Addresses.References[ident]]
+	indexReference, isInRegister := functionCtx.Registers.guide[functionCtx.StackReferences.References[ident]]
 	if isInRegister{
 		size = 1
 		err =emitter.saveOpcode(I8XY0(0, byte(indexReference)))
@@ -2082,7 +2082,7 @@ func (emitter *Emitter)saveDereferenceAddressInI(functionCtx *FunctionCtx) (int,
 	leaf := GetLeafByRight(emitter.ctxNode)
 	emitter.ctxNode = leaf
 	leafIdent := emitter.ctxNode.Value.Literal
-	_, isInStack := functionCtx.Addresses.References[leafIdent]
+	_, isInStack := functionCtx.StackReferences.References[leafIdent]
 	if !isInStack{
 		_, isInGlobalMemory := emitter.globalVariables[leafIdent]
 		if !isInGlobalMemory{
@@ -2146,7 +2146,7 @@ func (emitter *Emitter)saveDereferenceAddressInI(functionCtx *FunctionCtx) (int,
 //Returns the size of the reference it points to and an error
 func (emitter *Emitter)saveStackReferenceAddressInI( x byte, functionCtx *FunctionCtx)(int, error){
 	ident := emitter.ctxNode.Value.Literal
-	reference, ok := functionCtx.Addresses.References[ident]
+	reference, ok := functionCtx.StackReferences.References[ident]
 	if !ok{
 		return 0, errors.New(errorhandler.UnexpectedCompilerError())
 	}

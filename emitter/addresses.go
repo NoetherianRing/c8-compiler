@@ -11,7 +11,7 @@ type Reference struct{
 	positionStack int
 }
 
-func NewAddresses() *StackReferences {
+func NewStackReferences() *StackReferences {
 	stackReferences := new(StackReferences)
 	stackReferences.SubAddresses = make([]*StackReferences,0)
 	stackReferences.References = make(map[string]*Reference)
@@ -19,7 +19,7 @@ func NewAddresses() *StackReferences {
 }
 
 func (addresses StackReferences) AddSubAddresses() {
-	subAddress := NewAddresses()
+	subAddress := NewStackReferences()
 	for key, val := range addresses.References {
 		subAddress.References[key] = val
 	}
