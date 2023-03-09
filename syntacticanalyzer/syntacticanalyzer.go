@@ -1,4 +1,4 @@
-package parser
+package syntacticanalyzer
 
 import (
 	"fmt"
@@ -423,13 +423,13 @@ func GetGrammar() map[string]*NonTerminal {
 	options = make([]Option, 2)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[VAR])
+	grammarSymbols = append(grammarSymbols, productions[IDENT])
 	grammarSymbols = append(grammarSymbols, Terminal(token.LPAREN))
 	grammarSymbols = append(grammarSymbols, Terminal(token.RPAREN))
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[VAR])
+	grammarSymbols = append(grammarSymbols, productions[IDENT])
 	grammarSymbols = append(grammarSymbols, Terminal(token.LPAREN))
 	grammarSymbols = append(grammarSymbols, productions[PARAMS])
 	grammarSymbols = append(grammarSymbols, Terminal(token.RPAREN))
@@ -510,7 +510,7 @@ func GetGrammar() map[string]*NonTerminal {
 	productions[FUNC_DATATYPE].head = FUNC_DATATYPE
 
 	//VAR:
-	options = make([]Option, 5)
+	options = make([]Option, 6)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, Terminal(token.ASTERISK))
@@ -526,21 +526,23 @@ func GetGrammar() map[string]*NonTerminal {
 	options[1].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, Terminal(token.LPAREN))
+	grammarSymbols = append(grammarSymbols, Terminal(token.LBRACKET))
 	grammarSymbols = append(grammarSymbols, productions[IDENT])
-	grammarSymbols = append(grammarSymbols, Terminal(token.RPAREN))
+	grammarSymbols = append(grammarSymbols, Terminal(token.RBRACKET))
 	grammarSymbols = append(grammarSymbols, productions[VAR])
-
 	options[2].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, productions[ADDRESS])
 	options[3].grammarSymbols = grammarSymbols
 
+	grammarSymbols = make([]GrammarSymbol, 0)
+	grammarSymbols = append(grammarSymbols, productions[CALL])
+	options[4].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, Terminal(token.IDENT))
-	options[4].grammarSymbols = grammarSymbols
+	options[5].grammarSymbols = grammarSymbols
 
 
 	productions[VAR].options = options

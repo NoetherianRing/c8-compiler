@@ -8,6 +8,9 @@ const (
 	BYTE  = "BYTE"
 	BOOL  = "BOOL"
 
+	TRUE  = "true"
+	FALSE  = "false"
+
 	EQ   = "="
 
 	DOLLAR   = "$"
@@ -49,6 +52,7 @@ const (
 	IF = "IF"
 	ELSE = "ELSE"
 	RETURN = "RETURN"
+	MAIN = "MAIN"
 
 	TYPEBOOL = "TYPEBOOL"
 	TYPEBYTE = "TYPEBYTE"

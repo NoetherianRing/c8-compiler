@@ -2,12 +2,13 @@ program -> block eof
 
 block ->  {stmnts}
 
+funcBlock ->  {func_statements}
 
-funcBlock ->  {funcStmnts}
+func_statements -> statement func_statements
+                   | returnStatement
 
-
-funcStamnts -> stmnt funcStamnts
-              | returnStm
+returnStatement -> return expression
+                 | return
 
 stmnts -> stmnt stmnts
         |stmnt
@@ -26,8 +27,8 @@ returnStm -> return expresion
             | return
 ident -> id
 
-call ->| var(params)
-        |var()
+call ->| ident(params)
+        |ident()
 
 
 arg -> (paramDecl)
@@ -44,7 +45,8 @@ params -> expression, params
 var ->  |*var
         |[literal] var
         |[id] var
-        |id
+        |call
+        |ident
 
 
 literal -> byte
