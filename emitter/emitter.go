@@ -181,7 +181,7 @@ func (emitter *Emitter) primitiveFunctionsDeclaration()error{
 
 //drawFontDeclaration save the function drawFont in memory
 func (emitter *Emitter) drawFontDeclaration()error{
-	emitter.functions["drawFont"] = emitter.currentAddress
+	emitter.functions[symboltable.FunctionDrawFont] = emitter.currentAddress
 	//drawFont has three parameters (a byte in v2, a byte in v3, and byte in v4)
 	//it returns a boolean (the value of vf) in v0
 

@@ -290,7 +290,7 @@ func(analyzer *SemanticAnalyzer) saveDraw() bool{
 //saveDrawFont save into the symbol table a function named DrawFont that represents the chip-8 opcode DXYN with I = font
 func(analyzer *SemanticAnalyzer) saveDrawFont() bool{
 	byteType := symboltable.NewByte()
-	paramType := make([]interface{},4)
+	paramType := make([]interface{},3)
 	paramType[0] = byteType //x
 	paramType[1] = byteType//y
 	paramType[2] = byteType //font
@@ -334,7 +334,7 @@ func(analyzer *SemanticAnalyzer) saveSetST() bool{
 
 //saveRandom save into the symbol table a function named Random that represents the chip-8 opcode CXKK
 func(analyzer *SemanticAnalyzer) saveRandom() bool{
-	returnType := symboltable.NewVoid()
+	returnType := symboltable.NewByte()
 	functionType := symboltable.NewFunction(returnType, nil)
 	return analyzer.currentScope.AddSymbol(symboltable.FunctionRandom, functionType)
 }
