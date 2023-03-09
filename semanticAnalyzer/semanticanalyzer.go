@@ -20,7 +20,7 @@ type SemanticAnalyzer struct{
 func NewSemanticAnalyzer(tree *ast.SyntaxTree)*SemanticAnalyzer{
 	analyzer := new(SemanticAnalyzer)
 	analyzer.datatypeFactory = NewDataTypeFactory()
-	analyzer.currentScope = symboltable.CreateMainScope()
+	analyzer.currentScope = symboltable.CreateGlobalScope()
 	analyzer.ctxNode = tree.Head
 	analyzer.validate = make(statementValidator)
 	analyzer.validate[token.RBRACE] = analyzer.block
@@ -34,14 +34,35 @@ func NewSemanticAnalyzer(tree *ast.SyntaxTree)*SemanticAnalyzer{
 	return analyzer
 }
 
-//Start save in the symbol table the primitive functions, and validates the semantic of all the program
-func (analyzer *SemanticAnalyzer) Start() error{
+//Start save in the symbol table the primitive functions, and validates the semantic of global declarations
+//It also checks the declaration of a main function
+func (analyzer *SemanticAnalyzer) Start() (*symboltable.Scope, error){
 	ok := analyzer.savePrimitiveFunctions()
 	if !ok{
 		panic(errorhandler.UnexpectedCompilerError())
 	}
-	next := analyzer.ctxNode.Children[0].Value.Type
-	return analyzer.validate[next]()
+	globalScope := analyzer.currentScope
+	globalDeclarations := analyzer.ctxNode.Children[0].Children
+
+	for _, declaration := range globalDeclarations{
+		analyzer.ctxNode = declaration
+		next := declaration.Value.Type
+		if next != token.FUNCTION && next != token.LET{
+			line := analyzer.ctxNode.Value.Line
+			return globalScope, errors.New(errorhandler.GlobalScopeOnlyAllowsDeclarations(line))
+		}
+		err := analyzer.validate[next]()
+		if err != nil{
+			return globalScope, err
+		}
+	}
+	_, existMain := globalScope.Symbols[token.MAIN]
+
+	if !existMain{
+		return globalScope, errors.New(errorhandler.MainFunctionNeeded())
+	}
+
+	return globalScope, nil
 }
 
 //block creates a new sub scope and validates the semantic of all the statements within the block
@@ -49,16 +70,20 @@ func(analyzer *SemanticAnalyzer) block()error{
 	analyzer.currentScope.AddSubScope()
 	lastAdded := len(analyzer.currentScope.SubScopes)-1
 	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded]
-	backup := analyzer.ctxNode
-	for _, child := range analyzer.ctxNode.Children{
+	block := analyzer.ctxNode
+	for _, child := range block.Children{
 		analyzer.ctxNode = child
-		next := child.Value.Type
+		next := analyzer.ctxNode.Value.Type
+		//functions only can be declared in the global scope
+		if next == token.FUNCTION{
+			line := analyzer.ctxNode.Value.Line
+			return errors.New(errorhandler.FunctionOutsideGlobalScope(line))
+		}
 		err := analyzer.validate[next]()
 		if err != nil{
 			return err
 		}
 	}
-	analyzer.ctxNode = backup
 	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded].Parent
 	return nil
 }
@@ -88,9 +113,17 @@ func(analyzer *SemanticAnalyzer) assign()error{
 	leftTree := analyzer.ctxNode.Children[0]
 	analyzer.updateDataTypeFactoryCtx(leftTree)
 	leftDataType, err :=analyzer.datatypeFactory.GetDataType()
+
 	if err != nil{
 		return err
 	}
+	if symboltable.IsAnArray(leftDataType){
+		line := analyzer.ctxNode.Value.Line
+		err = errors.New(errorhandler.InvalidAssignation(line, symboltable.Fmt(leftDataType)))
+		return err
+
+	}
+
 	rightTree := analyzer.ctxNode.Children[0]
 	analyzer.updateDataTypeFactoryCtx(rightTree)
 	rightDataType, err2 :=analyzer.datatypeFactory.GetDataType()
@@ -124,6 +157,16 @@ func(analyzer *SemanticAnalyzer) fn()error{
 	expectedReturnDataType, err2 := analyzer.datatypeFactory.GetDataType()
 	if err2 != nil{
 		return err2
+	}
+
+	if !symboltable.Compare(expectedReturnDataType, symboltable.NewVoid()) &&
+		!symboltable.Compare(expectedReturnDataType, symboltable.NewBool()) &&
+		!symboltable.Compare(expectedReturnDataType, symboltable.NewByte()){
+
+		line := analyzer.ctxNode.Value.Line
+		err = errors.New(errorhandler.InvalidReturnType(line, symboltable.Fmt(expectedReturnDataType)))
+		return err
+
 	}
 	analyzer.ctxNode = analyzer.ctxNode.Children[3]
 
@@ -209,9 +252,11 @@ func (analyzer *SemanticAnalyzer) validateConditionAndBlock() error {
 
 //savePrimitiveFunctions save into the symbol table the primitive functions of the language
 func(analyzer *SemanticAnalyzer) savePrimitiveFunctions() bool{
-	return analyzer.saveDraw()  &&
+	return analyzer.saveDraw()  && analyzer.saveClean() &&
 		analyzer.saveSetDT() && analyzer.saveGetDT() &&
-		analyzer.saveSetST() && analyzer.saveWaitKey()
+		analyzer.saveSetST() && analyzer.saveWaitKey() &&
+		analyzer.saveDrawFont() && analyzer.saveIsKeyPressed() &&
+		analyzer.saveRandom()
 }
 
 //saveDraw save into the symbol table a function named Draw that represents the chip-8 opcode DXYN
@@ -220,12 +265,32 @@ func(analyzer *SemanticAnalyzer) saveDraw() bool{
 	paramType := make([]interface{},4)
 	paramType[0] = byteType //x
 	paramType[1] = byteType//y
-	paramType[2] = symboltable.NewPointer(byteType) //sprite address
-	paramType[3] = byteType //length
+	paramType[2] = byteType //length
+	paramType[3] = symboltable.NewPointer(byteType) //sprite address
 	returnType := symboltable.NewBool() //collision
 	functionType := symboltable.NewFunction(returnType, paramType)
 	return analyzer.currentScope.AddSymbol("Draw", functionType)
 }
+
+//saveDrawFont save into the symbol table a function named DrawFont that represents the chip-8 opcode DXYN with I = font
+func(analyzer *SemanticAnalyzer) saveDrawFont() bool{
+	byteType := symboltable.NewByte()
+	paramType := make([]interface{},4)
+	paramType[0] = byteType //x
+	paramType[1] = byteType//y
+	paramType[2] = byteType //font
+	returnType := symboltable.NewBool() //collision
+	functionType := symboltable.NewFunction(returnType, paramType)
+	return analyzer.currentScope.AddSymbol("DrawFont", functionType)
+}
+
+//saveClean save into the symbol table a function named Clean that represents the chip-8 opcode I00E0
+func(analyzer *SemanticAnalyzer) saveClean() bool{
+	returnType := symboltable.NewVoid()
+	functionType := symboltable.NewFunction(returnType, nil)
+	return analyzer.currentScope.AddSymbol("Clean", functionType)
+}
+
 
 //saveSetDT save into the symbol table a function named SetDT that represents the chip-8 opcode FX15
 func(analyzer *SemanticAnalyzer) saveSetDT() bool{
@@ -250,6 +315,13 @@ func(analyzer *SemanticAnalyzer) saveSetST() bool{
 	returnType := symboltable.NewVoid()
 	functionType := symboltable.NewFunction(returnType, paramType)
 	return analyzer.currentScope.AddSymbol("SetST", functionType)
+}
+
+//saveRandom save into the symbol table a function named Random that represents the chip-8 opcode CXKK
+func(analyzer *SemanticAnalyzer) saveRandom() bool{
+	returnType := symboltable.NewVoid()
+	functionType := symboltable.NewFunction(returnType, nil)
+	return analyzer.currentScope.AddSymbol("Random", functionType)
 }
 
 //saveWaitKey save into the symbol table a function named WaitKey that represents the chip-8 opcode FX0A
@@ -279,13 +351,12 @@ func(analyzer *SemanticAnalyzer) funcBlock()(interface{}, error){
 	analyzer.currentScope.AddSubScope()
 	lastAdded := len(analyzer.currentScope.SubScopes)-1
 	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded]
-	backup := analyzer.ctxNode
-	for _, child := range analyzer.ctxNode.Children{
+	block := analyzer.ctxNode
+	for _, child := range block.Children{
 		if child.Value.Type != token.RETURN{
 			analyzer.ctxNode = child
 			next := analyzer.ctxNode.Value.Type
 			err := analyzer.validate[next]()
-			analyzer.ctxNode = backup
 			if err != nil{
 				return nil, err
 			}
@@ -314,20 +385,24 @@ func (analyzer *SemanticAnalyzer) handleParams()([]interface{},error) {
 	analyzer.currentScope.AddSubScope()
 	lastAdded := len(analyzer.currentScope.SubScopes)-1
 	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded]
-
+	totalSize := 0
 	for len(analyzer.ctxNode.Children) == 2{
 		 param, err := analyzer.handleParam(0)
 		 if err != nil{
 		 	return nil, err
 		 }
+
+		totalSize += symboltable.GetSize(param)
     	args = append(args, param)
 
     	if analyzer.ctxNode.Children[1].Value.Type != token.COMMA{
 			param, err = analyzer.handleParam(1)
+			totalSize += symboltable.GetSize(param)
 
 			if err != nil{
 			  return nil, err
 			}
+
 			args = append(args, param)
 		}else{
 			analyzer.ctxNode = analyzer.ctxNode.Children[1]
@@ -337,11 +412,18 @@ func (analyzer *SemanticAnalyzer) handleParams()([]interface{},error) {
 	}
 	if len(analyzer.ctxNode.Children) == 1{
 		param, err := analyzer.handleParam(0)
+		totalSize += symboltable.GetSize(param)
+
 		if err != nil{
 			return nil, err
 		}
 
 		args = append(args, param)
+	}
+	if totalSize > LimitParamSize{
+		line := analyzer.ctxNode.Value.Line
+		err := errors.New(errorhandler.ToManyParams(line))
+		return nil, err
 	}
 	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded].Parent
 
@@ -359,7 +441,15 @@ func (analyzer *SemanticAnalyzer) handleParam(i int) (interface{}, error) {
 	}
 	analyzer.ctxNode = backup
 	analyzer.updateDataTypeFactoryCtx(analyzer.ctxNode.Children[i])
-	datatype, err2 := analyzer.datatypeFactory.GetDataType()
-	return datatype, err2
+	datatype, err := analyzer.datatypeFactory.GetDataType()
+
+	switch datatype.(type){
+	case symboltable.Array:
+		line := analyzer.ctxNode.Value.Line
+		err := errors.New(errorhandler.InvalidParamType(line, symboltable.Fmt(datatype)))
+		return nil, err
+	}
+
+	return datatype, err
 
 }

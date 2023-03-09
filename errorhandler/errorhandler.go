@@ -22,6 +22,21 @@ func DataTypesMismatch(line int, actualDatatype string, symbol string, expectedD
 	return errorString
 
 }
+func ByteOutOfRange(line int, number int) string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
+		"\nNumber: " +  strconv.Itoa(number) + " is not a byte"
+	return errorString
+
+}
+
+func InvalidAssignation(line int, datatype string) string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
+		"\nInvalid assignation to: " +  datatype
+	return errorString
+
+}
+
+
 func UnexpectedCompilerError() string {
 	errorString := "\nunexpected compiler error\n"
 	return errorString
@@ -99,7 +114,40 @@ func IllegalToken(line int, t string)  string{
 	return errorString
 }
 
+func FunctionOutsideGlobalScope(line int)string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) + "\nfunction declaration outside global scope"
+	return errorString
+}
+
+func GlobalScopeOnlyAllowsDeclarations(line int)string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) + "\nglobal scope only allows declarations"
+	return errorString
+}
+func MainFunctionNeeded()string{
+	errorString := "main function needed\n"
+	return errorString
+}
 func SyntaxError(line int, symbol string)string{
 	errorString := "syntactic error\nin line: "+ strconv.Itoa(line) + "\nin symbol: "+ symbol
+	return errorString
+}
+
+func InvalidReturnType(line int, returnType string)string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) + "\n: "+ returnType + " is a invalid return type"
+	return errorString
+}
+
+func InvalidParamType(line int, paramType string)string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) + "\n: "+ paramType + " is a invalid parameter"
+	return errorString
+}
+
+func ToManyParams(line int)string{
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) + "\nparams exceed the limit of nine bytes"
+	return errorString
+}
+
+func NotEnoughMemory()string{
+	errorString := "Not Enough Memory"
 	return errorString
 }

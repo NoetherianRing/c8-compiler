@@ -15,7 +15,7 @@ stmnts -> stmnt stmnts
 
 stmnt -> declaration \n
         | var = expression \n
-        | fn arg ident funcDataType block \n
+        | fn arg ident funcDataType funcBlock \n
         | if expression block else block \n
         | if expression block \n
         | while expression block \n
@@ -23,7 +23,8 @@ stmnt -> declaration \n
         | \n
 
 
-
+returnStm -> return expresion
+            | return
 ident -> id
 
 call ->| ident(params)

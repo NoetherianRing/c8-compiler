@@ -13,7 +13,7 @@ const(
 	KindVoid
 	KindBool
 )
-const UnknownLength = -1
+
 type Scope struct{
 	SubScopes []*Scope
 	NumberOfSubScope int
@@ -26,7 +26,6 @@ type Simple struct{
 	Kind int
 }
 type Array struct{
-	Size int
 	Length int
 	Of interface{}
 }
@@ -45,6 +44,20 @@ type Symbol struct{
 	IsFunction bool
 	DataType interface{}
 }
+func (array Array) SizeOfElements() int{
+	switch array.Of.(type) {
+	case Pointer:
+		return array.Of.(Pointer).Size
+	case Simple:
+		return array.Of.(Simple).Size
+	case Array:
+		of := array.Of.(Array)
+		return of.SizeOfElements() * of.Length
+	default:
+		return 0
+	}
+
+}
 
 func (t Simple)Compare(datatype interface{})bool{
 	toCompare, ok := datatype.(Simple)
@@ -52,7 +65,7 @@ func (t Simple)Compare(datatype interface{})bool{
 		return false
 	}
 
-	return toCompare.Kind == t.Kind// && toCompare.Size == t.Size
+	return toCompare.Kind == t.Kind
 
 }
 
@@ -62,11 +75,10 @@ func (array Array)Compare(datatype interface{})bool{
 		return false
 	}
 
-	if toCompare.Length != UnknownLength && array.Length !=UnknownLength{
-		if toCompare.Length != array.Length{
+	if toCompare.Length != array.Length{
 			return false
 		}
-	}
+
 
 	if reflect.TypeOf(array.Of) != reflect.TypeOf(toCompare.Of){
 		return false
@@ -105,11 +117,7 @@ func Fmt(datatype interface{}) string{
 		return "*"+ Fmt(datatype.(Pointer).PointsTo)
 	case Array:
 		array := datatype.(Array)
-		if array.Length != UnknownLength{
-			return "["+strconv.Itoa(array.Length)+"]"+Fmt(array.Of)
-		}else{
-			return "[byte]"+Fmt(array.Of)
-		}
+		return "["+strconv.Itoa(array.Length)+"]"+Fmt(array.Of)
 	case Simple:
 		simpleDataType :=  datatype.(Simple)
 		if simpleDataType.Kind == KindByte{
@@ -135,7 +143,7 @@ func NewPointer(pointsTo interface{})Pointer{
 }
 
 func NewArray(length int, datatype interface{}) Array{
-	return Array{Size : 2,Length: length, Of: datatype}
+	return Array{Length: length, Of: datatype}
 }
 
 func NewBool() Simple {
@@ -147,7 +155,7 @@ func NewByte() Simple {
 }
 
 func NewVoid() Simple {
-	return Simple{Size: 1, Kind: KindVoid}
+	return Simple{Size: 0, Kind: KindVoid}
 }
 
 func newSymbol(identifier string, datatype interface{})*Symbol{
@@ -163,7 +171,7 @@ func newSymbol(identifier string, datatype interface{})*Symbol{
 	return symbol
 }
 
-func CreateMainScope()*Scope{
+func CreateGlobalScope()*Scope{
 	return &Scope{
 		SubScopes:        make([]*Scope, 0),
 		NumberOfSubScope: 0,
@@ -202,11 +210,47 @@ func GetSize(datatype interface{}) int{
 	case Pointer:
 		return datatype.(Pointer).Size
 	case Array:
-		return datatype.(Array).Size
+		return datatype.(Array).SizeOfElements() * datatype.(Array).Length
 	case Simple:
 		return datatype.(Simple).Size
 	default:
 		panic(errorhandler.UnexpectedCompilerError())
+	}
+
+}
+
+func IsAnArray(datatype interface{})bool{
+	switch datatype.(type){
+	case Array:
+		return true
+
+	default:
+		return false
+	}
+
+}
+
+func IsNumeric(datatype interface{})bool{
+	switch datatype.(type){
+	case Pointer:
+		return true
+	case Simple:
+		return IsByte(datatype)
+	default:
+		return false
+	}
+
+}
+func IsByte(datatype interface{})bool{
+	switch datatype.(type){
+	case Simple:
+		if datatype.(Simple).Kind == KindByte{
+			return true
+		}else{
+			return false
+		}
+	default:
+		return false
 	}
 
 }

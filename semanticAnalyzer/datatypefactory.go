@@ -9,8 +9,6 @@ import (
 	"strconv"
 )
 
-
-
 type DataTypeFactory struct{
 	scope *symboltable.Scope
 	ctxNode      *ast.Node
@@ -44,8 +42,6 @@ func (getter *DataTypeFactory) GetDataType()(interface{}, error){
 		panic(errorhandler.UnexpectedCompilerError())
 	}
 	get := getter.redirect()
-//	getter.currentScope = nil
-//	getter.ctxNode = nil
 	return get()
 }
 
@@ -81,13 +77,17 @@ func (getter *DataTypeFactory) redirect() func()(interface{}, error){
 	case token.OR:
 		return getter.bitwiseExpression
 	case token.PLUS:
-		return getter.numericExpression
+		return getter.numericOperation
 	case token.MINUS:
-		return getter.numericExpression
+		return getter.numericOperation
+	case token.LTLT:
+		return getter.numericOperation
+	case token.GTGT:
+		return getter.numericOperation
 	case token.SLASH:
-		return getter.numericExpression
+		return getter.byteOperation
 	case token.PERCENT:
-		return getter.numericExpression
+		return getter.byteOperation
 	case token.EQEQ:
 		return getter.comparison
 	case token.NOTEQ:
@@ -123,7 +123,7 @@ func (getter *DataTypeFactory) redirectAsterisk() func()(interface{}, error) {
 			return getter.dereference
 		}
 	case 2:
-		return getter.numericExpression
+		return getter.byteOperation
 
 	default: panic(errorhandler.UnexpectedCompilerError())
 	}
@@ -280,9 +280,9 @@ func (getter *DataTypeFactory) comparison() (interface{}, error){
 }
 
 //numericLogicalComparison verifies that the expressions led by the ctx Node are of the same numeric data type by calling to
-//validateSameSizeNumericDataType(). Returns a error if needed, otherwise returns a boolean
+//validateSameNumericDataType(). Returns a error if needed, otherwise returns a boolean
 func (getter *DataTypeFactory) numericLogicalComparison() (interface{}, error){
-	_, err := getter.validateSameSizeNumericDataType()
+	_, err := getter.validateSameNumericDataType()
 	if err != nil{
 		return nil, err
 	}
@@ -290,20 +290,20 @@ func (getter *DataTypeFactory) numericLogicalComparison() (interface{}, error){
 }
 
 //numericLogicalComparison verifies that the expressions led by the ctx Node are of the same numeric data type by calling to
-//validateSameSizeNumericDataType(). Returns a error if needed, otherwise returns a the same datatype of the expressions it leads.
+//validateSameNumericDataType(). Returns a error if needed, otherwise returns a the same datatype of the expressions it leads.
 func (getter *DataTypeFactory) bitwiseExpression() (interface{}, error){
-	datatype, err := getter.validateSameSizeNumericDataType()
+	datatype, err := getter.validateSameNumericDataType()
 	if err != nil{
 		return nil, err
 	}
 	return datatype, nil
 }
 
-//validateSameSizeNumericDataType verifies that the expressions led by the ctx Node are of the same numeric data type and returns a error if not.
+//validateSameNumericDataType verifies that the expressions led by the ctx Node are of the same numeric data type and returns a error if not.
 //Otherwise returns the same datatype of the expressions it leads.
-func (getter *DataTypeFactory) validateSameSizeNumericDataType() (interface{},error) {
+func (getter *DataTypeFactory) validateSameNumericDataType() (interface{},error) {
 
-	leftChildDataType, rightChildDataType, err := getter.validateNumericDataType()
+	leftChildDataType, rightChildDataType, err := getter.obtainOperandsDatatype()
 	if err != nil{
 		return nil, err
 	}
@@ -311,54 +311,85 @@ func (getter *DataTypeFactory) validateSameSizeNumericDataType() (interface{},er
 		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(leftChildDataType), token.EQ, symboltable.Fmt(rightChildDataType)))
 		return nil, err
+	}else{
+		if !symboltable.IsNumeric(leftChildDataType){
+			line := getter.ctxNode.Value.Line
+			err := errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(leftChildDataType)))
+			return nil, err
+		}
+	/*	if !symboltable.IsByte(rightChildDataType){
+			line := getter.ctxNode.Value.Line
+			err := errors.New(errorhandler.UnexpectedDataType(line, "byte", symboltable.Fmt(rightChildDataType)))
+			return nil, err
+
+		}
+	*/
 	}
+
 	return leftChildDataType, nil
 }
 
-//validateSameSizeNumericDataType verifies that the expressions led by the ctx Node are of numeric data type and returns a error if not.
-//Otherwise returns both data types
-func (getter *DataTypeFactory) validateNumericDataType() (interface{}, interface{}, error) {
-	boolType := symboltable.NewBool()
+
+//obtainOperandDatatype return the datatype of two operands of a operation and an error if needed
+func (getter *DataTypeFactory) obtainOperandsDatatype() (interface{}, interface{},error) {
 	backup := getter.ctxNode
 	getter.ctxNode = getter.ctxNode.Children[0]
 	leftChildDataType, err := getter.GetDataType()
-	getter.ctxNode = backup
-	if err != nil {
-		return nil, nil, err
-	}
-	if boolType.Compare(leftChildDataType)  || symboltable.NewVoid().Compare(leftChildDataType){
-		line := getter.ctxNode.Value.Line
-		err := errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(leftChildDataType)))
-		return nil, nil, err
-	}
-	getter.ctxNode = getter.ctxNode.Children[1]
-	rightChildDataType, err := getter.GetDataType()
-	getter.ctxNode = backup
-	if err != nil {
-		return nil, nil, err
-	}
-	if boolType.Compare(rightChildDataType)  || symboltable.NewVoid().Compare(rightChildDataType){
-		line := getter.ctxNode.Value.Line
-		err := errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(rightChildDataType)))
-		return nil, nil, err
-	}
+	if err != nil{
 
+		return nil, nil, err
+	}
+	getter.ctxNode = backup
+	getter.ctxNode =  getter.ctxNode.Children[1]
+
+	rightChildDataType, err := getter.GetDataType()
+	if err != nil{
+		return nil, nil, err
+	}
 	return leftChildDataType, rightChildDataType, nil
 }
 
-//numericExpression verifies that the left children of ctx Node is of a greater size of the one on the right and
-//that both are numeric data type. It returns a error if not, otherwise it returns a boolean
-func (getter *DataTypeFactory) numericExpression() (interface{}, error) {
-	leftChildDataType, rightChildDataType, err :=getter.validateNumericDataType()
+//numericOperation verifies that the left child of ctx Node is a pointer or a byte and the right child a byte
+func (getter *DataTypeFactory) numericOperation() (interface{}, error) {
+	leftChildDataType, rightChildDataType, err := getter.obtainOperandsDatatype()
 	if err != nil{
 		return nil, err
 	}
 
-	if symboltable.GetSize(leftChildDataType) < symboltable.GetSize(rightChildDataType){
+	if !symboltable.IsNumeric(leftChildDataType){
 		line := getter.ctxNode.Value.Line
-		err := errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(leftChildDataType), token.LT, symboltable.Fmt(rightChildDataType)))
+		err := errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(leftChildDataType)))
 		return nil, err
 	}
+	if !symboltable.IsByte(rightChildDataType){
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.UnexpectedDataType(line, "byte", symboltable.Fmt(rightChildDataType)))
+		return nil, err
+
+	}
+
+	return leftChildDataType, nil
+}
+
+//byteOperation verifies that the left  and right children of ctx Node are both bytes
+func (getter *DataTypeFactory) byteOperation() (interface{}, error) {
+	leftChildDataType, rightChildDataType, err := getter.obtainOperandsDatatype()
+	if err != nil{
+		return nil, err
+	}
+
+	if !symboltable.IsByte(leftChildDataType){
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.UnexpectedDataType(line, "byte", symboltable.Fmt(leftChildDataType)))
+		return nil, err
+	}
+	if !symboltable.IsByte(rightChildDataType){
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.UnexpectedDataType(line, "byte", symboltable.Fmt(rightChildDataType)))
+		return nil, err
+
+	}
+
 	return leftChildDataType, nil
 }
 
@@ -529,15 +560,7 @@ func (getter *DataTypeFactory) dereference() (interface{}, error){
 func (getter *DataTypeFactory) validateIndex(compare interface{}) error {
 
 	if getter.ctxNode.Value.Type != token.BYTE{
-		dataTypeIndex, err := getter.GetDataType()
-		if err != nil{
-			return err
-		}
-		if !symboltable.NewByte().Compare(dataTypeIndex){
-			line := getter.ctxNode.Value.Line
-			err := errors.New(errorhandler.IndexMustBeAByte(line))
-			return err
-		}
+		return errors.New(errorhandler.UnexpectedCompilerError())
 
 	}else{
 		length, err := strconv.Atoi(getter.ctxNode.Value.Literal)
@@ -550,14 +573,13 @@ func (getter *DataTypeFactory) validateIndex(compare interface{}) error {
 			return err
 		}
 		arrayToCompare := compare.(symboltable.Array)
-		if  arrayToCompare.Length != symboltable.UnknownLength{
-			if length >= arrayToCompare.Length{
-				line := getter.ctxNode.Value.Line
-				err := errors.New(errorhandler.IndexOutOfBounds(line))
-				return err
-			}
+		if length >= arrayToCompare.Length{
+			line := getter.ctxNode.Value.Line
+			err := errors.New(errorhandler.IndexOutOfBounds(line))
+			return err
 		}
 	}
+
 	return nil
 }
 
@@ -622,34 +644,22 @@ func (getter *DataTypeFactory) declarationFactoryPointer() (interface{}, error) 
 //declarationFactoryArray validates that the index of an array is valid (by checking its data type) and return a array data type
 //the data type of the elements of the array is obtained by moving the context and calling to declarationFactory()
 func (getter *DataTypeFactory) declarationFactoryArray() (interface{}, error) {
-	length := symboltable.UnknownLength
 	index := getter.ctxNode.Children[0]
 	if index.Value.Type != token.BYTE{
-		backup := getter.ctxNode
-		getter.ctxNode = index
-		dataTypeIndex, err := getter.GetDataType()
-		if err != nil{
-			return nil, err
-		}
-		if !symboltable.NewByte().Compare(dataTypeIndex){
-			line := getter.ctxNode.Value.Line
-			err := errors.New(errorhandler.IndexMustBeAByte(line))
-			return nil, err
-		}
-		getter.ctxNode = backup
-
-	}else{
-		literal, err := strconv.Atoi(index.Value.Literal)
-		if err != nil{
-			panic(errorhandler.UnexpectedCompilerError())
-		}
-		length = literal
-		if length < 0{
-			line := getter.ctxNode.Value.Line
-			err := errors.New(errorhandler.NegativeIndex(line))
-			return nil, err
-		}
+		return nil, errors.New(errorhandler.UnexpectedCompilerError())
 	}
+
+	literal, err := strconv.Atoi(index.Value.Literal)
+	if err != nil{
+		panic(errorhandler.UnexpectedCompilerError())
+	}
+	length := literal
+	if length < 0{
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.NegativeIndex(line))
+		return nil, err
+	}
+
 	getter.ctxNode = getter.ctxNode.Children[1]
 	of, err := getter.declarationFactory()
 	if err != nil {
@@ -664,6 +674,15 @@ func (getter *DataTypeFactory) simple() (interface{}, error) {
 	case token.BOOL:
 		return symboltable.NewBool(), nil
 	case token.BYTE:
+		_byte, err := strconv.Atoi(getter.ctxNode.Value.Literal)
+		if err != nil{
+			return nil, errors.New(errorhandler.UnexpectedCompilerError())
+		}
+		if  _byte > 255 || _byte < 0 {
+			line := getter.ctxNode.Value.Line
+			return nil, errors.New(errorhandler.ByteOutOfRange(line, _byte))
+
+		}
 		return symboltable.NewByte(), nil
 	default:
 		panic(errorhandler.UnexpectedCompilerError())
