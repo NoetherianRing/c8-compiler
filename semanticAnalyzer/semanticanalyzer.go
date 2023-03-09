@@ -126,9 +126,9 @@ func(analyzer *SemanticAnalyzer) assign()error{
 
 	rightTree := analyzer.ctxNode.Children[0]
 	analyzer.updateDataTypeFactoryCtx(rightTree)
-	rightDataType, err2 :=analyzer.datatypeFactory.GetDataType()
+	rightDataType, err :=analyzer.datatypeFactory.GetDataType()
 
-	if err2 != nil{
+	if err != nil{
 		return err
 	}
 
@@ -147,20 +147,21 @@ func(analyzer *SemanticAnalyzer) fn()error{
 	const PARAMS =1
 	const DATATYPERETURN =2
 	const BLOCK =3
-	backup := analyzer.ctxNode
+	backupNode := analyzer.ctxNode
+	backupScope := analyzer.currentScope
 	analyzer.ctxNode = analyzer.ctxNode.Children[PARAMS]
 	args, err := analyzer.handleParams()
 	if err != nil{
 		return err
 	}
-	analyzer.ctxNode = backup
+	analyzer.ctxNode = backupNode
 
 	name := analyzer.ctxNode.Children[IDENT].Value.Literal
 	analyzer.updateDataTypeFactoryCtx(analyzer.ctxNode.Children[DATATYPERETURN])
 
-	expectedReturnDataType, err2 := analyzer.datatypeFactory.GetDataType()
-	if err2 != nil{
-		return err2
+	expectedReturnDataType, err := analyzer.datatypeFactory.GetDataType()
+	if err != nil{
+		return err
 	}
 
 	if !symboltable.Compare(expectedReturnDataType, symboltable.NewVoid()) &&
@@ -174,9 +175,9 @@ func(analyzer *SemanticAnalyzer) fn()error{
 	}
 	analyzer.ctxNode = analyzer.ctxNode.Children[BLOCK]
 
-	actualReturnDataType, err3 := analyzer.funcBlock()
-	if err3 != nil{
-		return err2
+	actualReturnDataType, err := analyzer.funcBlock()
+	if err != nil{
+		return err
 	}
 
 	if !symboltable.Compare(expectedReturnDataType, actualReturnDataType){
@@ -184,13 +185,16 @@ func(analyzer *SemanticAnalyzer) fn()error{
 		err = errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(expectedReturnDataType), token.EQ, symboltable.Fmt(actualReturnDataType)))
 		return err
 	}
-	analyzer.ctxNode = backup
+	analyzer.ctxNode = backupNode
+	analyzer.currentScope = backupScope
+
 	function := symboltable.NewFunction(expectedReturnDataType, args)
 	ok := analyzer.currentScope.AddSymbol(name, function)
 	if !ok{
 		line := analyzer.ctxNode.Value.Line
 		err = errors.New(errorhandler.NameAlreadyInUse(line, name))
 	}
+
 	return nil
 
 }
@@ -373,49 +377,51 @@ func(analyzer *SemanticAnalyzer) funcBlock()(interface{}, error){
 			}
 		}
 	}
-	analyzer.currentScope = analyzer.currentScope.Parent
 	return symboltable.NewVoid(), nil
 }
 
 //handleParams validates the semantic of all the params of a function and save them in the symbol table of a new scope
 //then returns an array with all the data types of the params
 func (analyzer *SemanticAnalyzer) handleParams()([]interface{},error) {
-	if len(analyzer.ctxNode.Children) == 0 {
+	if len(analyzer.ctxNode.Children) == 0 { //ctxNode = )
 		return nil, nil
 	}
 
 	args := make([]interface{},0)
-	analyzer.ctxNode = analyzer.ctxNode.Children[0]
+
+	analyzer.ctxNode = analyzer.ctxNode.Children[0] //ctxNode = comma or let
 	analyzer.currentScope.AddSubScope()
 	lastAdded := len(analyzer.currentScope.SubScopes)-1
 	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded]
 	totalSize := 0
-	for len(analyzer.ctxNode.Children) == 2{
-		 param, err := analyzer.handleParam(0)
-		 if err != nil{
-		 	return nil, err
-		 }
-
-		totalSize += symboltable.GetSize(param)
-    	args = append(args, param)
-
-    	if analyzer.ctxNode.Children[1].Value.Type != token.COMMA{
-			param, err = analyzer.handleParam(1)
-			totalSize += symboltable.GetSize(param)
-
+	if analyzer.ctxNode.Value.Type == token.COMMA{
+		for analyzer.ctxNode.Value.Type == token.COMMA{
+			backup := analyzer.ctxNode
+			analyzer.ctxNode = analyzer.ctxNode.Children[0] //ctxNode = let
+			param, err := analyzer.handleParam()
 			if err != nil{
-			  return nil, err
+				return nil, err
 			}
 
+			totalSize += symboltable.GetSize(param)
 			args = append(args, param)
-		}else{
+			analyzer.ctxNode = backup
 			analyzer.ctxNode = analyzer.ctxNode.Children[1]
 
-		}
+			if analyzer.ctxNode.Value.Type != token.COMMA{
+				param, err = analyzer.handleParam()
+				totalSize += symboltable.GetSize(param)
 
-	}
-	if len(analyzer.ctxNode.Children) == 1{
-		param, err := analyzer.handleParam(0)
+				if err != nil{
+					return nil, err
+				}
+
+				args = append(args, param)
+			}
+
+		}
+	}else{
+		param, err := analyzer.handleParam()
 		totalSize += symboltable.GetSize(param)
 
 		if err != nil{
@@ -424,28 +430,35 @@ func (analyzer *SemanticAnalyzer) handleParams()([]interface{},error) {
 
 		args = append(args, param)
 	}
+
 	if totalSize > LimitParamSize{
 		line := analyzer.ctxNode.Value.Line
 		err := errors.New(errorhandler.ToManyParams(line))
 		return nil, err
 	}
-	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded].Parent
 
 	return args, nil
 }
 
 //handleParams validates the semantic of each single the param of a function and save it in the symbol table of a new scope
 //then returns the data types of the param
-func (analyzer *SemanticAnalyzer) handleParam(i int) (interface{}, error) {
+func (analyzer *SemanticAnalyzer) handleParam() (interface{}, error) {
 	backup := analyzer.ctxNode
-	analyzer.ctxNode = analyzer.ctxNode.Children[i]
-	err := analyzer.validate[analyzer.ctxNode.Value.Type]()
-	if err != nil {
+	const IDENT = 0
+	const DATATYPE = 1
+	name := analyzer.ctxNode.Children[IDENT].Value.Literal
+	datatypeTree := analyzer.ctxNode.Children[DATATYPE]
+	analyzer.updateDataTypeFactoryCtx(datatypeTree)
+	datatype, err := analyzer.datatypeFactory.GetDataType()
+	if err != nil{
 		return nil, err
 	}
-	analyzer.ctxNode = backup
-	analyzer.updateDataTypeFactoryCtx(analyzer.ctxNode.Children[i])
-	datatype, err := analyzer.datatypeFactory.GetDataType()
+	ok := analyzer.currentScope.AddSymbol(name, datatype)
+	if !ok{
+		line := analyzer.ctxNode.Value.Line
+		err = errors.New(errorhandler.NameAlreadyInUse(line, name))
+		return nil, err
+	}
 
 	switch datatype.(type){
 	case symboltable.Array:
@@ -453,6 +466,7 @@ func (analyzer *SemanticAnalyzer) handleParam(i int) (interface{}, error) {
 		err := errors.New(errorhandler.InvalidParamType(line, symboltable.Fmt(datatype)))
 		return nil, err
 	}
+	analyzer.ctxNode = backup
 
 	return datatype, err
 

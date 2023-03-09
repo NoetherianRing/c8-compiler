@@ -1,0 +1,10 @@
+{
+    fn main()void{
+    return
+    }
+
+    fn prueba()byte{
+    return 3
+    }
+
+}

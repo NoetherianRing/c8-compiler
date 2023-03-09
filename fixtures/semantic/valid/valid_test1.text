@@ -12,9 +12,17 @@
    fn funcByteLiteral () byte{
        return 3
    }
+     fn funcParam (let param1 byte) byte{
+          return param1
+      }
+
     fn funcTrue () bool{
        return true
    }
+  fn funcParams (let param1 byte, let param2 **bool) bool{
+       return **param2
+   }
+
    fn funcFalse () bool{
           return false
    }

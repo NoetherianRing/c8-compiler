@@ -17,7 +17,7 @@ func TestStart(t *testing.T) {
 		testPath 		string
 		err  			error
 	}
-	const numberOfValidTests = 2
+	const numberOfValidTests = 4
 	testCases := make([]cases,0)
 	for i:=0; i<numberOfValidTests; i++{
 		path := "../fixtures/semantic/valid/valid_test" + strconv.Itoa(i) +".text"

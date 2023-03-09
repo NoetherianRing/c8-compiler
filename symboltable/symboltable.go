@@ -181,11 +181,15 @@ func CreateGlobalScope()*Scope{
 }
 
 func newScope(parent *Scope, parentSymbols SymbolTable) *Scope{
+	symbols := make(SymbolTable)
+	for key, symbol := range parentSymbols{
+		symbols[key] = symbol
+	}
 	return &Scope{
 		SubScopes:        nil,
 		NumberOfSubScope: 0,
 		Parent:           parent,
-		Symbols:          parentSymbols,
+		Symbols:          symbols,
 	}
 }
 

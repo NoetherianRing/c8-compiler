@@ -1,0 +1,15 @@
+{
+
+   fn main() void{
+    let foo byte
+
+    let foo2 bool
+    let foo3 *byte
+
+    foo = 3
+    foo2 = true
+    foo3 = $foo
+
+    return
+   }
+}
