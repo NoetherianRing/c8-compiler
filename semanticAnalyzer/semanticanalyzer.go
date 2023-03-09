@@ -124,7 +124,7 @@ func(analyzer *SemanticAnalyzer) assign()error{
 
 	}
 
-	rightTree := analyzer.ctxNode.Children[0]
+	rightTree := analyzer.ctxNode.Children[1]
 	analyzer.updateDataTypeFactoryCtx(rightTree)
 	rightDataType, err :=analyzer.datatypeFactory.GetDataType()
 

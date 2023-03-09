@@ -19,7 +19,7 @@
     fn funcTrue () bool{
        return true
     }
-  fn funcParams (let param1 byte, let param2 **bool) bool{
+  fn funcParams (let param1 byte, let param2 **bool, let param3 bool) bool{
        return **param2
    }
 
