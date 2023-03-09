@@ -1,0 +1,27 @@
+{
+  let number byte
+  fn dumb() void{
+  return
+  }
+  fn condition() void{
+    let v1 bool
+    let v2 bool
+    if v1 == v2{
+      dumb()
+    }else{
+        if !v1{
+            dumb()
+        }
+        number = 20
+        while number>=20{
+            number = number-1
+        }
+    }
+    return
+  }
+
+  fn main()void{
+    condition()
+    return
+  }
+}

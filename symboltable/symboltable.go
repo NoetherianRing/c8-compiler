@@ -13,6 +13,17 @@ const(
 	KindVoid
 	KindBool
 )
+const(
+	FunctionClean 		 = "clean"
+	FunctionSetST 		 = "setST"
+	FunctionSetDT 		 = "setDT"
+	FunctionGetDT 		 = "getDT"
+	FunctionDraw 		 = "draw"
+	FunctionDrawFont 	 = "drawFont"
+	FunctionRandom 		 = "random"
+	FunctionWaintKet 	 = "waitKey"
+	FunctionIsKeyPressed = "isKeyPressed"
+)
 
 type Scope struct{
 	SubScopes []*Scope

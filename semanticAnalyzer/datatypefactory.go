@@ -634,11 +634,18 @@ func (getter *DataTypeFactory) declarationSimple() (interface{}, error) {
 //the context to the child of the current node and building its datatype
 func (getter *DataTypeFactory) declarationFactoryPointer() (interface{}, error) {
 	getter.ctxNode = getter.ctxNode.Children[0]
-	pointsTo, err := getter.declarationFactory()
-	if err != nil {
+	if getter.ctxNode.Value.Type == token.RBRACKET{
+		line := getter.ctxNode.Value.Line
+		err := errors.New(errorhandler.UnallowedPointerToArray(line))
 		return nil, err
+	}else{
+		pointsTo, err := getter.declarationFactory()
+		if err != nil {
+			return nil, err
+		}
+		return symboltable.NewPointer(pointsTo), nil
+
 	}
-	return symboltable.NewPointer(pointsTo), nil
 }
 
 //declarationFactoryArray validates that the index of an array is valid (by checking its data type) and return a array data type

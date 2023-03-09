@@ -67,6 +67,7 @@ func (analyzer *SemanticAnalyzer) Start() (*symboltable.Scope, error){
 
 //block creates a new sub scope and validates the semantic of all the statements within the block
 func(analyzer *SemanticAnalyzer) block()error{
+	backupScope := analyzer.currentScope
 	analyzer.currentScope.AddSubScope()
 	lastAdded := len(analyzer.currentScope.SubScopes)-1
 	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded]
@@ -84,7 +85,7 @@ func(analyzer *SemanticAnalyzer) block()error{
 			return err
 		}
 	}
-	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded].Parent
+	analyzer.currentScope = backupScope
 	return nil
 }
 
@@ -204,17 +205,17 @@ func(analyzer *SemanticAnalyzer) fn()error{
 func(analyzer *SemanticAnalyzer) call()error{
 	toAnalyze := analyzer.ctxNode
 	analyzer.updateDataTypeFactoryCtx(toAnalyze)
-	funcDataType, err := analyzer.datatypeFactory.GetDataType()
+	_, err := analyzer.datatypeFactory.GetDataType()
 	if err != nil{
 		return err
 	}
-	if symboltable.NewVoid().Compare(funcDataType){
+/*	if !symboltable.NewVoid().Compare(funcDataType){
 		line := analyzer.ctxNode.Value.Line
 		err = errors.New(errorhandler.UnreachableCode(line))
 		return err
 
 	}
-	return nil
+*/	return nil
 }
 
 //_if validates the semantic of if statements
@@ -224,11 +225,15 @@ func(analyzer *SemanticAnalyzer) _if()error{
 
 //_else validates the semantic of if/else statements
 func(analyzer *SemanticAnalyzer) _else()error{
+	backup := analyzer.ctxNode
 	err := analyzer.validateConditionAndBlock()
 	if err != nil{
 		return err
 	}
-	elseBlock :=  analyzer.ctxNode.Children[2].Value.Type
+
+	analyzer.ctxNode = backup
+	analyzer.ctxNode = analyzer.ctxNode.Children[2]
+	elseBlock :=  analyzer.ctxNode.Value.Type
 	err = analyzer.validate[elseBlock]()
 	return err
 }
@@ -249,12 +254,13 @@ func (analyzer *SemanticAnalyzer) validateConditionAndBlock() error {
 	if err != nil {
 		return err
 	}
-	if boolDatatype.Compare(datatypeCondition) {
+	if !boolDatatype.Compare(datatypeCondition) {
 		line := analyzer.ctxNode.Value.Line
 		err = errors.New(errorhandler.UnexpectedDataType(line, symboltable.Fmt(boolDatatype), symboltable.Fmt(datatypeCondition)))
 		return err
 	}
-	block := analyzer.ctxNode.Children[1].Value.Type
+	analyzer.ctxNode = analyzer.ctxNode.Children[1]
+	block := analyzer.ctxNode.Value.Type
 	err = analyzer.validate[block]()
 	return err
 }
@@ -278,7 +284,7 @@ func(analyzer *SemanticAnalyzer) saveDraw() bool{
 	paramType[3] = symboltable.NewPointer(byteType) //sprite address
 	returnType := symboltable.NewBool() //collision
 	functionType := symboltable.NewFunction(returnType, paramType)
-	return analyzer.currentScope.AddSymbol("Draw", functionType)
+	return analyzer.currentScope.AddSymbol(symboltable.FunctionDraw, functionType)
 }
 
 //saveDrawFont save into the symbol table a function named DrawFont that represents the chip-8 opcode DXYN with I = font
@@ -290,14 +296,14 @@ func(analyzer *SemanticAnalyzer) saveDrawFont() bool{
 	paramType[2] = byteType //font
 	returnType := symboltable.NewBool() //collision
 	functionType := symboltable.NewFunction(returnType, paramType)
-	return analyzer.currentScope.AddSymbol("DrawFont", functionType)
+	return analyzer.currentScope.AddSymbol(symboltable.FunctionDrawFont, functionType)
 }
 
 //saveClean save into the symbol table a function named Clean that represents the chip-8 opcode I00E0
 func(analyzer *SemanticAnalyzer) saveClean() bool{
 	returnType := symboltable.NewVoid()
 	functionType := symboltable.NewFunction(returnType, nil)
-	return analyzer.currentScope.AddSymbol("Clean", functionType)
+	return analyzer.currentScope.AddSymbol(symboltable.FunctionClean, functionType)
 }
 
 
@@ -307,14 +313,14 @@ func(analyzer *SemanticAnalyzer) saveSetDT() bool{
 	paramType[0] = symboltable.NewByte()
 	returnType := symboltable.NewVoid()
 	functionType := symboltable.NewFunction(returnType, paramType)
-	return analyzer.currentScope.AddSymbol("SetDT", functionType)
+	return analyzer.currentScope.AddSymbol(symboltable.FunctionSetDT, functionType)
 }
 
 //saveGetDT save into the symbol table a function named GetDT that represents the chip-8 opcode FX07
 func(analyzer *SemanticAnalyzer) saveGetDT() bool{
 	returnType := symboltable.NewByte()
 	functionType := symboltable.NewFunction(returnType, nil)
-	return analyzer.currentScope.AddSymbol("GetDT", functionType)
+	return analyzer.currentScope.AddSymbol(symboltable.FunctionGetDT, functionType)
 }
 
 //saveSetST save into the symbol table a function named SetST that represents the chip-8 opcode FX18
@@ -323,21 +329,21 @@ func(analyzer *SemanticAnalyzer) saveSetST() bool{
 	paramType[0] = symboltable.NewByte()
 	returnType := symboltable.NewVoid()
 	functionType := symboltable.NewFunction(returnType, paramType)
-	return analyzer.currentScope.AddSymbol("SetST", functionType)
+	return analyzer.currentScope.AddSymbol(symboltable.FunctionSetST, functionType)
 }
 
 //saveRandom save into the symbol table a function named Random that represents the chip-8 opcode CXKK
 func(analyzer *SemanticAnalyzer) saveRandom() bool{
 	returnType := symboltable.NewVoid()
 	functionType := symboltable.NewFunction(returnType, nil)
-	return analyzer.currentScope.AddSymbol("Random", functionType)
+	return analyzer.currentScope.AddSymbol(symboltable.FunctionRandom, functionType)
 }
 
 //saveWaitKey save into the symbol table a function named WaitKey that represents the chip-8 opcode FX0A
 func(analyzer *SemanticAnalyzer) saveWaitKey() bool{
 	returnType := symboltable.NewByte()
 	functionType := symboltable.NewFunction(returnType, nil)
-	return analyzer.currentScope.AddSymbol("WaitKey", functionType)
+	return analyzer.currentScope.AddSymbol(symboltable.FunctionWaintKet, functionType)
 }
 //saveIsKeyPressed save into the symbol table a function named IsKeyPressed that returns true if the key was pressed
 func(analyzer *SemanticAnalyzer) saveIsKeyPressed() bool{
@@ -345,7 +351,7 @@ func(analyzer *SemanticAnalyzer) saveIsKeyPressed() bool{
 	paramType[0] = symboltable.NewByte()
 	returnType := symboltable.NewBool()
 	functionType := symboltable.NewFunction(returnType, paramType)
-	return analyzer.currentScope.AddSymbol("IsKeyPressed", functionType)
+	return analyzer.currentScope.AddSymbol(symboltable.FunctionIsKeyPressed, functionType)
 }
 
 //updateDataTypeFactoryCtx updates the context of datatypeFactory

@@ -54,6 +54,12 @@ func UnresolvedReference(line int, reference string) string {
 	return errorString
 }
 
+func UnallowedPointerToArray(line int) string {
+	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
+		"\nUnallowed pointer to array"
+
+	return errorString
+}
 func InvalidIndirectOf(line int, reference string) string {
 	errorString := "semantic error\nin line: "+ strconv.Itoa(line) +
 		"\nInvalid indirect of: " + reference

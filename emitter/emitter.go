@@ -209,48 +209,48 @@ func (emitter *Emitter) drawFontDeclaration()error{
 //cleanDeclaration save the function clean in memory
 func (emitter *Emitter) cleanDeclaration ()error{
 	//clean has not parameters and is a void function that clean the screen
-	emitter.functions["clean"] = emitter.currentAddress
+	emitter.functions[symboltable.FunctionClean] = emitter.currentAddress
 	return emitter.saveOpcode(I00E0())
 }
 
 //setSTDeclaration save the function setST in memory
 func (emitter *Emitter) setSTDeclaration ()error{
-	emitter.functions["setST"] = emitter.currentAddress
+	emitter.functions[symboltable.FunctionSetST] = emitter.currentAddress
 	//setST only has a parameter (a byte) saved in v2, and it is a void function that set sound timer = v2
 	return emitter.saveOpcode(IFX18(2))
 }
 
 //setDTDeclaration save the function setDT in memory
 func (emitter *Emitter) setDTDeclaration ()error{
-	emitter.functions["setDT"] = emitter.currentAddress
+	emitter.functions[symboltable.FunctionSetDT] = emitter.currentAddress
 	//setST only has a parameter (a byte) saved in v2, and it is a void function that set delay timer = v2
 	return emitter.saveOpcode(IFX15(2))
 }
 
 //getDTDeclaration save the function getDT in memory
 func (emitter *Emitter) getDTDeclaration ()error{
-	emitter.functions["getDT"] = emitter.currentAddress
+	emitter.functions[symboltable.FunctionGetDT] = emitter.currentAddress
 	//getDT has no parameters and it return a byte (the value of delay timer) in v0
 	return emitter.saveOpcode(IFX07(0))
 }
 
 //randomDeclaration save the function random in memory
 func (emitter *Emitter) randomDeclaration ()error{
-	emitter.functions["random"] = emitter.currentAddress
+	emitter.functions[symboltable.FunctionRandom] = emitter.currentAddress
 	//random has no parameters and it returns a random byte (in v0)
 	return emitter.saveOpcode(ICXKK(0, 0xFF))
 }
 
 //waitKeyDeclaration save the function waitKey in memory
 func (emitter *Emitter) waitKeyDeclaration ()error{
-	emitter.functions["waitKey"] = emitter.currentAddress
+	emitter.functions[symboltable.FunctionWaintKet] = emitter.currentAddress
 	//waitKey has no parameters and it returns the value of a key pressed in v0
 	return emitter.saveOpcode(IFX0A(0))
 }
 
 //isKeyPressedDeclaration save the function isKeyPressed in memory
 func (emitter *Emitter) isKeyPressedDeclaration ()error{
-	emitter.functions["isKeyPressed"] = emitter.currentAddress
+	emitter.functions[symboltable.FunctionIsKeyPressed] = emitter.currentAddress
 	//isKeyPressed has one parameter in v2(a byte) and it returns a bool in v0
 	err := emitter.saveOpcode(I6XKK(1, True)) //V1 = True
 
@@ -270,12 +270,12 @@ func (emitter *Emitter) isKeyPressedDeclaration ()error{
 }
 //drawDeclaration save the function draw in memory
 func (emitter *Emitter) drawDeclaration ()error {
-	emitter.functions["draw"] = emitter.currentAddress
+	emitter.functions[symboltable.FunctionDraw] = emitter.currentAddress
 	//draw has four parameters (a byte in v2, a byte in v3, a byte in v4, and pointer in v5 and v6)
 	//it returns a boolean (the value of vf) in v0
 
 
-	dxynAddress := emitter.functions["draw"]+6 //address in which we want dynamically write the opcode
+	dxynAddress := emitter.functions[symboltable.FunctionDraw]+6 //address in which we want dynamically write the opcode
 
 	err := emitter.saveOpcode(I6XKK(0, 0xD2)) //v0=0xD2 (v0 =0xDX)
 	if err != nil{
