@@ -193,6 +193,7 @@ func(analyzer *SemanticAnalyzer) fn()error{
 	if !ok{
 		line := analyzer.ctxNode.Value.Line
 		err = errors.New(errorhandler.NameAlreadyInUse(line, name))
+		return err
 	}
 
 	return nil
