@@ -75,7 +75,7 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 
 //Start translates the syntax tree into machine code and returns it, return an error if needed
 func (emitter *Emitter) Start() ([]byte, error){
-	emitter.ctxNode = emitter.ctxNode.Children[0] //The tree start with a EOF node, so we move to the next one
+	emitter.ctxNode = emitter.ctxNode.Children[0].Children[0] //The tree start with a "" and a EOF node, so we move
 
 	//we save all the global globalVariables into memory
 	block := emitter.ctxNode

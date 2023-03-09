@@ -42,9 +42,9 @@ func (analyzer *SemanticAnalyzer) Start() (*symboltable.Scope, error){
 		panic(errorhandler.UnexpectedCompilerError())
 	}
 	globalScope := analyzer.currentScope
-	globalDeclarations := analyzer.ctxNode.Children[0].Children
+	block := analyzer.ctxNode.Children[0].Children[0] //The tree start with a "" and a EOF node, so we move
 
-	for _, declaration := range globalDeclarations{
+	for _, declaration := range block.Children{
 		analyzer.ctxNode = declaration
 		next := declaration.Value.Type
 		if next != token.FUNCTION && next != token.LET{
@@ -143,16 +143,20 @@ func(analyzer *SemanticAnalyzer) assign()error{
 //fn validates the semantic of the declaration of a function, then checks that the name of the declaration is not already in use,
 //and if its not, save the new variable in the symbol table of the current scope
 func(analyzer *SemanticAnalyzer) fn()error{
+	const IDENT =0
+	const PARAMS =1
+	const DATATYPERETURN =2
+	const BLOCK =3
 	backup := analyzer.ctxNode
-	analyzer.ctxNode = analyzer.ctxNode.Children[0]
+	analyzer.ctxNode = analyzer.ctxNode.Children[PARAMS]
 	args, err := analyzer.handleParams()
 	if err != nil{
 		return err
 	}
 	analyzer.ctxNode = backup
 
-	name := analyzer.ctxNode.Children[1].Value.Literal
-	analyzer.updateDataTypeFactoryCtx(analyzer.ctxNode.Children[2])
+	name := analyzer.ctxNode.Children[IDENT].Value.Literal
+	analyzer.updateDataTypeFactoryCtx(analyzer.ctxNode.Children[DATATYPERETURN])
 
 	expectedReturnDataType, err2 := analyzer.datatypeFactory.GetDataType()
 	if err2 != nil{
@@ -168,7 +172,7 @@ func(analyzer *SemanticAnalyzer) fn()error{
 		return err
 
 	}
-	analyzer.ctxNode = analyzer.ctxNode.Children[3]
+	analyzer.ctxNode = analyzer.ctxNode.Children[BLOCK]
 
 	actualReturnDataType, err3 := analyzer.funcBlock()
 	if err3 != nil{
@@ -345,7 +349,7 @@ func(analyzer *SemanticAnalyzer) updateDataTypeFactoryCtx(toAnalyze *ast.Node) {
 	analyzer.datatypeFactory.SetScope(analyzer.currentScope)
 }
 
-//funcBlock a new sub scope and validates the semantic of all the statements within the block,
+//funcBlock adds a new sub scope and validates the semantic of all the statements within the block,
 //then returns the data type of the return statement
 func(analyzer *SemanticAnalyzer) funcBlock()(interface{}, error){
 	analyzer.currentScope.AddSubScope()
@@ -369,7 +373,7 @@ func(analyzer *SemanticAnalyzer) funcBlock()(interface{}, error){
 			}
 		}
 	}
-	analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded].Parent
+	analyzer.currentScope = analyzer.currentScope.Parent
 	return symboltable.NewVoid(), nil
 }
 
