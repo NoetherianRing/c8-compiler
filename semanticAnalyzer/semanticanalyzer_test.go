@@ -19,7 +19,7 @@ func TestStart(t *testing.T) {
 	}
 	const numberOfValidTests = 6
 	testCases := make([]cases,0)
-	for i:=4; i<numberOfValidTests; i++{
+	for i:=0; i<numberOfValidTests; i++{
 		path := "../fixtures/semantic/valid/valid_test" + strconv.Itoa(i) +".text"
 		absPath, err := filepath.Abs(path)
 		if err != nil{

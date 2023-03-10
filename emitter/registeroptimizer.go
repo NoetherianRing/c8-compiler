@@ -36,24 +36,27 @@ func  newRegisters()*RegistersGuide {
 func (optimizer *RegisterOptimizer)optimizeRegisters(ctxNode *ast.Node,ctxAddresses *StackReferences) *RegistersGuide {
 
 	optimizer.toCount(ctxNode, ctxAddresses)
-	keys := make([]*Reference, 0, len(optimizer.count))
+	if len(optimizer.count) != 0{
+		keys := make([]*Reference, 0, len(optimizer.count))
 
 
-	for key := range optimizer.count {
-		keys = append(keys, key)
-	}
-	sort.SliceStable(keys, func(i, j int) bool{
-		return optimizer.count[keys[i]] < optimizer.count[keys[j]]
-	})
-
-	for i := 4; i <=13; i++{ //the first 4 registers and the last 3 are used as aux in operations, so we don't save variables there
-		if i - 4 > len(keys){
-			return optimizer.registers
+		for key := range optimizer.count {
+			keys = append(keys, key)
 		}
-		optimizer.registers.guide[keys[i-4]] = i
-	}
+		sort.SliceStable(keys, func(i, j int) bool{
+			return optimizer.count[keys[i]] < optimizer.count[keys[j]]
+		})
+		for i := 4; i <=13; i++{ //the first 4 registers and the last 3 are used as aux in operations, so we don't save variables there
+			if i - 4 > len(keys){
+				return optimizer.registers
+			}
+			optimizer.registers.guide[keys[i-4]] = i
+		}
 
+
+	}
 	return optimizer.registers
+
 }
 
 func (optimizer *RegisterOptimizer)toCount(ctxNode *ast.Node,ctxAddresses *StackReferences) {
@@ -67,8 +70,8 @@ func (optimizer *RegisterOptimizer)toCount(ctxNode *ast.Node,ctxAddresses *Stack
 		subScopesFounded := 0
 		for _, child := range ctxNode.Children{
 			if child.Value.Type == token.RBRACE{
+				nextCtxAddresses := ctxAddresses.SubReferences[subScopesFounded]
 				subScopesFounded++
-				nextCtxAddresses := ctxAddresses.SubAddresses[subScopesFounded]
 				optimizer.toCount(child, nextCtxAddresses)
 			}else{
 				optimizer.toCount(child, ctxAddresses)

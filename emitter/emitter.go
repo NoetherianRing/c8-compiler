@@ -27,6 +27,7 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 	emitter := new(Emitter)
 
 	emitter.globalVariables = make(map[string]uint16)
+	emitter.functions = make(map[string]uint16)
 	emitter.scope = scope
 	emitter.lastIndexSubScope = 0
 	emitter.ctxNode = tree.Head
@@ -136,7 +137,7 @@ func (emitter *Emitter) Start() ([]byte, error){
 	emitter.machineCode[RomStart+5] = callMain[1]
 
 
-	return emitter.machineCode[RomStart:], nil
+	return emitter.machineCode[RomStart:Memory-1], nil
 }
 
 //function declaration save the instructions of all primitive function in memory
@@ -316,9 +317,9 @@ func (emitter *Emitter) drawDeclaration ()error {
 }
 //function declaration save all the instructions of a function in memory
 func (emitter *Emitter) functionDeclaration()error{
-	const ARG = 0
-	const IDENT = 1
-	const BLOCK = 4
+	const IDENT = 0
+	const ARG = 1
+	const BLOCK = 3
 	emitter.lastIndexSubScope = 0
 
 	//we backup the offsetStack so we can update it after compiling the function
@@ -329,13 +330,15 @@ func (emitter *Emitter) functionDeclaration()error{
 	emitter.functions[functionName] = emitter.currentAddress //the function starts at the current address
 
 	mainScope := emitter.scope
-	emitter.scope = emitter.scope.SubScopes[len(emitter.functions)]
+//	emitter.scope = emitter.scope.SubScopes[len(emitter.functions)-1]
 	ctxReferences := NewStackReferences()
 
 	//we save the arguments in the stack
 	fn  := emitter.ctxNode
 	params := make([]string, 0)
+	hasParams := false
 	if len(emitter.ctxNode.Children[ARG].Children)>0{
+		hasParams = true
 		sizeParams := obtainSizeParams(emitter.scope.Symbols[functionName].DataType.(symboltable.Function).Args)
 		i := 0
 		var err error
@@ -363,12 +366,12 @@ func (emitter *Emitter) functionDeclaration()error{
 	//we declare all variables in the stack
 	emitter.ctxNode = emitter.ctxNode.Children[BLOCK]
 	err := emitter.declareInStack(ctxReferences)
-	emitter.ctxNode = fn
 	if err != nil {
 		return err
 	}
 
 	registers := NewRegisterOptimizer().optimizeRegisters(emitter.ctxNode, ctxReferences)
+	emitter.ctxNode = fn
 
 	//for each parameter we check if the register optimizer put it in a register, and if it did
 	//we save its value in that register
@@ -402,6 +405,9 @@ func (emitter *Emitter) functionDeclaration()error{
 
 	//we write the rest of the statements in memory
 	for _, child := range fn.Children[BLOCK].Children {
+		if hasParams{
+			emitter.scope = emitter.scope.SubScopes[0]
+		}
 		emitter.ctxNode = child
 		//we jump let stmts because we already save them
 		translateStmt, ok := emitter.translateStatement[emitter.ctxNode.Value.Type]
@@ -420,12 +426,12 @@ func (emitter *Emitter) functionDeclaration()error{
 }
 
 //saveParamsInStack declare params in the stack and save its values there, returns the an error if needed
-func (emitter *Emitter) saveParamsInStack(params *[]string, ctxAddresses *StackReferences, i int, sizeParams []int) error {
+func (emitter *Emitter) saveParamsInStack(params *[]string, ctxReferences *StackReferences, i int, sizeParams []int) error {
 
 	//first we declare them in the stack
 	paramIdent := emitter.ctxNode.Value.Literal
 	*params = append(*params, paramIdent)
-	err := emitter.let(ctxAddresses)
+	err := emitter.let(ctxReferences)
 	if err != nil {
 		return  err
 	}
@@ -449,7 +455,7 @@ func (emitter *Emitter) saveParamsInStack(params *[]string, ctxAddresses *StackR
 	if err != nil {
 		return err
 	}
-	reference, _ := ctxAddresses.GetReference(paramIdent)
+	reference, _ := ctxReferences.GetReference(paramIdent)
 
 	err = emitter.executeFX1ESafe(2, reference.positionStack) // I = I + V2
 	if err != nil {
@@ -501,7 +507,7 @@ func (emitter *Emitter) moveCurrentAddress() error{
 }
 
 //declareInStack saves all variables of a function in its stack
-func (emitter *Emitter) declareInStack(ctxAddresses *StackReferences) error {
+func (emitter *Emitter) declareInStack(ctxReferences *StackReferences) error {
 	backupCtxNode := emitter.ctxNode
 	backupScope := emitter.scope
 
@@ -512,9 +518,9 @@ func (emitter *Emitter) declareInStack(ctxAddresses *StackReferences) error {
 		case token.WHILE:
 			emitter.ctxNode = child.Children[1]
 			emitter.scope = emitter.scope.SubScopes[iSubScope]
-			ctxAddresses.AddSubAddresses()
+			ctxReferences.AddSubReferences()
 
-			err := emitter.declareInStack(ctxAddresses.SubAddresses[iSubScope])
+			err := emitter.declareInStack(ctxReferences.SubReferences[iSubScope])
 			iSubScope++
 
 			emitter.ctxNode = backupCtxNode
@@ -526,8 +532,8 @@ func (emitter *Emitter) declareInStack(ctxAddresses *StackReferences) error {
 		case token.IF:
 			emitter.ctxNode = child.Children[1]
 			emitter.scope = emitter.scope.SubScopes[iSubScope]
-			ctxAddresses.AddSubAddresses()
-			err := emitter.declareInStack(ctxAddresses.SubAddresses[iSubScope])
+			ctxReferences.AddSubReferences()
+			err := emitter.declareInStack(ctxReferences.SubReferences[iSubScope])
 			iSubScope++
 			emitter.ctxNode = backupCtxNode
 			emitter.scope = backupScope
@@ -538,8 +544,8 @@ func (emitter *Emitter) declareInStack(ctxAddresses *StackReferences) error {
 			for j:=0; j<2;j++{
 				emitter.ctxNode = child.Children[j+1]
 				emitter.scope = emitter.scope.SubScopes[iSubScope]
-				ctxAddresses.AddSubAddresses()
-				err := emitter.declareInStack(ctxAddresses.SubAddresses[iSubScope])
+				ctxReferences.AddSubReferences()
+				err := emitter.declareInStack(ctxReferences.SubReferences[iSubScope])
 				iSubScope++
 				emitter.ctxNode = backupCtxNode
 				emitter.scope = backupScope
@@ -548,7 +554,7 @@ func (emitter *Emitter) declareInStack(ctxAddresses *StackReferences) error {
 				}
 			}
 		case token.LET:
-			err := emitter.let(ctxAddresses)
+			err := emitter.let(ctxReferences)
 			if err != nil{
 				return nil
 			}
@@ -561,11 +567,11 @@ func (emitter *Emitter) declareInStack(ctxAddresses *StackReferences) error {
 
 }
 
-//let saves a specific variable in the stack of a function and update ctxAddresses
-func (emitter *Emitter) let(ctxAddresses *StackReferences) error{
+//let saves a specific variable in the stack of a function and update ctxReferences
+func (emitter *Emitter) let(ctxReferences *StackReferences) error{
 	IDENT := 0
 	ident := emitter.ctxNode.Children[IDENT].Value.Literal
-	ctxAddresses.AddReference(ident, emitter.offsetStack)
+	ctxReferences.AddReference(ident, emitter.offsetStack)
 	symbol, ok := emitter.scope.Symbols[ident]
 	if !ok{
 		return errors.New(errorhandler.UnexpectedCompilerError())
@@ -921,7 +927,7 @@ func (emitter *Emitter)block(functionCtx *FunctionCtx) error {
 	scopeBackup := emitter.scope
 	addressesBackup := functionCtx.StackReferences
 	emitter.scope = emitter.scope.SubScopes[emitter.lastIndexSubScope]
-	functionCtx.StackReferences = functionCtx.StackReferences.SubAddresses[emitter.lastIndexSubScope]
+	functionCtx.StackReferences = functionCtx.StackReferences.SubReferences[emitter.lastIndexSubScope]
 	emitter.lastIndexSubScope = 0
 
 	block := emitter.ctxNode
@@ -988,7 +994,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 	//then we obtain the value of the parameters and we save each of them in the stack:
 	offsetParamSection := emitter.offsetStack
 	paramSizes := 0
-	if len(emitter.ctxNode.Children) > 1{ //we ask if there is any param
+	if len(emitter.ctxNode.Children) > 1{ //we ask if it has any param
 
 
 		emitter.ctxNode = emitter.ctxNode.Children[PARAMS]
@@ -1019,7 +1025,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 			emitter.ctxNode = backupComma
 			emitter.ctxNode = emitter.ctxNode.Children[1]
 		}
-		emitter.ctxNode = emitter.ctxNode.Children[0]
+		//emitter.ctxNode = emitter.ctxNode.Children[0]
 		//we save in v0(and maybe v1) the value of the parameter being analyzed
 		size, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 		if err != nil{
