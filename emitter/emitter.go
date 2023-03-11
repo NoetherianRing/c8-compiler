@@ -402,12 +402,12 @@ func (emitter *Emitter) functionDeclaration()error{
 	}
 
 	ctxFunction := NewCtxFunction(registers, ctxReferences)
-
+	if hasParams{
+		emitter.scope = emitter.scope.SubScopes[0]
+	}
 	//we write the rest of the statements in memory
 	for _, child := range fn.Children[BLOCK].Children {
-		if hasParams{
-			emitter.scope = emitter.scope.SubScopes[0]
-		}
+
 		emitter.ctxNode = child
 		//we jump let stmts because we already save them
 		translateStmt, ok := emitter.translateStatement[emitter.ctxNode.Value.Type]
@@ -427,9 +427,9 @@ func (emitter *Emitter) functionDeclaration()error{
 
 //saveParamsInStack declare params in the stack and save its values there, returns the an error if needed
 func (emitter *Emitter) saveParamsInStack(params *[]string, ctxReferences *StackReferences, i int, sizeParams []int) error {
-
+	const IDENT = 0
 	//first we declare them in the stack
-	paramIdent := emitter.ctxNode.Value.Literal
+	paramIdent := emitter.ctxNode.Children[IDENT].Value.Literal
 	*params = append(*params, paramIdent)
 	err := emitter.let(ctxReferences)
 	if err != nil {
