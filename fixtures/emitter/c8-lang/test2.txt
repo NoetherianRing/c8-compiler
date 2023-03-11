@@ -1,0 +1,16 @@
+{
+  fn main() void{
+  let mustRender bool
+       mustRender = true
+       while mustRender{
+        let foo byte
+        let pointer *byte
+
+        foo = 3 + 4 - 20
+        foo = 4 / 2 * 10 >> 1 << 2 & 1 | 2
+        pointer = $foo
+        pointer = pointer + foo + 10 -1
+    }
+       return
+  }
+}

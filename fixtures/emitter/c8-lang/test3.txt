@@ -1,0 +1,13 @@
+{
+   fn myFunc(let foo byte)void{
+    return
+   }
+
+   fn main()void{
+       myFunc(2)
+       while true{
+
+       }
+       return
+   }
+}

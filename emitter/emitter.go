@@ -90,7 +90,6 @@ func (emitter *Emitter) Start() ([]byte, error){
 		}
 	}
 	emitter.ctxNode = block
-
 	//we save into memory the primitive functions
 	err := emitter.primitiveFunctionsDeclaration()
 	if err != nil{
@@ -142,7 +141,8 @@ func (emitter *Emitter) Start() ([]byte, error){
 
 //function declaration save the instructions of all primitive function in memory
 func (emitter *Emitter) primitiveFunctionsDeclaration()error{
-	err := emitter.drawFontDeclaration()
+	var err error
+	/*err = emitter.drawFontDeclaration()
 	if err != nil{
 		return err
 	}
@@ -175,7 +175,7 @@ func (emitter *Emitter) primitiveFunctionsDeclaration()error{
 		return err
 	}
 	err = emitter.drawDeclaration()
-
+*/
 	return err
 
 }
@@ -339,7 +339,8 @@ func (emitter *Emitter) functionDeclaration()error{
 	hasParams := false
 	if len(emitter.ctxNode.Children[ARG].Children)>0{
 		hasParams = true
-		sizeParams := obtainSizeParams(emitter.scope.Symbols[functionName].DataType.(symboltable.Function).Args)
+		funcSymbol := emitter.scope.Symbols[functionName]
+ 		sizeParams := obtainSizeParams(funcSymbol.DataType.(symboltable.Function).Args)
 		i := 0
 		var err error
 		emitter.ctxNode = emitter.ctxNode.Children[ARG].Children[0]
@@ -379,12 +380,11 @@ func (emitter *Emitter) functionDeclaration()error{
 		reference, _ := ctxReferences.GetReference(param)
 		index, isInRegister := registers.guide[reference]
 		if isInRegister {
-			iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2)
-			err = emitter.saveOpcode(iaxy0)
+			err = emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2))
 			if err != nil {
 				return err
 			}
-			err = emitter.executeFX1ESafe(0, reference.positionStack)
+			err = emitter.saveFX1ESafely(0, reference.positionStack)
 			if err != nil {
 				return err
 			}
@@ -450,14 +450,14 @@ func (emitter *Emitter) saveParamsInStack(params *[]string, ctxReferences *Stack
 		}
 
 	}
-	iaxy0 := IAXY0(RegisterStackAddress1, RegisterStackAddress2) // I = stack address
-	err = emitter.saveOpcode(iaxy0)
+
+	err = emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2))// I = stack address
 	if err != nil {
 		return err
 	}
 	reference, _ := ctxReferences.GetReference(paramIdent)
 
-	err = emitter.executeFX1ESafe(2, reference.positionStack) // I = I + V2
+	err = emitter.saveFX1ESafely(2, reference.positionStack) // I = I + V2
 	if err != nil {
 		return err
 	}
@@ -554,11 +554,13 @@ func (emitter *Emitter) declareInStack(ctxReferences *StackReferences) error {
 				}
 			}
 		case token.LET:
+			backup := emitter.ctxNode
+			emitter.ctxNode = child
 			err := emitter.let(ctxReferences)
 			if err != nil{
 				return nil
 			}
-
+			emitter.ctxNode = backup
 		}
 	}
 
@@ -770,8 +772,7 @@ func (emitter *Emitter) _if(functionCtx *FunctionCtx) error{
 	if err != nil{
 		return err
 	}
-	i3xkk := I3XKK(0, True) //if v0 = true we skip the next instruction
-	err = emitter.saveOpcode(i3xkk)
+	err = emitter.saveOpcode(I3XKK(0, True))  //if v0 = true we skip the next instruction
 	if err != nil{
 		return err
 	}
@@ -815,8 +816,7 @@ func (emitter *Emitter) _else(functionCtx *FunctionCtx) error{
 	if err != nil{
 		return err
 	}
-	i3xkk := I3XKK(0, True) //if v0 = true we skip the next instruction
-	err = emitter.saveOpcode(i3xkk)
+	err = emitter.saveOpcode(I3XKK(0, True))  //if v0 = true we skip the next instruction
 	if err != nil{
 		return err
 	}
@@ -864,10 +864,10 @@ func (emitter *Emitter) _else(functionCtx *FunctionCtx) error{
 		return err
 	}
 	//then we write the jump after the if block
-	i1nnn2 := I1NNN(emitter.currentAddress)
+	i1nnn = I1NNN(emitter.currentAddress)
 
-	emitter.machineCode[lineAfterIf] = i1nnn2[0]
-	emitter.machineCode[lineAfterIf+1] = i1nnn2[1]
+	emitter.machineCode[lineAfterIf] = i1nnn[0]
+	emitter.machineCode[lineAfterIf+1] = i1nnn[1]
 	return nil
 }
 //_while translates the else statement to opcodes and write it in emitter.machineCode
@@ -884,8 +884,7 @@ func (emitter *Emitter)_while(functionCtx *FunctionCtx) error {
 	if err != nil{
 		return err
 	}
-	i3xkk := I3XKK(0, True) //if v0 = true we skip the next instruction
-	err = emitter.saveOpcode(i3xkk)
+	err = emitter.saveOpcode(I3XKK(0, True)) //if v0 = true we skip the next instruction
 	if err != nil{
 		return err
 	}
@@ -980,7 +979,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 	if err != nil{
 		return 0, err
 	}
-	err = emitter.executeFX1ESafe(0, emitter.offsetStack) //I = I + offset
+	err = emitter.saveFX1ESafely(0, emitter.offsetStack) //I = I + offset
 	if err != nil{
 		return 0, err
 	}
@@ -1010,7 +1009,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 			if err != nil{
 				return 0, err
 			}
-			err = emitter.executeFX1ESafe(0, emitter.offsetStack)	//we move I = last address in the stack
+			err = emitter.saveFX1ESafely(0, emitter.offsetStack) //we move I = last address in the stack
 			if err != nil{
 				return 0, err
 			}
@@ -1035,7 +1034,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 		if err != nil{
 			return 0, err
 		}
-		err = emitter.executeFX1ESafe(0, emitter.offsetStack)	//we move I = last address in the stack
+		err = emitter.saveFX1ESafely(0, emitter.offsetStack) //we move I = last address in the stack
 		if err != nil{
 			return 0, err
 		}
@@ -1053,7 +1052,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 	if err != nil{
 		return 0, err
 	}
-	err = emitter.executeFX1ESafe(0, offsetParamSection-2) //we move I = I + (offsetParamSection-2) because we want the params
+	err = emitter.saveFX1ESafely(0, offsetParamSection-2) //we move I = I + (offsetParamSection-2) because we want the params
 	//to start in v2
 	if err != nil{
 		return 0, err
@@ -1080,7 +1079,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 		if err != nil{
 			return 0, err
 		}
-		err = emitter.executeFX1ESafe(0, emitter.offsetStack) //I = I + offset
+		err = emitter.saveFX1ESafely(0, emitter.offsetStack) //I = I + offset
 		if err != nil{
 			return 0, err
 		}
@@ -1096,7 +1095,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 	if err != nil{
 		return 0, err
 	}
-	err = emitter.executeFX1ESafe(0, offsetBackup) //I = start of the register backup section
+	err = emitter.saveFX1ESafely(0, offsetBackup) //I = start of the register backup section
 	if err != nil{
 		return 0, err
 	}
@@ -1107,7 +1106,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 
 	//and if it wasn't a void function, we save again the return values in v0 (and v1)
 	if size != 0{
-		err = emitter.executeFX1ESafe(0, numberRegisterToBackup) //I = End of the register backup section/start of the return value backup section
+		err = emitter.saveFX1ESafely(0, numberRegisterToBackup) //I = End of the register backup section/start of the return value backup section
 		if err != nil{
 			return 0, err
 		}
@@ -1672,8 +1671,7 @@ func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (int, error) {
 		return 0, err
 	}
 
-	i4xkk := I4XKK(0, 0) //if v0 != 0 we skip the next opcode
-	err = emitter.saveOpcode(i4xkk)
+	err = emitter.saveOpcode( I4XKK(0, 0) )//if v0 != 0 we skip the next opcode
 
 	if err != nil{
 		return 0, err
@@ -1724,8 +1722,8 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (int, error) {
 		return 0, err
 	}
 
-	i4xkk := I4XKK(0, 0) //if v0 != 0 we skip the next opcode
-	err = emitter.saveOpcode(i4xkk)
+
+	err = emitter.saveOpcode(I4XKK(0, 0))//if v0 != 0 we skip the next opcode
 
 	if err != nil{
 		return 0, err
@@ -1734,28 +1732,28 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (int, error) {
 	skipMod := I1NNN(emitter.currentAddress+10)
 	err = emitter.saveOpcode(skipMod)
 
-	i6xkk:=I6XKK(1, 255) //v1 = 255. We can use it as a helper because both operands are simples in the context of %
-	err = emitter.saveOpcode(i6xkk)
+	err = emitter.saveOpcode(I6XKK(1, 255)) //v1 = 255. We can use it as a helper because both operands are simples in the context of %
+
 
 	if err != nil{
 		return 0, err
 	}
 
-	i6xkk = I6XKK(0xf, 0) // Vf = 0
-	err = emitter.saveOpcode(i6xkk)
+	err = emitter.saveOpcode(I6XKK(0xf, 0))	 // Vf = 0
+
 
 	if err != nil{
 		return 0, err
 	}
 
-	i8xy5 := I8XY5(0, 2) // V0 = V0-V2
-	err = emitter.saveOpcode(i8xy5)
+	err = emitter.saveOpcode(I8XY5(0, 2))  // V0 = V0-V2
+
 
 	if err != nil{
 		return 0, err
 	}
-	i4xkk = I4XKK(0, 0) //if v0 != 0 we skip the next opcode
-	err = emitter.saveOpcode(i4xkk)
+	err = emitter.saveOpcode( I4XKK(0, 0))	 //if v0 != 0 we skip the next opcode
+
 
 	if err != nil{
 		return 0, err
@@ -1768,9 +1766,8 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (int, error) {
 	if err != nil{
 		return 0, err
 	}
-	//if not we ask if v0>v2
-	i3xkk := I3XKK(0xf, 0)
-	err = emitter.saveOpcode(i3xkk)
+	err = emitter.saveOpcode(I3XKK(0xf, 0))	//if not we ask if v0>v2
+
 
 	if err != nil{
 		return 0, err
@@ -1785,15 +1782,15 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (int, error) {
 
 	//if not we jump the previous opcode and we find the rest by subtracting 255 (saved in v1) and v0.
 	//That give us the rest
-	i8xy5 = I8XY5(1, 0) //  = V1-V0
-	err = emitter.saveOpcode(i8xy5)
+	err = emitter.saveOpcode(I8XY5(1, 0))//  = V1-V0
+
 
 	if err != nil{
 		return 0, err
 	}
 
-	i8xy0 := I8XY5(0, 1) //  = V0 = V1 to save the rest in v0
-	err = emitter.saveOpcode(i8xy0)
+	err = emitter.saveOpcode(I8XY5(0, 1))  //  = V0 = V1 to save the rest in v0
+
 
 	if err != nil{
 		return 0, err
@@ -1810,15 +1807,15 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (int, error) {
 		return 0, err
 	}
 
-	i6xkk:=I6XKK(1, 0) //v1 = 0. We can use it to store the result because both operands are simples in the context of /
-	err = emitter.saveOpcode(i6xkk)
+	err = emitter.saveOpcode(I6XKK(1, 0)) //v1 = 0. We can use it to store the result because both operands are simples in the context of /
+
 
 	if err != nil{
 		return 0, err
 	}
 
-	i4xkk := I4XKK(0, 0) //if v0 != 0 we skip the next opcode
-	err = emitter.saveOpcode(i4xkk)
+	err = emitter.saveOpcode(I4XKK(0, 0)) //if v0 != 0 we skip the next opcode
+
 
 	if err != nil{
 		return 0, err
@@ -1830,35 +1827,35 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (int, error) {
 	if err != nil{
 		return 0, err
 	}
-	i6xkk = I6XKK(0xf, 0) // Vf = 0
-	err = emitter.saveOpcode(i6xkk)
+
+	err = emitter.saveOpcode(I6XKK(0xf, 0))// Vf = 0
 
 	if err != nil{
 		return 0, err
 	}
-	i8xy5 := I8XY5(0, 2) // V0 = V0-V2
-	err = emitter.saveOpcode(i8xy5)
+	err = emitter.saveOpcode(I8XY5(0, 2))	 // V0 = V0-V2
 
-	if err != nil{
-		return 0, err
-	}
-
-	i4xkk = I4XKK(0, 0) //if v0 != 0 we skip the next opcode
-	err = emitter.saveOpcode(i4xkk)
 
 	if err != nil{
 		return 0, err
 	}
 
-	//if v0 = 0 we do v1 = v1 + 1, to operate before jumping
-	i7xkk := I7XKK(1,1)
-	err = emitter.saveOpcode(i7xkk)
+	err = emitter.saveOpcode(I4XKK(0, 0))	 //if v0 != 0 we skip the next opcode
+
 
 	if err != nil{
 		return 0, err
 	}
-	i4xkk = I4XKK(0, 0) //if v0 != 0 we skip the next opcode
-	err = emitter.saveOpcode(i4xkk)
+
+
+	err = emitter.saveOpcode(I7XKK(1,1))	//if v0 = 0 we do v1 = v1 + 1, to operate before jumping
+
+
+	if err != nil{
+		return 0, err
+	}
+	err = emitter.saveOpcode(I4XKK(0, 0))  //if v0 != 0 we skip the next opcode
+
 
 	if err != nil{
 		return 0, err
@@ -1872,8 +1869,8 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (int, error) {
 		return 0, err
 	}
 	//if not we ask if v0>v2, and if v0 > v2 we skip the next opcode
-	i3xkk := I3XKK(0xf, 0)
-	err = emitter.saveOpcode(i3xkk)
+
+	err = emitter.saveOpcode(I3XKK(0xf, 0))
 
 	if err != nil{
 		return 0, err
@@ -1886,8 +1883,7 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (int, error) {
 		return 0, err
 	}
 
-	i7xkk = I7XKK(1,1)
-	err = emitter.saveOpcode(i7xkk)
+	err = emitter.saveOpcode(I7XKK(1,1))
 
 	if err != nil{
 		return 0, err
@@ -1901,8 +1897,8 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (int, error) {
 	}
 
 
-	i8xy0 := I8XY5(0, 1) //  = V0 = V1 to save the result in v0
-	err = emitter.saveOpcode(i8xy0)
+	err = emitter.saveOpcode(I8XY5(0, 1))//  = V0 = V1 to save the result in v0
+
 
 	if err != nil{
 		return 0, err
@@ -1978,8 +1974,7 @@ func (emitter *Emitter) saveDereferenceInRegisters(functionCtx *FunctionCtx) (in
 	if err != nil {
 		return 0, err
 	}
-	ifx65 := IFX65(byte(size))
-	err = emitter.saveOpcode(ifx65)
+	err = emitter.saveOpcode(IFX65(byte(size)))
 	if err != nil {
 		return 0, err
 	}
@@ -2119,7 +2114,7 @@ func (emitter *Emitter)saveDereferenceAddressInI(functionCtx *FunctionCtx) (int,
 			if err != nil{
 				return 0,errors.New(errorhandler.UnexpectedCompilerError())
 			}
-			err = emitter.executeFX1ESafe(0, index*symboltable.GetSize(datatype))
+			err = emitter.saveFX1ESafely(0, index*symboltable.GetSize(datatype))
 			datatype = datatype.(symboltable.Array).Of
 			emitter.ctxNode = emitter.ctxNode.Children[1]
 
@@ -2162,39 +2157,36 @@ func (emitter *Emitter)saveStackReferenceAddressInI( x byte, functionCtx *Functi
 		return 0, err
 	}
 
-	return size, emitter.executeFX1ESafe(x, reference.positionStack)
+	return size, emitter.saveFX1ESafely(x, reference.positionStack)
 
 }
 
-//executeFX1ESafe set an int to vx and then set I = I + vx, if the int is greater than 255 we add vx in a loop
-func (emitter *Emitter) executeFX1ESafe(x byte, vx int) error{
+//saveFX1ESafely set an int to vx and then set I = I + vx, if the int is greater than 255 we add vx in a loop
+func (emitter *Emitter) saveFX1ESafely(x byte, vx int) error{
 
 	for  vx>255{
-		i6xkk := I6XKK(x, 255)
-		ifx1e := IFX1E(x)
 
 
-		err := emitter.saveOpcode(i6xkk)
+		err := emitter.saveOpcode(I6XKK(x, 255))
 		if err != nil{
 			return err
 		}
 
-		err =emitter.saveOpcode(ifx1e)
+		err =emitter.saveOpcode( IFX1E(x))
 		if err != nil{
 			return err
 		}
 		vx = vx - 255
 	}
 	if vx > 0{
-		i6xkk := I6XKK(x, byte(vx))
-		ifx1e := IFX1E(x)
 
-		err :=emitter.saveOpcode(i6xkk)
+
+		err :=emitter.saveOpcode(I6XKK(x, byte(vx)))
 		if err != nil{
 			return err
 		}
 
-		err =emitter.saveOpcode(ifx1e)
+		err =emitter.saveOpcode( IFX1E(x))
 		if err != nil{
 			return err
 		}

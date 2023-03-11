@@ -47,7 +47,7 @@ func (optimizer *RegisterOptimizer)optimizeRegisters(ctxNode *ast.Node,ctxAddres
 			return optimizer.count[keys[i]] < optimizer.count[keys[j]]
 		})
 		for i := 4; i <=13; i++{ //the first 4 registers and the last 3 are used as aux in operations, so we don't save variables there
-			if i - 4 > len(keys){
+			if i - 4 > len(keys)-1{
 				return optimizer.registers
 			}
 			optimizer.registers.guide[keys[i-4]] = i

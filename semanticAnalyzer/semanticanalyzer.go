@@ -135,13 +135,15 @@ func(analyzer *SemanticAnalyzer) assign()error{
 
 	if !symboltable.Compare(leftDataType, rightDataType){
 		line := analyzer.ctxNode.Value.Line
-		err = errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(leftDataType), token.EQ, symboltable.Fmt(rightDataType)))
+		err = errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(leftDataType),
+			token.EQ, symboltable.Fmt(rightDataType)))
 		return err
 	}
 	return nil
 }
 
-//fn validates the semantic of the declaration of a function, then checks that the name of the declaration is not already in use,
+//fn validates the semantic of the declaration of a function,
+//then checks that the name of the declaration is not already in use,
 //and if its not, save the new variable in the symbol table of the current scope
 func(analyzer *SemanticAnalyzer) fn()error{
 	const IDENT =0
@@ -156,6 +158,7 @@ func(analyzer *SemanticAnalyzer) fn()error{
 		return err
 	}
 	analyzer.ctxNode = backupNode
+	analyzer.currentScope = backupScope
 
 	name := analyzer.ctxNode.Children[IDENT].Value.Literal
 	analyzer.updateDataTypeFactoryCtx(analyzer.ctxNode.Children[DATATYPERETURN])
@@ -163,6 +166,20 @@ func(analyzer *SemanticAnalyzer) fn()error{
 	expectedReturnDataType, err := analyzer.datatypeFactory.GetDataType()
 	if err != nil{
 		return err
+	}
+	function := symboltable.NewFunction(expectedReturnDataType, args)
+	ok := analyzer.currentScope.AddSymbol(name, function)
+	if !ok{
+		line := analyzer.ctxNode.Value.Line
+		err = errors.New(errorhandler.NameAlreadyInUse(line, name))
+		return err
+	}
+
+	if args != nil{
+
+		lastAdded := len(analyzer.currentScope.SubScopes)-1
+		analyzer.currentScope = analyzer.currentScope.SubScopes[lastAdded]
+		analyzer.currentScope.AddSymbol(name, function)
 	}
 
 	if !symboltable.Compare(expectedReturnDataType, symboltable.NewVoid()) &&
@@ -183,19 +200,14 @@ func(analyzer *SemanticAnalyzer) fn()error{
 
 	if !symboltable.Compare(expectedReturnDataType, actualReturnDataType){
 		line := analyzer.ctxNode.Value.Line
-		err = errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(expectedReturnDataType), token.EQ, symboltable.Fmt(actualReturnDataType)))
+		err = errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(expectedReturnDataType),
+			token.EQ, symboltable.Fmt(actualReturnDataType)))
 		return err
 	}
 	analyzer.ctxNode = backupNode
 	analyzer.currentScope = backupScope
 
-	function := symboltable.NewFunction(expectedReturnDataType, args)
-	ok := analyzer.currentScope.AddSymbol(name, function)
-	if !ok{
-		line := analyzer.ctxNode.Value.Line
-		err = errors.New(errorhandler.NameAlreadyInUse(line, name))
-		return err
-	}
+
 
 	return nil
 
