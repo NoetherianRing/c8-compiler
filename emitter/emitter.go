@@ -142,10 +142,11 @@ func (emitter *Emitter) Start() ([]byte, error){
 //function declaration save the instructions of all primitive function in memory
 func (emitter *Emitter) primitiveFunctionsDeclaration()error{
 	var err error
-	/*err = emitter.drawFontDeclaration()
+	err = emitter.drawFontDeclaration()
 	if err != nil{
 		return err
 	}
+	/*
 	err = emitter.cleanDeclaration()
 	if err != nil{
 		return err
@@ -203,7 +204,7 @@ func (emitter *Emitter) drawFontDeclaration()error{
 		return err
 	}
 
-	return nil
+	return emitter.saveOpcode(I00EE())
 
 }
 
@@ -211,42 +212,72 @@ func (emitter *Emitter) drawFontDeclaration()error{
 func (emitter *Emitter) cleanDeclaration ()error{
 	//clean has not parameters and is a void function that clean the screen
 	emitter.functions[symboltable.FunctionClean] = emitter.currentAddress
-	return emitter.saveOpcode(I00E0())
+	err := emitter.saveOpcode(I00E0())
+	if err != nil{
+		return err
+	}
+	return emitter.saveOpcode(I00EE())
+
 }
 
 //setSTDeclaration save the function setST in memory
 func (emitter *Emitter) setSTDeclaration ()error{
 	emitter.functions[symboltable.FunctionSetST] = emitter.currentAddress
 	//setST only has a parameter (a byte) saved in v2, and it is a void function that set sound timer = v2
-	return emitter.saveOpcode(IFX18(2))
+	err:= emitter.saveOpcode(IFX18(2))
+	if err != nil{
+		return err
+	}
+	return emitter.saveOpcode(I00EE())
+
 }
 
 //setDTDeclaration save the function setDT in memory
 func (emitter *Emitter) setDTDeclaration ()error{
 	emitter.functions[symboltable.FunctionSetDT] = emitter.currentAddress
 	//setST only has a parameter (a byte) saved in v2, and it is a void function that set delay timer = v2
-	return emitter.saveOpcode(IFX15(2))
+	err :=  emitter.saveOpcode(IFX15(2))
+	if err != nil{
+		return err
+	}
+	return emitter.saveOpcode(I00EE())
+
 }
 
 //getDTDeclaration save the function getDT in memory
 func (emitter *Emitter) getDTDeclaration ()error{
 	emitter.functions[symboltable.FunctionGetDT] = emitter.currentAddress
 	//getDT has no parameters and it return a byte (the value of delay timer) in v0
-	return emitter.saveOpcode(IFX07(0))
+	err := emitter.saveOpcode(IFX07(0))
+	if err != nil{
+		return err
+	}
+	return emitter.saveOpcode(I00EE())
+
 }
 
 //randomDeclaration save the function random in memory
 func (emitter *Emitter) randomDeclaration ()error{
 	emitter.functions[symboltable.FunctionRandom] = emitter.currentAddress
 	//random has no parameters and it returns a random byte (in v0)
-	return emitter.saveOpcode(ICXKK(0, 0xFF))
+	err := emitter.saveOpcode(ICXKK(0, 0xFF))
+	if err != nil{
+		return err
+	}
+	return emitter.saveOpcode(I00EE())
+
 }
 
 //waitKeyDeclaration save the function waitKey in memory
 func (emitter *Emitter) waitKeyDeclaration ()error{
 	emitter.functions[symboltable.FunctionWaintKet] = emitter.currentAddress
 	//waitKey has no parameters and it returns the value of a key pressed in v0
-	return emitter.saveOpcode(IFX0A(0))
+	err := emitter.saveOpcode(IFX0A(0))
+	if err != nil{
+		return err
+	}
+	return emitter.saveOpcode(I00EE())
+
 }
 
 //isKeyPressedDeclaration save the function isKeyPressed in memory
@@ -266,7 +297,11 @@ func (emitter *Emitter) isKeyPressedDeclaration ()error{
 	if err != nil{
 		return err
 	}
-	return emitter.saveOpcode(I8XY0(0,1)) //V0=V1
+	err = emitter.saveOpcode(I8XY0(0,1)) //V0=V1
+	if err != nil{
+		return err
+	}
+	return emitter.saveOpcode(I00EE())
 
 }
 //drawDeclaration save the function draw in memory
@@ -313,7 +348,8 @@ func (emitter *Emitter) drawDeclaration ()error {
 	if err != nil{
 		return err
 	}
-	return nil
+	return emitter.saveOpcode(I00EE())
+
 }
 //function declaration save all the instructions of a function in memory
 func (emitter *Emitter) functionDeclaration()error{

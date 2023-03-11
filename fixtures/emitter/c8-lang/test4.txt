@@ -1,0 +1,9 @@
+{
+    fn main() void{
+       while true{
+        drawFont(10,10, 0)
+
+       }
+           return
+    }
+}
