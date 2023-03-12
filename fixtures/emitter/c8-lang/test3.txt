@@ -1,25 +1,12 @@
 {
-    fn myFunc3 (let foo byte, let foo2 *byte, let foo3 **byte)bool{
-    return false
-   }
-
-   fn myFunc2 (let foo byte, let foo2 *byte)void{
-     let foo3 bool
-     foo3= myFunc3(foo, foo2, $foo2)
-     return
+  let one bool
+  fn main()void{
+    one = true
+    if one{
+        drawFont(32, 16, 1)
+    }else{
+        drawFont(32, 16, 0)
     }
-
-   fn myFunc(let foo byte)void{
-   myFunc2(2,$foo)
-
     return
-   }
-
-   fn main()void{
-       myFunc(2)
-       while true{
-
-       }
-       return
-   }
+  }
 }

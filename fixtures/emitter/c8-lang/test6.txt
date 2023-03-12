@@ -1,0 +1,16 @@
+{
+   let one bool
+
+   fn main() void{
+
+       let isOne bool
+       isOne = true
+       one = isOne
+
+       if one{
+        drawFont(0,0,1)
+       }
+
+       return
+    }
+}

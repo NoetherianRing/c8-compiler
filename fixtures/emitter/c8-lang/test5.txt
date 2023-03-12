@@ -2,9 +2,7 @@
   let one bool
   fn main()void{
     one = false
-    if one{
-        drawFont(32, 16, 1)
-    }else{
+    if !one{
         drawFont(32, 16, 0)
     }
     return

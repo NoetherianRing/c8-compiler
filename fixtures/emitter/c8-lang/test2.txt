@@ -1,16 +1,10 @@
 {
-  fn main() void{
-  let mustRender bool
-       mustRender = true
-       while mustRender{
-        let foo byte
-        let pointer *byte
-
-        foo = 3 + 4 - 20
-        foo = 4 / 2 * 10 >> 1 << 2 & 1 | 2
-        pointer = $foo
-        pointer = pointer + foo + 10 -1
+  let mustDraw bool
+  fn main()void{
+    mustDraw = true
+    if mustDraw{
+        drawFont(32, 16, 1)
     }
-       return
+    return
   }
 }
