@@ -424,7 +424,7 @@ func (emitter *Emitter) functionDeclaration()error{
 			if err != nil {
 				return err
 			}
-			err = emitter.saveOpcode(IFX55(1))
+			err = emitter.saveOpcode(IFX65(0))
 			if err != nil {
 				return err
 			}
@@ -498,7 +498,7 @@ func (emitter *Emitter) saveParamsInStack(params *[]string, ctxReferences *Stack
 		return err
 	}
 
-	err = emitter.saveOpcode(IFX55(byte(sizeParams[i]))) //we save v0 (or v0 and v1) in memory
+	err = emitter.saveOpcode(IFX55(byte(sizeParams[i]-1))) //we save v0 (or v0 and v1) in memory
 	if err != nil {
 		return err
 	}
@@ -629,7 +629,7 @@ func (emitter *Emitter) let(ctxReferences *StackReferences) error{
 		if err != nil{
 			return err
 		}
-		err = emitter.saveOpcode(IFX55(16))
+		err = emitter.saveOpcode(IFX55(15))
 		size -=16
 		emitter.offsetStack += 16
 	}
@@ -646,7 +646,7 @@ func (emitter *Emitter) let(ctxReferences *StackReferences) error{
 		if err != nil{
 			return err
 		}
-		err = emitter.saveOpcode(IFX55(byte(size)))
+		err = emitter.saveOpcode(IFX55(byte(size-1)))
 		emitter.offsetStack += size
 	}
 
@@ -686,7 +686,7 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error {
 				}
 				//and then we store registers V0 through Vsize in memory starting at location I
 
-				err =emitter.saveOpcode(IFX55(byte(size)))
+				err =emitter.saveOpcode(IFX55(byte(size-1)))
 
 				if err != nil{
 					return err
@@ -705,7 +705,7 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error {
 					return err
 				}
 				//then we save v0 (and maybe v1) there
-				err =emitter.saveOpcode(IFX55(byte(size)))
+				err =emitter.saveOpcode(IFX55(byte(size-1)))
 
 				if err != nil{
 					return err
@@ -724,7 +724,7 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error {
 					return err
 				}
 				//then we save v0 there
-				err =emitter.saveOpcode(IFX55(byte(1)))
+				err =emitter.saveOpcode(IFX55(byte(0)))
 
 				if err != nil{
 					return err
@@ -769,7 +769,7 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error {
 				return err
 			}
 		}
-		err =emitter.saveOpcode(IFX55(byte(size)))
+		err =emitter.saveOpcode(IFX55(byte(size-1)))
 
 		if err != nil{
 			return err
@@ -1000,7 +1000,199 @@ func (emitter *Emitter)voidCall(functionCtx *FunctionCtx)error{
 	return err
 }
 
+//call translates a call to opcodes and write it in emitter.machineCode, return the size of the datatype it returns and an error
+func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
+	const IDENT = 0
 
+
+	//we first backup all registers of the current function in  the stack
+	err := emitter.backupRegistersInMemory(functionCtx)
+	if err != nil {
+		return 0, err
+	}
+	//then we save the params of the function call in registers
+	err = emitter.saveParamsInRegisters(functionCtx)
+	if err != nil {
+		return 0, err
+	}
+
+	ident := emitter.ctxNode.Children[IDENT].Value.Literal
+	//we call the function
+	fnAddress, _ := emitter.functions[ident]
+	err = emitter.saveOpcode(I2NNN(fnAddress))
+	if err != nil {
+		return 0, err
+	}
+
+	//if the function we call was not a void function, then we save in memory a backup of the return value,
+	//because we will need the registers v2
+	size := symboltable.GetSize(emitter.scope.Symbols[ident].DataType.(symboltable.Function).Return)
+	if size != 0 {
+		err := emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2)) // I = stack address
+		if err != nil {
+			return 0, err
+		}
+		err = emitter.saveFX1ESafely(2, emitter.offsetStack) //I = I + offset
+		if err != nil {
+			return 0, err
+		}
+		emitter.offsetStack += size
+		err = emitter.saveOpcode(IFX55(byte(size-1))) //TODO: By now size is always 1
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	//then we save again the previous registers in memory
+	err = emitter.saveVariableInRegister(functionCtx)
+	if err != nil {
+		return 0, err
+	}
+
+	//and if it wasn't a void function, we save again the return values in v0 (and v1)
+	if size != 0 {
+		err = emitter.saveFX1ESafely(2, emitter.offsetStack-size) //I = End of the register backup section/start of the return value backup section
+		if err != nil {
+			return 0, err
+		}
+		err = emitter.saveOpcode(IFX65(byte(size-1)))
+		if err != nil {
+			return 0, err
+		}
+
+	}
+
+	return size, nil
+
+}
+
+func (emitter *Emitter) saveVariableInRegister(functionCtx *FunctionCtx)  error {
+	for reference, indexRegister := range functionCtx.Registers.guide {
+		positionStack := functionCtx.StackReferences.References[reference.identifier].positionStack
+
+		err := emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
+		if err != nil {
+			return err
+		}
+		err = emitter.saveFX1ESafely(0, positionStack) //I = I + offset
+		if err != nil {
+			return  err
+		}
+		err = emitter.saveOpcode(IFX65(0)) //we save the variable in the register v0
+		if err != nil {
+			return  err
+		}
+		err = emitter.saveOpcode(I8XY0(byte(indexRegister), 0)) //vindex = v0
+		if err != nil {
+			return  err
+		}
+	}
+	return nil
+}
+
+func (emitter *Emitter) backupRegistersInMemory(functionCtx *FunctionCtx) error{
+	for reference, indexRegister := range functionCtx.Registers.guide {
+		positionStack := functionCtx.StackReferences.References[reference.identifier].positionStack
+
+		err := emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
+		if err != nil {
+			return err
+		}
+		err = emitter.saveFX1ESafely(0, positionStack) //I = I + offset
+		if err != nil {
+			return err
+		}
+		err = emitter.saveOpcode(I8XY0(0, byte(indexRegister))) //v0 = vindex
+		if err != nil {
+			return err
+		}
+		err = emitter.saveOpcode(IFX55(0)) //we save the register in the stack
+		if err != nil {
+			return  err
+		}
+	}
+	return nil
+}
+
+func (emitter *Emitter) saveParamsInRegisters(functionCtx *FunctionCtx) error {
+	const PARAMS = 1
+	backupNode := emitter.ctxNode
+
+	backupStack := emitter.offsetStack
+	paramSizes := 0
+	if len(emitter.ctxNode.Children) > 1 { //we ask if it has any param
+
+		emitter.ctxNode = emitter.ctxNode.Children[PARAMS]
+		for emitter.ctxNode.Value.Type == token.COMMA {
+			backupComma := emitter.ctxNode
+			emitter.ctxNode = emitter.ctxNode.Children[0]
+			//we save in v0(and maybe v1) the value of the parameter being analyzed
+			size, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+			if err != nil {
+				return  err
+			}
+			err = emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
+			if err != nil {
+				return  err
+			}
+			err = emitter.saveFX1ESafely(2, emitter.offsetStack) //we move I = last address in the stack
+			if err != nil {
+				return err
+			}
+
+			err = emitter.saveOpcode(IFX55(byte(size-1))) //we save the param in the stack
+			if err != nil {
+				return err
+			}
+
+			paramSizes += size
+			emitter.offsetStack += size
+			emitter.ctxNode = backupComma
+			emitter.ctxNode = emitter.ctxNode.Children[1]
+		}
+		//emitter.ctxNode = emitter.ctxNode.Children[0]
+		//we save in v0(and maybe v1) the value of the parameter being analyzed
+		size, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+		if err != nil {
+			return  err
+		}
+		err = emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
+		if err != nil {
+			return err
+		}
+		err = emitter.saveFX1ESafely(2, emitter.offsetStack) //we move I = last address in the stack
+		if err != nil {
+			return  err
+		}
+
+		paramSizes += size
+		err = emitter.saveOpcode(IFX55(byte(size-1))) //we save the param in the stack
+		if err != nil {
+			return err
+		}
+
+	}
+	//now that all the params are saved in the stack, we store them in registers
+	err := emitter.saveOpcode(IAXY0(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
+	if err != nil {
+		return  err
+	}
+	emitter.offsetStack = backupStack
+
+	err = emitter.saveFX1ESafely(2, emitter.offsetStack-2) //we move I = I + (offsetStack-2) because we want the params
+	//to start in v2
+	if err != nil {
+		return  err
+	}
+
+	err = emitter.saveOpcode(IFX65(byte(paramSizes -1 + 2))) //we read the param in the stack (from v2 through v(ParamSize+2))
+	if err != nil {
+		return  err
+	}
+	emitter.ctxNode = backupNode
+	return nil
+}
+/*
 //call translates a call to opcodes and write it in emitter.machineCode, return the size of the datatype it returns and an error
 func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 	const IDENT = 0
@@ -1019,7 +1211,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 	if err != nil{
 		return 0, err
 	}
-	err = emitter.saveOpcode(IFX55(byte(numberRegisterToBackup))) //we save the registers in the stack
+	err = emitter.saveOpcode(IFX55(byte(numberRegisterToBackup)-1)) //we save the registers in the stack
 	if err != nil{
 		return 0, err
 	}
@@ -1045,7 +1237,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 			if err != nil{
 				return 0, err
 			}
-			err = emitter.saveFX1ESafely(0, emitter.offsetStack) //we move I = last address in the stack
+			err = emitter.saveFX1ESafely(2, emitter.offsetStack) //we move I = last address in the stack
 			if err != nil{
 				return 0, err
 			}
@@ -1070,7 +1262,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 		if err != nil{
 			return 0, err
 		}
-		err = emitter.saveFX1ESafely(0, emitter.offsetStack) //we move I = last address in the stack
+		err = emitter.saveFX1ESafely(2, emitter.offsetStack) //we move I = last address in the stack
 		if err != nil{
 			return 0, err
 		}
@@ -1088,12 +1280,12 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 	if err != nil{
 		return 0, err
 	}
-	err = emitter.saveFX1ESafely(0, offsetParamSection-2) //we move I = I + (offsetParamSection-2) because we want the params
+	err = emitter.saveFX1ESafely(2, offsetParamSection-2) //we move I = I + (offsetParamSection-2) because we want the params
 	//to start in v2
 	if err != nil{
 		return 0, err
 	}
-	err = emitter.saveOpcode(IFX65(byte(paramSizes+2))) //we save the param in the stack (from v2 through vC)
+	err = emitter.saveOpcode(IFX65(byte(paramSizes+2))) //we read the param in the stack (from v2 through v(ParamSize+2))
 	if err != nil{
 		return 0, err
 	}
@@ -1115,7 +1307,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 		if err != nil{
 			return 0, err
 		}
-		err = emitter.saveFX1ESafely(0, emitter.offsetStack) //I = I + offset
+		err = emitter.saveFX1ESafely(2, emitter.offsetStack) //I = I + offset
 		if err != nil{
 			return 0, err
 		}
@@ -1131,18 +1323,18 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 	if err != nil{
 		return 0, err
 	}
-	err = emitter.saveFX1ESafely(0, offsetBackup) //I = start of the register backup section
+	err = emitter.saveFX1ESafely(2, offsetBackup) //I = start of the register backup section
 	if err != nil{
 		return 0, err
 	}
-	err = emitter.saveOpcode(IFX65(byte(numberRegisterToBackup)))
+	err = emitter.saveOpcode(IFX65(byte(numberRegisterToBackup)-1))
 	if err != nil{
 		return 0, err
 	}
 
 	//and if it wasn't a void function, we save again the return values in v0 (and v1)
 	if size != 0{
-		err = emitter.saveFX1ESafely(0, numberRegisterToBackup) //I = End of the register backup section/start of the return value backup section
+		err = emitter.saveFX1ESafely(2, numberRegisterToBackup) //I = End of the register backup section/start of the return value backup section
 		if err != nil{
 			return 0, err
 		}
@@ -1158,6 +1350,8 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 
 
 }
+
+ */
 
 //_byte save a byte in v0. Return the size of the byte datatype (1) and an error
 func (emitter *Emitter) _byte(functionCtx *FunctionCtx) (int, error) {
@@ -2010,7 +2204,7 @@ func (emitter *Emitter) saveDereferenceInRegisters(functionCtx *FunctionCtx) (in
 	if err != nil {
 		return 0, err
 	}
-	err = emitter.saveOpcode(IFX65(byte(size)))
+	err = emitter.saveOpcode(IFX65(byte(size-1)))
 	if err != nil {
 		return 0, err
 	}
@@ -2042,7 +2236,7 @@ func (emitter *Emitter)ident(functionCtx *FunctionCtx) (int, error){
 				return 0, err
 			}
 		}
-		err = emitter.saveOpcode(IFX65(byte(size)))
+		err = emitter.saveOpcode(IFX65(byte(size-1)))
 		if err != nil{
 			return 0, err
 		}
@@ -2157,7 +2351,7 @@ func (emitter *Emitter)saveDereferenceAddressInI(functionCtx *FunctionCtx) (int,
 		//if we are analyzing a *, then its value is the address  of the next referenced element, si we set I = value.
 		case token.ASTERISK:
 			//we set V0 and V1 = value saved from I in memory
-			err :=emitter.saveOpcode(IFX65(2))
+			err :=emitter.saveOpcode(IFX65(1))
 			if err != nil{
 				return 0,err
 			}
