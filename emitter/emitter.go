@@ -2089,18 +2089,19 @@ func (emitter *Emitter)asterisk(functionCtx *FunctionCtx)(int, error){
 
 }
 
-//saveDereferenceInRegisters save in v0 (and maybe v1) the value of a dereference.
-//Returns the size of the datatype of the dereference and a error
-func (emitter *Emitter) saveDereferenceInRegisters(functionCtx *FunctionCtx) (int, error) {
+//saveDereferenceInRegisters save in registers  the value of a dereference.
+//Returns the indexes of the registers in which it was stored and an error
+func (emitter *Emitter) saveDereferenceInRegisters(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 	size, err := emitter.saveDereferenceAddressInI(functionCtx)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	err = emitter.saveOpcode(IFX65(byte(size-1)))
-	if err != nil {
-		return 0, err
+	if err != nil{
+		return nil, err
 	}
-	return size, nil
+
+	return emitter.allocAndCopyPaste(size, 0, 1)
 }
 //ident save registers the value of a reference.
 //Returns the indexes of registers that use to save its values and an error if needed
@@ -2108,8 +2109,6 @@ func (emitter *Emitter)ident(functionCtx *FunctionCtx) (*ResultRegIndex, error){
 	ident := emitter.ctxNode.Value.Literal
 	var size int
 	var err error
-	var regIndex *ResultRegIndex
-	var ok bool
 
 	_, isGlobalReference := emitter.globalVariables[ident]
 	if isGlobalReference{
@@ -2127,37 +2126,49 @@ func (emitter *Emitter)ident(functionCtx *FunctionCtx) (*ResultRegIndex, error){
 	if err != nil{
 		return nil, err
 	}
+	regIndex, err := emitter.allocAndCopyPaste(size, 0, 1) //we save the value of the reference in available registers
+	if err != nil {
+		return regIndex, err
+	}
+
+	return regIndex, nil
+
+}
+
+//allocAndCopyPaste check the size of a variable (saved in vx and vy) and store it in registers.
+//It return the index of this registers and an error if needed
+func (emitter *Emitter) allocAndCopyPaste(size int, x byte, y byte) (*ResultRegIndex, error) {
+	var regIndex *ResultRegIndex
+	var ok bool
 	switch size {
 	case 1:
 		regIndex, ok = emitter.registerHandler.AllocSimple()
-		err = emitter.saveOpcode(I8XY0(regIndex.lowBitsIndex, 0))
-		if err != nil{
+		err := emitter.saveOpcode(I8XY0(regIndex.lowBitsIndex, x))
+		if err != nil {
 			return nil, err
 		}
 
 	case 2:
 		regIndex, ok = emitter.registerHandler.AllocPointer()
-		err = emitter.saveOpcode(I8XY0(regIndex.highBitsIndex, 0))
-		if err != nil{
+		err := emitter.saveOpcode(I8XY0(regIndex.highBitsIndex, x))
+		if err != nil {
 			return nil, err
 		}
-		err = emitter.saveOpcode(I8XY0(regIndex.lowBitsIndex, 1))
-		if err != nil{
+		err = emitter.saveOpcode(I8XY0(regIndex.lowBitsIndex, y))
+		if err != nil {
 			return nil, err
 		}
 
 	default:
 		return nil, errors.New(errorhandler.UnexpectedCompilerError())
 	}
-	if !ok{
+	if !ok {
 		line := emitter.ctxNode.Value.Line
-		err = errors.New(errorhandler.TooManyRegisters(line))
+		err := errors.New(errorhandler.TooManyRegisters(line))
 		return nil, err
 	}
 
-
 	return regIndex, nil
-
 }
 
 //address save the address of its children in two registers, return the indexes of registers in which
