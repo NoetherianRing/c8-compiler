@@ -18,7 +18,7 @@ type Emitter struct{
 	ctxNode         	   *ast.Node
 	machineCode    		   [Memory]byte
 	translateStatement     map[token.Type]func(*FunctionCtx)error
-	translateOperation	   map[token.Type]func(function *FunctionCtx) (registersIndex, error)
+	translateOperation	   map[token.Type]func(function *FunctionCtx) (*ResultRegIndex, error)
 	functions       	   map[string]uint16//we save in functions the address in which each function is stored
 	lastIndexSubScope	   int //in the context of a scope, lastIndexSubScope tells the numbers of sub-scopes already written in machineCode
 
@@ -44,7 +44,7 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 	emitter.translateStatement[token.RPAREN] = emitter.voidCall
 	emitter.translateStatement[token.RETURN] = emitter._return
 
-	emitter.translateOperation = make(map[token.Type]func(*FunctionCtx)(registersIndex,error))
+	emitter.translateOperation = make(map[token.Type]func(*FunctionCtx)(*ResultRegIndex,error))
 
 	emitter.translateOperation[token.DOLLAR] = emitter.address
 	emitter.translateOperation[token.RPAREN] = emitter.parenthesis
@@ -1370,22 +1370,21 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
  */
 
 //_byte save a byte in a registers. Return the register index in which the byte was stored and an error if needed
-func (emitter *Emitter) _byte(functionCtx *FunctionCtx) (registersIndex, error) {
-	x, ok := emitter.registerHandler.TakeRegister()
-	var index registersIndex
-	index.SetIndex(x)
+func (emitter *Emitter) _byte(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
+	regIndex, ok := emitter.registerHandler.AllocSimple()
 	if !ok{
 		line := emitter.ctxNode.Value.Line
 		err := errors.New(errorhandler.TooManyRegisters(line))
-		return index, err
-	}
-	kk, _ := strconv.Atoi(emitter.ctxNode.Value.Literal)
-	err := emitter.saveOpcode(I6XKK(x, byte(kk))) // Vx = Byte
-	if err != nil{
-		return index, err
+		return regIndex, err
 	}
 
-	return index, nil
+	kk, _ := strconv.Atoi(emitter.ctxNode.Value.Literal)
+	err := emitter.saveOpcode(I6XKK(regIndex.lowBitsIndex, byte(kk))) // Vx = Byte
+	if err != nil{
+		return regIndex, err
+	}
+
+	return regIndex, nil
 }
 
 //boolean save a boolean in v0. Return the size of the boolean datatype (1) and an error
@@ -1406,7 +1405,7 @@ func (emitter *Emitter)boolean(functionCtx *FunctionCtx) (int, error) {
 //ltgt translates < and > to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter)ltgt(functionCtx *FunctionCtx) (int, error){
-	sizeOperands, err := emitter.saveOperands(functionCtx)
+	sizeOperands, err := emitter.solveOperands(functionCtx)
 	if err != nil{
 		return 0, err
 	}
@@ -1498,7 +1497,7 @@ func (emitter *Emitter)ltgt(functionCtx *FunctionCtx) (int, error){
 //ltgteq translates <= and >= to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter)ltgteq(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.saveOperands(functionCtx)
+	sizeOperands, err := emitter.solveOperands(functionCtx)
 	if err != nil {
 		return 0, err
 	}
@@ -1623,7 +1622,7 @@ func (emitter *Emitter)ltgteq(functionCtx *FunctionCtx) (int, error) {
 //noteq translates a != to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter) noteq(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.saveOperands(functionCtx)
+	sizeOperands, err := emitter.solveOperands(functionCtx)
 	if err != nil {
 		return 0, err
 	}
@@ -1695,7 +1694,7 @@ func (emitter *Emitter) not(functionCtx *FunctionCtx) (int, error) {
 //land translates a && to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter) land(functionCtx *FunctionCtx) (int, error) {
-	_, err := emitter.saveOperands(functionCtx)
+	_, err := emitter.solveOperands(functionCtx)
 	if err != nil{
 		return 0, err
 	}
@@ -1711,7 +1710,7 @@ func (emitter *Emitter) land(functionCtx *FunctionCtx) (int, error) {
 //lor translates a || to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter) lor(functionCtx *FunctionCtx) (int, error) {
-	_, err := emitter.saveOperands(functionCtx)
+	_, err := emitter.solveOperands(functionCtx)
 	if err != nil{
 		return 0, err
 	}
@@ -1727,7 +1726,7 @@ func (emitter *Emitter) lor(functionCtx *FunctionCtx) (int, error) {
 //or translates a | to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter) or(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.saveOperands(functionCtx)
+	sizeOperands, err := emitter.solveOperands(functionCtx)
 	if err != nil{
 		return 0, err
 	}
@@ -1751,7 +1750,7 @@ func (emitter *Emitter) or(functionCtx *FunctionCtx) (int, error) {
 //and translates a & to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter) and(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.saveOperands(functionCtx)
+	sizeOperands, err := emitter.solveOperands(functionCtx)
 	if err != nil{
 		return 0, err
 	}
@@ -1775,7 +1774,7 @@ func (emitter *Emitter) and(functionCtx *FunctionCtx) (int, error) {
 //xor translates a ^ to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter) xor(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.saveOperands(functionCtx)
+	sizeOperands, err := emitter.solveOperands(functionCtx)
 	if err != nil{
 		return 0, err
 	}
@@ -1798,83 +1797,81 @@ func (emitter *Emitter) xor(functionCtx *FunctionCtx) (int, error) {
 
 
 //sum translates a sum to opcodes and write it in emitter.machineCode,
-//returns the index of registers in which is stored the result and an error
-func (emitter *Emitter) sum(functionCtx *FunctionCtx) (registersIndex, error) {
-	const left = 0
-	const right = 1
-	var indexSum registersIndex
-
-	indexOperands, err := emitter.saveOperands(functionCtx)
+//returns the indexes of registers in which is stored the result and an error
+func (emitter *Emitter) sum(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
+	leftRegIndex, rightRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil {
-		return indexSum, err
-	}
-	indexSum, err = emitter.takeRegisters(indexOperands[left].GetSize()) //the sum has the same size than the left operand
-	if err != nil{
-		return indexSum, err
+		return nil, err
 	}
 
-
-	//if the left operand is a simple we just sum vLeft = vLeft +vRight, and we return the result in
-	//a single register v_isum
-	if indexOperands[left].GetSize() != SizePointer {
-		iLeftOperand := indexOperands[left].GetIndex()
-		iRightOperand := indexOperands[right].GetIndex()
-		iSum := indexSum.GetIndex()
-		err := emitter.saveOpcode(I8XY4(iLeftOperand, iRightOperand))
-		if err != nil {
-			return indexSum, err
+	if leftRegIndex.isPointer{
+		//the sum has the same size than the left operand
+		sumRegIndex, ok := emitter.registerHandler.AllocPointer()
+		if !ok{
+			line := emitter.ctxNode.Value.Line
+			err := errors.New(errorhandler.TooManyRegisters(line))
+			return nil, err
 		}
-		err = emitter.saveOpcode(I8XY0(iSum, iLeftOperand))
+		//if the left operands is a pointer we first sum vLeft1 = vLeft1 + vRight
+		err = emitter.saveOpcode(I8XY4(leftRegIndex.lowBitsIndex, rightRegIndex.lowBitsIndex))
 		if err != nil {
-			return indexSum, err
+			return nil, err
 		}
-		indexSum.SetIndex(iSum)
-		emitter.registerHandler.freeRegister(iLeftOperand)
-		emitter.registerHandler.freeRegister(iRightOperand)
-		return indexSum, nil
+		//if carry = true, then vLeft1 + vRight > 255, so we need to set vLeft0 = vLeft0 + 1
+		err = emitter.saveOpcode(I4XKK(Carry, True))
+		if err != nil {
+			return nil, err
+		}
+		err = emitter.saveOpcode(I7XKK(leftRegIndex.highBitsIndex, 1))
+		if err != nil {
+			return nil, err
+		}
+		//we save viSum0 = vLeft0, viSum1 = vLeft1
+		err = emitter.saveOpcode(I8XY0(sumRegIndex.highBitsIndex, leftRegIndex.highBitsIndex))
+		if err != nil {
+			return nil, err
+		}
+
+		err = emitter.saveOpcode(I8XY0(sumRegIndex.lowBitsIndex, leftRegIndex.lowBitsIndex))
+		if err != nil {
+			return nil, err
+		}
+		emitter.registerHandler.Free(leftRegIndex)
+		emitter.registerHandler.Free(rightRegIndex)
+
+		return sumRegIndex, nil
+	}else{
+		sumRegIndex, ok := emitter.registerHandler.AllocSimple()
+		if !ok{
+			line := emitter.ctxNode.Value.Line
+			err := errors.New(errorhandler.TooManyRegisters(line))
+			return nil, err
+		}
+		//if the left operand is a simple we just sum vLeft = vLeft +vRight, and we return the result in
+		//a single register v_isum
+		err := emitter.saveOpcode(I8XY4(leftRegIndex.lowBitsIndex, rightRegIndex.lowBitsIndex))
+		if err != nil {
+			return nil, err
+		}
+		err = emitter.saveOpcode(I8XY0(sumRegIndex.lowBitsIndex, leftRegIndex.lowBitsIndex))
+		if err != nil {
+			return nil, err
+		}
+
+		emitter.registerHandler.Free(leftRegIndex)
+		emitter.registerHandler.Free(rightRegIndex)
+		return sumRegIndex, nil
+
 	}
 
-	iLeftOperand0 := indexOperands[left].GetFirstHalfIndex()
-	iLeftOperand1 := indexOperands[left].GetSecondHalfIndex()
-	iRightOperand := indexOperands[right].GetIndex()
-	iSum0 		  := indexSum.GetFirstHalfIndex()
-	iSum1 		  := indexSum.GetSecondHalfIndex()
-	//if the left operands is a pointer we first sum vLeft1 = vLeft1 + vRight
-	err = emitter.saveOpcode(I8XY4(iLeftOperand1, iRightOperand))
-	if err != nil {
-		return indexSum, err
-	}
-	//if carry = true, then vLeft1 + vRight > 255, so we need to set vLeft0 = vLeft0 + 1
-	err = emitter.saveOpcode(I4XKK(Carry, True))
-	if err != nil {
-		return indexSum, err
-	}
-	err = emitter.saveOpcode(I7XKK(iLeftOperand0, 1))
-	if err != nil {
-		return indexSum, err
-	}
-	//we save viSum0 = vLeft0, viSum1 = vLeft1
-	err = emitter.saveOpcode(I8XY0(iSum0, iLeftOperand0))
-	if err != nil {
-		return indexSum, err
-	}
 
-	err = emitter.saveOpcode(I8XY0(iSum1, iLeftOperand1))
-	if err != nil {
-		return indexSum, err
-	}
-	emitter.registerHandler.freeRegister(iLeftOperand0)
-	emitter.registerHandler.freeRegister(iLeftOperand1)
-	emitter.registerHandler.freeRegister(iRightOperand)
-
-	return indexSum, nil
 }
 
 
 //subtraction translates a subtraction to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter) subtraction(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.saveOperands(functionCtx)
+	sizeOperands, err := emitter.solveOperands(functionCtx)
 	if err != nil{
 		return 0, err
 	}
@@ -1911,7 +1908,7 @@ func (emitter *Emitter) subtraction(functionCtx *FunctionCtx) (int, error) {
 //shift translates a subtraction to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter) shift(functionCtx *FunctionCtx) (int, error) {
-	_, err := emitter.saveOperands(functionCtx)
+	_, err := emitter.solveOperands(functionCtx)
 	if err != nil {
 		return 0, err
 	}
@@ -1963,7 +1960,7 @@ func (emitter *Emitter) shift(functionCtx *FunctionCtx) (int, error) {
 //multiplication translates a multiplication to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
 func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (int, error) {
-	_, err := emitter.saveOperands(functionCtx)
+	_, err := emitter.solveOperands(functionCtx)
 	if err != nil{
 		return 0, err
 	}
@@ -2014,7 +2011,7 @@ func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (int, error) {
 
 //mod translates a % to opcodes and write it in emitter.machineCode, return the size of the datatype of the result and an error
 func (emitter *Emitter) mod(functionCtx *FunctionCtx) (int, error) {
-	_, err := emitter.saveOperands(functionCtx)
+	_, err := emitter.solveOperands(functionCtx)
 	if err != nil{
 		return 0, err
 	}
@@ -2099,7 +2096,7 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (int, error) {
 
 //division translates a / to opcodes and write it in emitter.machineCode, return the size of the datatype of the result and an error
 func (emitter *Emitter) division(functionCtx *FunctionCtx) (int, error) {
-	_, err := emitter.saveOperands(functionCtx)
+	_, err := emitter.solveOperands(functionCtx)
 	if err != nil{
 		return 0, err
 	}
@@ -2204,53 +2201,29 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (int, error) {
 	return 1, nil
 }
 
-//saveOperands save the operands of a operation in registers. It return the indexes of registers in which each operand
+//solveOperands save the operands of a operation in registers. It return the indexes of registers in which each operand
 //was stored and an error if needed
-func (emitter *Emitter) saveOperands(functionCtx *FunctionCtx) ([2]registersIndex, error){
+func (emitter *Emitter) solveOperands(functionCtx *FunctionCtx) (*ResultRegIndex, *ResultRegIndex, error){
 	leftOperand := emitter.ctxNode.Children[0]
 	rightOperand := emitter.ctxNode.Children[1]
 	backup := emitter.ctxNode
 	emitter.ctxNode = rightOperand
-	var index [2]registersIndex
 	var err error
-	index[1], err = emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	rightOperandRegIndex, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 	if err != nil{
-		return index, err
+		return nil, nil, err
 	}
 
 	emitter.ctxNode = leftOperand
-	index[0], err = emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	leftOperandRegIndex, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 	if err != nil{
-		return  index, err
+		return  nil, nil, err
 	}
 
 	emitter.ctxNode = backup
-	return index, nil
+	return leftOperandRegIndex, rightOperandRegIndex, nil
 
 }
-
-
-
-
-//takeRegisters receive the size of a data type and returns the index of a register available to store its value
-//err != nil when the are not enough registers available
-func (emitter *Emitter) takeRegisters(size int) (registersIndex, error) {
-	var index registersIndex
-	for i:=0; i<size;i++{
-		xi, ok := emitter.registerHandler.TakeRegister()
-		if !ok {
-			line := emitter.ctxNode.Value.Line
-			err := errors.New(errorhandler.TooManyRegisters(line))
-			return index, err
-		}else{
-			index[i] = xi
-		}
-
-	}
-	return index, nil
-}
-
-
 
 //index save in v0 (and maybe v1) the value of a dereference.
 //Returns the size of the datatype of the dereference and a error

@@ -1,32 +1,17 @@
 package emitter
 
 const NonAvailable = -1
-type registersIndex [2]byte
 
-func (index registersIndex) GetSize()int{
-	return len(index)
-}
-func (index registersIndex) GetFirstHalfIndex()byte{
-	return index[0]
-}
-func (index registersIndex) GetSecondHalfIndex()byte{
-	return index[1]
-}
-func (index registersIndex) GetIndex()byte{
-	return index.GetFirstHalfIndex()
-}
-func (index registersIndex) SetFirstHalfIndex(i byte){
-	index[0] = i
-}
-func (index registersIndex) SetSecondHalfIndex(i byte){
-	index[1] = i
-}
-func (index registersIndex) SetIndex(i byte){
-	 index.SetFirstHalfIndex(i)
+//ResultRegIndex stores the indexes of the registers in which a result is stored, and a field that says if the result
+//stored in the registers is a pointer (or a simple if false)
+type ResultRegIndex struct{
+	highBitsIndex byte //if the result is a pointer, highBitsIndex is the index of the register that stores the first 8 bits.
+	lowBitsIndex  byte //if the result is a pointer, lowBitsIndex is the index of the register  that stores the last 8 bits.
+	//if the result is a simple, lowBitsIndex is the index of the register in which the entire result is stored.
+	isPointer	bool
 }
 
-
-
+//RegisterHandler handle the availability of registers
 type RegisterHandler struct{
 	available [AmountOfRegistersToOperate]bool
 	nextAvailableRegister int
@@ -42,7 +27,26 @@ func NewRegisterHandler() *RegisterHandler{
 	return registerHandler
 }
 
-func (handler *RegisterHandler) TakeRegister() (byte, bool){
+//AllocSimple allocates a register for a simple, and returns its index. Returns false only when there are not enough registers
+//available
+func (handler *RegisterHandler) AllocSimple()(*ResultRegIndex, bool){
+	index, ok := handler.alloc()
+	return &ResultRegIndex{lowBitsIndex: index, isPointer: false}, ok
+}
+
+//AllocPointer allocates a register for a pointer, and returns its index. Returns false only when there are not enough registers
+//available
+func (handler *RegisterHandler) AllocPointer()(*ResultRegIndex, bool){
+	highBitsIndex, ok := handler.alloc()
+	if !ok{
+		return nil, ok
+	}
+	lowBitsIndex, ok := handler.alloc()
+	return &ResultRegIndex{highBitsIndex: highBitsIndex, lowBitsIndex: lowBitsIndex, isPointer: true}, ok
+
+}
+
+func (handler *RegisterHandler) alloc()(byte, bool){
 	if handler.nextAvailableRegister != NonAvailable{
 		registerToReturn := handler.nextAvailableRegister
 		handler.available[registerToReturn] = false
@@ -56,9 +60,18 @@ func (handler *RegisterHandler) TakeRegister() (byte, bool){
 		return byte(registerToReturn), true
 	}
 	return 0, false
+
 }
 
-func (handler *RegisterHandler) freeRegister(index byte){
+func (handler *RegisterHandler) Free(resultRegIndex *ResultRegIndex){
+	if resultRegIndex.isPointer{
+		handler.free(resultRegIndex.highBitsIndex)
+	}
+	handler.free(resultRegIndex.lowBitsIndex)
+
+}
+
+func (handler *RegisterHandler) free(index byte){
 	handler.available[index] = true
 	if handler.nextAvailableRegister > int(index){
 		handler.nextAvailableRegister = int(index)
