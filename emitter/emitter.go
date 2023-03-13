@@ -137,10 +137,10 @@ func (emitter *Emitter) Start() ([]byte, error){
 	emitter.machineCode[RomStart+4] = callMain[0]
 	emitter.machineCode[RomStart+5] = callMain[1]
 
-	//after main we want to repeit
-	repeit := I1NNN(RomStart)
-	emitter.machineCode[RomStart+6] = repeit[0]
-	emitter.machineCode[RomStart+7] = repeit[1]
+	//after main we want to repeat
+	repeat := I1NNN(RomStart)
+	emitter.machineCode[RomStart+6] = repeat[0]
+	emitter.machineCode[RomStart+7] = repeat[1]
 
 
 	return emitter.machineCode[RomStart:Memory-1], nil
