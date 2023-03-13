@@ -1802,46 +1802,74 @@ func (emitter *Emitter) xor(functionCtx *FunctionCtx) (int, error) {
 func (emitter *Emitter) sum(functionCtx *FunctionCtx) (registersIndex, error) {
 	const left = 0
 	const right = 1
-	registerSum := make(registersIndex,0)
-	z, ok := emitter.registerHandler.TakeRegister()
-	if !ok{
-		line := emitter.ctxNode.Value.Line
-		err := errors.New(errorhandler.TooManyRegisters(line))
-		return nil, err
-	}
-	registerSum = append(registerSum, z)
+	var indexSum registersIndex
 
 	indexOperands, err := emitter.saveOperands(functionCtx)
+	if err != nil {
+		return indexSum, err
+	}
+	indexSum, err = emitter.takeRegisters(indexOperands[left].GetSize()) //the sum has the same size than the left operand
 	if err != nil{
-		return nil, err
+		return indexSum, err
 	}
 
-	//if the left operand is a simple data type we just sum v_left = v_left +v_right
-	if len(indexOperands[left]) != SizePointer{
-		x := indexOperands[left][0]
-		y := indexOperands[right][0]
-		err := emitter.saveOpcode(I8XY4(0,2))
-		if err != nil{
-			return 0, err
+
+	//if the left operand is a simple we just sum vLeft = vLeft +vRight, and we return the result in
+	//a single register v_isum
+	if indexOperands[left].GetSize() != SizePointer {
+		iLeftOperand := indexOperands[left].GetIndex()
+		iRightOperand := indexOperands[right].GetIndex()
+		iSum := indexSum.GetIndex()
+		err := emitter.saveOpcode(I8XY4(iLeftOperand, iRightOperand))
+		if err != nil {
+			return indexSum, err
 		}
-		return 1, nil
+		err = emitter.saveOpcode(I8XY0(iSum, iLeftOperand))
+		if err != nil {
+			return indexSum, err
+		}
+		indexSum.SetIndex(iSum)
+		emitter.registerHandler.freeRegister(iLeftOperand)
+		emitter.registerHandler.freeRegister(iRightOperand)
+		return indexSum, nil
 	}
-	//if the left operands is a pointer we first sum v1 = v1 + v2
-	err = emitter.saveOpcode(I8XY4(1,2))
-	if err != nil{
-		return 0, err
+
+	iLeftOperand0 := indexOperands[left].GetFirstHalfIndex()
+	iLeftOperand1 := indexOperands[left].GetSecondHalfIndex()
+	iRightOperand := indexOperands[right].GetIndex()
+	iSum0 		  := indexSum.GetFirstHalfIndex()
+	iSum1 		  := indexSum.GetSecondHalfIndex()
+	//if the left operands is a pointer we first sum vLeft1 = vLeft1 + vRight
+	err = emitter.saveOpcode(I8XY4(iLeftOperand1, iRightOperand))
+	if err != nil {
+		return indexSum, err
 	}
-	//if vf = true, then v1 + v2 > 255, so we need to to v0 = v0 + 1
-	err = emitter.saveOpcode(I4XKK(0xf,True))
-	if err != nil{
-		return 0, err
+	//if carry = true, then vLeft1 + vRight > 255, so we need to set vLeft0 = vLeft0 + 1
+	err = emitter.saveOpcode(I4XKK(Carry, True))
+	if err != nil {
+		return indexSum, err
 	}
-	err = emitter.saveOpcode(I7XKK(0,1))
-	if err != nil{
-		return 0, err
+	err = emitter.saveOpcode(I7XKK(iLeftOperand0, 1))
+	if err != nil {
+		return indexSum, err
 	}
-	return 2, nil
+	//we save viSum0 = vLeft0, viSum1 = vLeft1
+	err = emitter.saveOpcode(I8XY0(iSum0, iLeftOperand0))
+	if err != nil {
+		return indexSum, err
+	}
+
+	err = emitter.saveOpcode(I8XY0(iSum1, iLeftOperand1))
+	if err != nil {
+		return indexSum, err
+	}
+	emitter.registerHandler.freeRegister(iLeftOperand0)
+	emitter.registerHandler.freeRegister(iLeftOperand1)
+	emitter.registerHandler.freeRegister(iRightOperand)
+
+	return indexSum, nil
 }
+
 
 //subtraction translates a subtraction to opcodes and write it in emitter.machineCode,
 //returns the size of the datatype of the result and an error
@@ -2176,8 +2204,8 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (int, error) {
 	return 1, nil
 }
 
-//saveOperands save the operands of a operation in registers. The left operand is saved in V0 (and maybe V1)
-//and the right operand is saved in V2 (and maybe V3). It returns the size of each operand and an error
+//saveOperands save the operands of a operation in registers. It return the indexes of registers in which each operand
+//was stored and an error if needed
 func (emitter *Emitter) saveOperands(functionCtx *FunctionCtx) ([2]registersIndex, error){
 	leftOperand := emitter.ctxNode.Children[0]
 	rightOperand := emitter.ctxNode.Children[1]
@@ -2203,6 +2231,24 @@ func (emitter *Emitter) saveOperands(functionCtx *FunctionCtx) ([2]registersInde
 
 
 
+
+//takeRegisters receive the size of a data type and returns the index of a register available to store its value
+//err != nil when the are not enough registers available
+func (emitter *Emitter) takeRegisters(size int) (registersIndex, error) {
+	var index registersIndex
+	for i:=0; i<size;i++{
+		xi, ok := emitter.registerHandler.TakeRegister()
+		if !ok {
+			line := emitter.ctxNode.Value.Line
+			err := errors.New(errorhandler.TooManyRegisters(line))
+			return index, err
+		}else{
+			index[i] = xi
+		}
+
+	}
+	return index, nil
+}
 
 
 
