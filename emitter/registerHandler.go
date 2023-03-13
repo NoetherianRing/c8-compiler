@@ -53,11 +53,11 @@ func (handler *RegisterHandler) alloc()(byte, bool){
 		for i:=0; i<AmountOfRegistersToOperate; i++{
 			if handler.available[i]{
 				handler.nextAvailableRegister = i
-				return byte(registerToReturn), true
+				return byte(registerToReturn+2), true //we return from index 2 because v0 and v1 are reserved
 			}
 		}
 		handler.nextAvailableRegister = NonAvailable
-		return byte(registerToReturn), true
+		return byte(registerToReturn+2), true
 	}
 	return 0, false
 
@@ -75,5 +75,19 @@ func (handler *RegisterHandler) free(index byte){
 	handler.available[index] = true
 	if handler.nextAvailableRegister > int(index){
 		handler.nextAvailableRegister = int(index)
+	}
+}
+
+func (handler *RegisterHandler) reserveRegister(index byte) bool{
+	if handler.nextAvailableRegister == int(index){
+		_, ok := handler.alloc()
+		return ok
+	}else{
+		if !handler.available[index]{
+			return false
+		}else{
+			handler.available[index] = false
+			return true
+		}
 	}
 }
