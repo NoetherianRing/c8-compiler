@@ -14,10 +14,11 @@ type Emitter struct{
 	offsetStack    		   int //we use this field to know the last address in which we save a variable in the stack
 	globalVariables		   map[string]uint16 //we save in globalVariables the address in which each global variable is stored
 	scope           	   *symboltable.Scope
+	registerHandler        *RegisterHandler
 	ctxNode         	   *ast.Node
 	machineCode    		   [Memory]byte
 	translateStatement     map[token.Type]func(*FunctionCtx)error
-	translateOperation	   map[token.Type]func(function *FunctionCtx) (int, error)
+	translateOperation	   map[token.Type]func(function *FunctionCtx) (registersIndex, error)
 	functions       	   map[string]uint16//we save in functions the address in which each function is stored
 	lastIndexSubScope	   int //in the context of a scope, lastIndexSubScope tells the numbers of sub-scopes already written in machineCode
 
@@ -32,6 +33,8 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 	emitter.lastIndexSubScope = 0
 	emitter.ctxNode = tree.Head
 
+	emitter.registerHandler = NewRegisterHandler()
+
 	emitter.translateStatement = make(map[token.Type]func(*FunctionCtx)error)
 
 	emitter.translateStatement[token.IF] = emitter._if
@@ -41,7 +44,7 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 	emitter.translateStatement[token.RPAREN] = emitter.voidCall
 	emitter.translateStatement[token.RETURN] = emitter._return
 
-	emitter.translateOperation = make(map[token.Type]func(*FunctionCtx)(int,error))
+	emitter.translateOperation = make(map[token.Type]func(*FunctionCtx)(registersIndex,error))
 
 	emitter.translateOperation[token.DOLLAR] = emitter.address
 	emitter.translateOperation[token.RPAREN] = emitter.parenthesis
@@ -414,37 +417,10 @@ func (emitter *Emitter) functionDeclaration()error{
 		return err
 	}
 
-	registers := NewRegisterOptimizer().optimizeRegisters(emitter.ctxNode, ctxReferences)
 	emitter.ctxNode = fn
 
-	//for each parameter we check if the register optimizer put it in a register, and if it did
-	//we save its value in that register
-	for _, param := range params {
-		reference, _ := ctxReferences.GetReference(param)
-		index, isInRegister := registers.guide[reference]
-		if isInRegister {
-			err = emitter.saveOpcode(I9XY1(RegisterStackAddress1, RegisterStackAddress2))
-			if err != nil {
-				return err
-			}
-			err = emitter.saveFX1ESafely(0, reference.positionStack)
-			if err != nil {
-				return err
-			}
-			err = emitter.saveOpcode(IFX65(0))
-			if err != nil {
-				return err
-			}
 
-			err = emitter.saveOpcode(I8XY0(0, byte(index)))
-			if err != nil {
-				return err
-			}
-		}
-
-	}
-
-	ctxFunction := NewCtxFunction(registers, ctxReferences)
+	ctxFunction := NewCtxFunction(ctxReferences)
 	if hasParams{
 		emitter.scope = emitter.scope.SubScopes[0]
 	}
@@ -469,7 +445,7 @@ func (emitter *Emitter) functionDeclaration()error{
 }
 
 //saveParamsInStack declare params in the stack and save its values there, returns the an error if needed
-func (emitter *Emitter) saveParamsInStack(params *[]string, ctxReferences *StackReferences, i int, sizeParams []int) error {
+func (emitter *Emitter) saveParamsInStack(params *[]string, ctxReferences *Stack, i int, sizeParams []int) error {
 	const IDENT = 0
 	//first we declare them in the stack
 	paramIdent := emitter.ctxNode.Children[IDENT].Value.Literal
@@ -500,7 +476,7 @@ func (emitter *Emitter) saveParamsInStack(params *[]string, ctxReferences *Stack
 	}
 	reference, _ := ctxReferences.GetReference(paramIdent)
 
-	err = emitter.saveFX1ESafely(2, reference.positionStack) // I = I + V2
+	err = emitter.saveFX1ESafely(2, reference.positionInStack) // I = I + V2
 	if err != nil {
 		return err
 	}
@@ -550,7 +526,7 @@ func (emitter *Emitter) moveCurrentAddress() error{
 }
 
 //declareInStack saves all variables of a function in its stack
-func (emitter *Emitter) declareInStack(ctxReferences *StackReferences) error {
+func (emitter *Emitter) declareInStack(ctxReferences *Stack) error {
 	backupCtxNode := emitter.ctxNode
 	backupScope := emitter.scope
 
@@ -613,7 +589,7 @@ func (emitter *Emitter) declareInStack(ctxReferences *StackReferences) error {
 }
 
 //let saves a specific variable in the stack of a function and update ctxReferences
-func (emitter *Emitter) let(ctxReferences *StackReferences) error{
+func (emitter *Emitter) let(ctxReferences *Stack) error{
 	IDENT := 0
 	ident := emitter.ctxNode.Children[IDENT].Value.Literal
 	ctxReferences.AddReference(ident, emitter.offsetStack)
@@ -679,8 +655,8 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error {
 	//if in the right side of the assign there is only a identifier, then it is a reference to a variable
 	if emitter.ctxNode.Value.Type == token.IDENT {
 		ident := emitter.ctxNode.Value.Literal
-		reference, referenceExists := functionCtx.StackReferences.GetReference(ident) //we check if it is saved in the stack
-		if !referenceExists{                                                          //if it is not saved in the stack it must be a global variable
+		_, referenceExists := functionCtx.Stack.GetReference(ident) //we check if it is saved in the stack
+		if !referenceExists{                                        //if it is not saved in the stack it must be a global variable
 
 			_, isAGlobalVariable := emitter.globalVariables[ident]
 			if !isAGlobalVariable{
@@ -702,42 +678,20 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error {
 
 			}
 		}else{//if it is stored in the stack
-			//we check if it is stored in one of the registers
-			indexReg, isInRegister := functionCtx.Registers.guide[reference]
+			// we look for the address of the reference in the stack, and we set I = address
 
-			if !isInRegister{//if its not in a register, we look for the address of the reference in the stack, and we set I = address
-
-				_,err := emitter.saveStackReferenceAddressInI(2, functionCtx)
-				if err != nil{
-					return err
-				}
-				//then we save v0 (and maybe v1) there
-				err =emitter.saveOpcode(IFX55(byte(size-1)))
-
-				if err != nil{
-					return err
-				}
-				return nil
-
-			}else{
-				//if it is stored in a register, we just do v(indexreg) = v0
-				//(because in order to be in a register the variable must be a simple). We also update it in memory
-				err = emitter.saveOpcode(I8XY0(byte(indexReg), 0))
-				if err != nil{
-					return err
-				}
-				_,err := emitter.saveStackReferenceAddressInI(2, functionCtx)
-				if err != nil{
-					return err
-				}
-				//then we save v0 there
-				err =emitter.saveOpcode(IFX55(byte(0)))
-
-				if err != nil{
-					return err
-				}
-				return nil
+			_,err := emitter.saveStackReferenceAddressInI(2, functionCtx)
+			if err != nil{
+				return err
 			}
+			//then we save v0 (and maybe v1) there
+			err =emitter.saveOpcode(IFX55(byte(size-1)))
+
+			if err != nil{
+				return err
+			}
+			return nil
+
 
 		}
 
@@ -967,9 +921,9 @@ func (emitter *Emitter)_while(functionCtx *FunctionCtx) error {
 func (emitter *Emitter)block(functionCtx *FunctionCtx) error {
 	lastIndexSubScopeBackup := emitter.lastIndexSubScope
 	scopeBackup := emitter.scope
-	addressesBackup := functionCtx.StackReferences
+	addressesBackup := functionCtx.Stack
 	emitter.scope = emitter.scope.SubScopes[emitter.lastIndexSubScope]
-	functionCtx.StackReferences = functionCtx.StackReferences.SubReferences[emitter.lastIndexSubScope]
+	functionCtx.Stack = functionCtx.Stack.SubReferences[emitter.lastIndexSubScope]
 	emitter.lastIndexSubScope = 0
 
 	block := emitter.ctxNode
@@ -987,7 +941,7 @@ func (emitter *Emitter)block(functionCtx *FunctionCtx) error {
 
 	emitter.lastIndexSubScope = lastIndexSubScopeBackup + 1
 	emitter.scope = scopeBackup
-	functionCtx.StackReferences = addressesBackup
+	functionCtx.Stack = addressesBackup
 	return nil
 }
 
@@ -1006,6 +960,12 @@ func (emitter *Emitter)voidCall(functionCtx *FunctionCtx)error{
 	_,err := emitter.call(functionCtx)
 	return err
 }
+
+func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error) {
+	const IDENT = 0
+}
+
+
 
 //call translates a call to opcodes and write it in emitter.machineCode, return the size of the datatype it returns and an error
 func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
@@ -1051,7 +1011,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 	}
 
 	//then we save again the previous registers in memory
-	err = emitter.saveVariableInRegister(functionCtx)
+	err = emitter.takeRegistersFromStack(functionCtx)
 	if err != nil {
 		return 0, err
 	}
@@ -1073,9 +1033,9 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 
 }
 
-func (emitter *Emitter) saveVariableInRegister(functionCtx *FunctionCtx)  error {
+func (emitter *Emitter) takeRegistersFromStack(functionCtx *FunctionCtx)  error {
 	for reference, indexRegister := range functionCtx.Registers.guide {
-		positionStack := functionCtx.StackReferences.References[reference.identifier].positionStack
+		positionStack := functionCtx.Stack.References[reference.identifier].positionInStack
 
 		err := emitter.saveOpcode(I9XY1(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
 		if err != nil {
@@ -1099,7 +1059,7 @@ func (emitter *Emitter) saveVariableInRegister(functionCtx *FunctionCtx)  error 
 
 func (emitter *Emitter) backupRegistersInStack(functionCtx *FunctionCtx) error{
 	for reference, indexRegister := range functionCtx.Registers.guide {
-		positionStack := functionCtx.StackReferences.References[reference.identifier].positionStack
+		positionStack := functionCtx.Stack.References[reference.identifier].positionInStack
 
 		err := emitter.saveOpcode(I9XY1(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
 		if err != nil {
@@ -1409,14 +1369,23 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(int, error){
 
  */
 
-//_byte save a byte in v0. Return the size of the byte datatype (1) and an error
-func (emitter *Emitter) _byte(functionCtx *FunctionCtx) (int, error) {
-	kk,_ := strconv.Atoi(emitter.ctxNode.Value.Literal)
-	err := emitter.saveOpcode(I6XKK(0, byte(kk))) // V0 = Byte
-	if err != nil{
-		return 0, err
+//_byte save a byte in a registers. Return the register index in which the byte was stored and an error if needed
+func (emitter *Emitter) _byte(functionCtx *FunctionCtx) (registersIndex, error) {
+	x, ok := emitter.registerHandler.TakeRegister()
+	var index registersIndex
+	index.SetIndex(x)
+	if !ok{
+		line := emitter.ctxNode.Value.Line
+		err := errors.New(errorhandler.TooManyRegisters(line))
+		return index, err
 	}
-	return 1, nil
+	kk, _ := strconv.Atoi(emitter.ctxNode.Value.Literal)
+	err := emitter.saveOpcode(I6XKK(x, byte(kk))) // Vx = Byte
+	if err != nil{
+		return index, err
+	}
+
+	return index, nil
 }
 
 //boolean save a boolean in v0. Return the size of the boolean datatype (1) and an error
@@ -1829,14 +1798,28 @@ func (emitter *Emitter) xor(functionCtx *FunctionCtx) (int, error) {
 
 
 //sum translates a sum to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
-func (emitter *Emitter) sum(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.saveOperands(functionCtx)
-	if err != nil{
-		return 0, err
+//returns the index of registers in which is stored the result and an error
+func (emitter *Emitter) sum(functionCtx *FunctionCtx) (registersIndex, error) {
+	const left = 0
+	const right = 1
+	registerSum := make(registersIndex,0)
+	z, ok := emitter.registerHandler.TakeRegister()
+	if !ok{
+		line := emitter.ctxNode.Value.Line
+		err := errors.New(errorhandler.TooManyRegisters(line))
+		return nil, err
 	}
-	//if the left operand is a simple data type we just sum v0 = v0 +v2
-	if sizeOperands[0] == 1{
+	registerSum = append(registerSum, z)
+
+	indexOperands, err := emitter.saveOperands(functionCtx)
+	if err != nil{
+		return nil, err
+	}
+
+	//if the left operand is a simple data type we just sum v_left = v_left +v_right
+	if len(indexOperands[left]) != SizePointer{
+		x := indexOperands[left][0]
+		y := indexOperands[right][0]
 		err := emitter.saveOpcode(I8XY4(0,2))
 		if err != nil{
 			return 0, err
@@ -2195,40 +2178,29 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (int, error) {
 
 //saveOperands save the operands of a operation in registers. The left operand is saved in V0 (and maybe V1)
 //and the right operand is saved in V2 (and maybe V3). It returns the size of each operand and an error
-func (emitter *Emitter) saveOperands(functionCtx *FunctionCtx) ([2]int, error){
+func (emitter *Emitter) saveOperands(functionCtx *FunctionCtx) ([2]registersIndex, error){
 	leftOperand := emitter.ctxNode.Children[0]
 	rightOperand := emitter.ctxNode.Children[1]
 	backup := emitter.ctxNode
 	emitter.ctxNode = rightOperand
-	var sizes [2]int
-	size, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	var index [2]registersIndex
+	var err error
+	index[1], err = emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 	if err != nil{
-		return sizes, err
+		return index, err
 	}
-	sizes[1] = size
 
-	err = emitter.saveOpcode(I8XY0(2,0))
-	if err != nil{
-		return sizes, err
-	}
-	if size > 1{
-		err = emitter.saveOpcode(I8XY0(3,1))
-		if err != nil{
-			return sizes, err
-		}
-
-	}
 	emitter.ctxNode = leftOperand
-	size, err = emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	index[0], err = emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 	if err != nil{
-		return  sizes, err
+		return  index, err
 	}
-	sizes[0] = size
 
 	emitter.ctxNode = backup
-	return sizes, nil
+	return index, nil
 
 }
+
 
 
 
@@ -2270,32 +2242,25 @@ func (emitter *Emitter)ident(functionCtx *FunctionCtx) (int, error){
 	ident := emitter.ctxNode.Value.Literal
 	var err error
 	var size int
-	indexReference, isInRegister := functionCtx.Registers.guide[functionCtx.StackReferences.References[ident]]
-	if isInRegister{
-		size = 1
-		err =emitter.saveOpcode(I8XY0(0, byte(indexReference)))
+
+	_, isGlobalReference := emitter.globalVariables[ident]
+	if isGlobalReference{
+		size, err = emitter.saveGlobalReferenceAddressInI(0,1)
 		if err != nil{
 			return 0, err
 		}
 	}else{
-		_, isGlobalReference := emitter.globalVariables[ident]
-		if isGlobalReference{
-			size, err = emitter.saveGlobalReferenceAddressInI(0,1)
-			if err != nil{
-				return 0, err
-			}
-		}else{
-			size, err = emitter.saveStackReferenceAddressInI(0,functionCtx)
-			if err != nil{
-				return 0, err
-			}
-		}
-		err = emitter.saveOpcode(IFX65(byte(size-1)))
+		size, err = emitter.saveStackReferenceAddressInI(0,functionCtx)
 		if err != nil{
 			return 0, err
 		}
-
 	}
+	err = emitter.saveOpcode(IFX65(byte(size-1)))
+	if err != nil{
+		return 0, err
+	}
+
+
 	return size, nil
 }
 
@@ -2364,7 +2329,7 @@ func (emitter *Emitter)saveDereferenceAddressInI(functionCtx *FunctionCtx) (int,
 	leaf := GetLeafByRight(emitter.ctxNode)
 	emitter.ctxNode = leaf
 	leafIdent := emitter.ctxNode.Value.Literal
-	_, isInStack := functionCtx.StackReferences.References[leafIdent]
+	_, isInStack := functionCtx.Stack.References[leafIdent]
 	if !isInStack{
 		_, isInGlobalMemory := emitter.globalVariables[leafIdent]
 		if !isInGlobalMemory{
@@ -2428,7 +2393,7 @@ func (emitter *Emitter)saveDereferenceAddressInI(functionCtx *FunctionCtx) (int,
 //Returns the size of the reference it points to and an error
 func (emitter *Emitter)saveStackReferenceAddressInI( x byte, functionCtx *FunctionCtx)(int, error){
 	ident := emitter.ctxNode.Value.Literal
-	reference, ok := functionCtx.StackReferences.References[ident]
+	reference, ok := functionCtx.Stack.References[ident]
 	if !ok{
 		return 0, errors.New(errorhandler.UnexpectedCompilerError())
 	}
@@ -2441,7 +2406,7 @@ func (emitter *Emitter)saveStackReferenceAddressInI( x byte, functionCtx *Functi
 		return 0, err
 	}
 
-	return size, emitter.saveFX1ESafely(x, reference.positionStack)
+	return size, emitter.saveFX1ESafely(x, reference.positionInStack)
 
 }
 
