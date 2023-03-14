@@ -963,6 +963,7 @@ func (emitter *Emitter)voidCall(functionCtx *FunctionCtx)error{
 //returns the indexes of registers in which the return value is stored and an error if needed
 func (emitter *Emitter)call(functionCtx *FunctionCtx)(*ResultRegIndex, error) {
 	const IDENT = 0
+	ident := emitter.ctxNode.Children[IDENT].Value.Literal
 
 	//we first backup all registers of the current function in  the stack
 	err := emitter.backupRegistersInMemory(functionCtx)
@@ -971,12 +972,11 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(*ResultRegIndex, error) {
 	}
 	emitter.offsetStack+=AmountOfRegistersToOperate
 	//then we save the params of the function call in registers
-	err = emitter.saveParamsInRegisters(functionCtx)
+	err = emitter.saveParamsInRegisters(functionCtx, ident)
 	if err != nil {
 		return nil, err
 	}
 
-	ident := emitter.ctxNode.Children[IDENT].Value.Literal
 	//we call the function
 	fnAddress, _ := emitter.functions[ident]
 	err = emitter.saveOpcode(I2NNN(fnAddress))
@@ -1072,137 +1072,73 @@ func (emitter *Emitter) backupRegistersInMemory(functionCtx *FunctionCtx) error{
 	return nil
 }
 
-func (emitter *Emitter) saveParamsInRegisters(functionCtx *FunctionCtx) error {
+
+func (emitter *Emitter) saveParamsInRegisters(functionCtx *FunctionCtx, ident string) error {
 	const PARAMS = 1
 	backupNode := emitter.ctxNode
-
-	backupRegisterHandler := functionCtx.registerHandler
-	functionCtx.registerHandler := NewRegisterHandler()
-	/
-
-	paramSizes := 0
-	i:=2
 	if len(emitter.ctxNode.Children) > 1 { //we ask if it has any param
-
+		function := emitter.scope.Symbols[ident]
+		params := function.DataType.(symboltable.Function).Args
 		emitter.ctxNode = emitter.ctxNode.Children[PARAMS]
+		i:=2 //we store the params in registers from v2
+
+		backupRegisterHandler := functionCtx.registerHandler
+		functionCtx.registerHandler = NewRegisterHandler()  //we free all the registers
+
 		for emitter.ctxNode.Value.Type == token.COMMA {
 			backupComma := emitter.ctxNode
 			emitter.ctxNode = emitter.ctxNode.Children[0]
-			functionCtx.registerHandler.reserveRegister(byte(i))
-			//we save in v0(and maybe v1) the value of the parameter being analyzed
-			resultRegIndex, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
-			if err != nil {
-				return  err
-			}
-			err = emitter.saveOpcode(I9XY1(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
-			if err != nil {
-				return  err
-			}
-			err = emitter.saveFX1ESafely(2, emitter.offsetStack) //we move I = last address in the stack
-			if err != nil {
+			err, ok := emitter.saveParamInRegisters(functionCtx, params, i)
+			if ok {
 				return err
 			}
-
-			err = emitter.saveOpcode(IFX55(byte(size-1))) //we save the param in the stack
-			if err != nil {
-				return err
-			}
-
-			paramSizes += size
-			emitter.offsetStack += size
+			i+=symboltable.GetSize(params[i-2])
 			emitter.ctxNode = backupComma
 			emitter.ctxNode = emitter.ctxNode.Children[1]
 		}
-		//emitter.ctxNode = emitter.ctxNode.Children[0]
-		//we save in v0(and maybe v1) the value of the parameter being analyzed
-		size, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
-		if err != nil {
-			return  err
-		}
-		err = emitter.saveOpcode(I9XY1(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
-		if err != nil {
+		err, ok := emitter.saveParamInRegisters(functionCtx, params, i)
+		if ok {
 			return err
 		}
-		err = emitter.saveFX1ESafely(2, emitter.offsetStack) //we move I = last address in the stack
-		if err != nil {
-			return  err
-		}
+		functionCtx.registerHandler = backupRegisterHandler
 
-		paramSizes += size
-		err = emitter.saveOpcode(IFX55(byte(size-1))) //we save the param in the stack
-		if err != nil {
-			return err
-		}
-
-	}
-	//now that all the params are saved in the stack, we store them in registers
-
-	emitter.offsetStack = backupStack
-
-	if emitter.offsetStack - 2 < 0{
-		toSubtract := (emitter.offsetStack-2)*(-1)
-
-		// we save VD and VE in V0 and V1 and the number to subtract in v2
-		err := emitter.saveOpcode(I8XY0(0,0xD))
-		if err != nil{
-			return err
-		}
-
-		err = emitter.saveOpcode(I8XY0(1,0xE))
-		if err != nil{
-			return err
-		}
-
-		err = emitter.saveOpcode(I6XKK(2,byte(toSubtract)))
-		if err != nil{
-			return err
-		}
-
-		//we first subtract v1 = v1 - v2
-		err = emitter.saveOpcode(I8XY5(1,2))
-		if err != nil{
-			return err
-		}
-		//because we already use v2, we can now use it as an aux, v2 = 1
-		err = emitter.saveOpcode(I6XKK(2,1))
-		if err != nil{
-			return err
-		}
-		//if vf = false, then v1 - v2 < 0, so we need to set v0 = v0 - 1
-		err = emitter.saveOpcode(I4XKK(0xf,False))
-		if err != nil{
-			return err
-		}
-		err = emitter.saveOpcode(I8XY5(0,2))
-		if err != nil{
-			return err
-		}
-
-		//now we set I = stack - offset - 2
-		err = emitter.saveOpcode(I9XY1(0, 1))
-		if err != nil {
-			return  err
-		}
-
-	}else{
-		err := emitter.saveOpcode(I9XY1(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
-		if err != nil {
-			return  err
-		}
-		err = emitter.saveFX1ESafely(2, emitter.offsetStack-2) //we move I = I + (offsetStack-2) because we want the params
-		//to start in v2
-		if err != nil {
-			return  err
-		}
-
-	}
-
-	err := emitter.saveOpcode(IFX65(byte(paramSizes -1 + 2))) //we read the param in the stack (from v2 through v(ParamSize+2))
-	if err != nil {
-		return  err
 	}
 	emitter.ctxNode = backupNode
 	return nil
+}
+
+
+
+func (emitter *Emitter) saveParamInRegisters(functionCtx *FunctionCtx, params []interface{}, i int) (error, bool) {
+	//because we free the rest of registers, it allocates the params in order from v2
+	paramRegIndex, ok := functionCtx.registerHandler.Alloc(params[i-2])
+	if !ok {
+		line := emitter.ctxNode.Value.Line
+		err := errors.New(errorhandler.TooManyRegisters(line))
+		return err, true
+	}
+
+	//we save in registers the value of the parameter being analyzed
+	resultRegIndex, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	if err != nil {
+		return err, true
+	}
+
+	//and we save the result in the register reserved for that param
+	err = emitter.saveOpcode(I8XY0(paramRegIndex.lowBitsIndex, resultRegIndex.lowBitsIndex))
+
+	if err != nil {
+		return err, true
+	}
+	if paramRegIndex.isPointer {
+		err = emitter.saveOpcode(I8XY0(paramRegIndex.highBitsIndex, resultRegIndex.highBitsIndex))
+		if err != nil {
+			return err, true
+		}
+
+	}
+	functionCtx.registerHandler.Free(resultRegIndex)
+	return nil, false
 }
 
 //_byte save a byte in a registers. Return the register index in which the byte was stored and an error if needed

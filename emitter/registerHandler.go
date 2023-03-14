@@ -1,5 +1,7 @@
 package emitter
 
+import "github.com/NoetherianRing/c8-compiler/symboltable"
+
 const NonAvailable = -1
 
 //ResultRegIndex stores the indexes of the registers in which a result is stored, and a field that says if the result
@@ -27,6 +29,21 @@ func NewRegisterHandler() *RegisterHandler{
 	return registerHandler
 }
 
+//Alloc receive a datatype and allocates registers to save its value, and returns its index.
+//Returns false when there are not enough registers available or if the datatype is not valid
+func (handler *RegisterHandler) Alloc(datatype interface{})(*ResultRegIndex, bool){
+	switch datatype.(type) {
+	case symboltable.Simple:
+		return handler.AllocSimple()
+	case symboltable.Pointer:
+		return handler.AllocPointer()
+	default:
+		return nil, false
+	}
+
+}
+
+
 //AllocSimple allocates a register for a simple, and returns its index. Returns false only when there are not enough registers
 //available
 func (handler *RegisterHandler) AllocSimple()(*ResultRegIndex, bool){
@@ -34,7 +51,7 @@ func (handler *RegisterHandler) AllocSimple()(*ResultRegIndex, bool){
 	return &ResultRegIndex{lowBitsIndex: index, isPointer: false}, ok
 }
 
-//AllocPointer allocates a register for a pointer, and returns its index. Returns false only when there are not enough registers
+//AllocPointer allocates two register for a pointer, and returns its index. Returns false only when there are not enough registers
 //available
 func (handler *RegisterHandler) AllocPointer()(*ResultRegIndex, bool){
 	highBitsIndex, ok := handler.alloc()
@@ -75,19 +92,5 @@ func (handler *RegisterHandler) free(index byte){
 	handler.available[index] = true
 	if handler.nextAvailableRegister > int(index){
 		handler.nextAvailableRegister = int(index)
-	}
-}
-
-func (handler *RegisterHandler) reserveRegister(index byte) bool{
-	if handler.nextAvailableRegister == int(index){
-		_, ok := handler.alloc()
-		return ok
-	}else{
-		if !handler.available[index]{
-			return false
-		}else{
-			handler.available[index] = false
-			return true
-		}
 	}
 }
