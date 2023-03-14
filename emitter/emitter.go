@@ -1845,86 +1845,72 @@ func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (*ResultRegInde
 //mod translates a % to opcodes and write it in emitter.machineCode,
 //returns the index of register in which the result is stored and an error
 func (emitter *Emitter) mod(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
-	_, err := emitter.solveOperands(functionCtx)
+	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-
-	err = emitter.saveOpcode(I4XKK(0, 0))//if v0 != 0 we skip the next opcode
+	err = emitter.saveOpcode(I4XKK(leftOperandRegIndex.lowBitsIndex, 0))//if vx != 0 we skip the next opcode
 
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	//if v0 =0, the result is 0 and we skip the operation
-	skipMod := I1NNN(emitter.currentAddress+10)
+	//if vx =0, the result is 0 and we skip the operation
+	skipMod := I1NNN(emitter.currentAddress+9)
 	err = emitter.saveOpcode(skipMod)
 
-	err = emitter.saveOpcode(I6XKK(1, 255)) //v1 = 255. We can use it as a helper because both operands are simples in the context of %
-
-
+	//we use v0 as an aux
+	aux := byte(0)
+	err = emitter.saveOpcode(I6XKK(aux, 255)) //v0 = 255.
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	err = emitter.saveOpcode(I6XKK(0xf, 0))	 // Vf = 0
-
-
+	err = emitter.saveOpcode(I6XKK(Carry, False))	 // Vf = 0
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	err = emitter.saveOpcode(I8XY5(0, 2))  // V0 = V0-V2
-
-
-	if err != nil{
-		return 0, err
-	}
-	err = emitter.saveOpcode( I4XKK(0, 0))	 //if v0 != 0 we skip the next opcode
-
+	err = emitter.saveOpcode(I8XY5(leftOperandRegIndex.lowBitsIndex,
+		rightOperandRegIndex.lowBitsIndex))  // Vx = Vx-Vy
 
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	//so if v0 =0, we need stop dividing and we jump to the end
-	jumpToEnd := I1NNN(emitter.currentAddress+5)
+	err = emitter.saveOpcode( I4XKK(leftOperandRegIndex.lowBitsIndex, 0))	 //if vx != 0 we skip the next opcode
+	if err != nil{
+		return nil, err
+	}
+
+	//so if vx =0, we need stop dividing and we jump to the end
+	jumpToEnd := I1NNN(emitter.currentAddress+4)
 	err = emitter.saveOpcode(jumpToEnd)
-
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	err = emitter.saveOpcode(I3XKK(0xf, 0))	//if not we ask if v0>v2
-
-
+	//if vx!=0, we ask if v0>v2 (vf = 0?)
+	err = emitter.saveOpcode(I3XKK(Carry, 0))
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
+
 	//if v0>v2 we keep dividing in loop by jumping
 	loop := I1NNN(emitter.currentAddress-5)
 	err = emitter.saveOpcode(loop)
-
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	//if not we jump the previous opcode and we find the rest by subtracting 255 (saved in v1) and v0.
+	//if not we jump the previous opcode and we find the rest by subtracting 255 (saved in v0) and vx.
 	//That give us the rest
-	err = emitter.saveOpcode(I8XY5(1, 0))//  = V1-V0
-
-
-	if err != nil{
-		return 0, err
-	}
-
-	err = emitter.saveOpcode(I8XY5(0, 1))  //  = V0 = V1 to save the rest in v0
-
+	err = emitter.saveOpcode(I8XY5(aux, leftOperandRegIndex.lowBitsIndex))//  = V1-Vx
 
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-
-	return 1, nil
+	functionCtx.registerHandler.Free(rightOperandRegIndex)
+	return leftOperandRegIndex, nil
 }
 
 
