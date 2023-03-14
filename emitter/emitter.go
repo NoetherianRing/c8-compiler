@@ -963,13 +963,16 @@ func (emitter *Emitter)voidCall(functionCtx *FunctionCtx)error{
 //returns the indexes of registers in which the return value is stored and an error if needed
 func (emitter *Emitter)call(functionCtx *FunctionCtx)(*ResultRegIndex, error) {
 	const IDENT = 0
+
 	ident := emitter.ctxNode.Children[IDENT].Value.Literal
 
 	//we first backup all registers of the current function in  the stack
-	err := emitter.backupRegistersInMemory(functionCtx)
+	err := emitter.backupRegistersInMemory(emitter.offsetStack)
 	if err != nil {
 		return nil, err
 	}
+
+	backupOffsetStack := emitter.offsetStack
 	emitter.offsetStack+=AmountOfRegistersToOperate
 	//then we save the params of the function call in registers
 	err = emitter.saveParamsInRegisters(functionCtx, ident)
@@ -998,20 +1001,19 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(*ResultRegIndex, error) {
 			return nil, err
 		}
 		emitter.offsetStack += size
-		err = emitter.saveOpcode(IFX55(byte(size-1))) //TODO: By now size is always 1
+		err = emitter.saveOpcode(IFX55(byte(size-1))) //size is always 1
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	//then we save again the previous registers in memory
-	err = emitter.takeRegistersFromMemory(functionCtx)
+	err = emitter.takeRegistersFromMemory(emitter.offsetStack-AmountOfRegistersToOperate-size)
 	if err != nil {
 		return nil, err
 	}
 
-	//and if it wasn't a void function, we save again the return values in a register
-
+	//and if it wasn't a void function, we save again the return value in a register
 	if size != 0 {
 		regIndex, ok := functionCtx.registerHandler.AllocSimple()
 		if !ok{
@@ -1035,32 +1037,20 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(*ResultRegIndex, error) {
 
 
 	}
+	emitter.offsetStack = backupOffsetStack
+
 	return nil, nil
 
 }
 
-func (emitter *Emitter) takeRegistersFromMemory(functionCtx *FunctionCtx)  error {
+//backupRegistersInMemory stores the registers in the stack at position "offset" which receives as a parameter.
+//Returns an error if needed
+func (emitter *Emitter) backupRegistersInMemory(offset int) error{
 	err := emitter.saveOpcode(I9XY1(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
 	if err != nil {
 		return err
 	}
-	err = emitter.saveFX1ESafely(0, emitter.offsetStack) //I = I + offset
-	if err != nil {
-		return  err
-	}
-	err = emitter.saveOpcode(IFX65(AmountOfRegistersToOperate-1))
-	if err != nil {
-		return  err
-	}
-	return nil
-}
-
-func (emitter *Emitter) backupRegistersInMemory(functionCtx *FunctionCtx) error{
-	err := emitter.saveOpcode(I9XY1(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
-	if err != nil {
-		return err
-	}
-	err = emitter.saveFX1ESafely(0, emitter.offsetStack) //I = I + offset
+	err = emitter.saveFX1ESafely(0, offset) //I = I + offset
 	if err != nil {
 		return  err
 	}
@@ -1072,7 +1062,25 @@ func (emitter *Emitter) backupRegistersInMemory(functionCtx *FunctionCtx) error{
 	return nil
 }
 
+//takeRegistersFromMemory reads the registers from the stack at position "offset" which it receives as a parameter.
+//Returns an error if needed
+func (emitter *Emitter) takeRegistersFromMemory(offset int)  error {
+	err := emitter.saveOpcode(I9XY1(RegisterStackAddress1, RegisterStackAddress2)) // I = address stack
+	if err != nil {
+		return err
+	}
+	err = emitter.saveFX1ESafely(0, offset) //I = I + offset
+	if err != nil {
+		return  err
+	}
+	err = emitter.saveOpcode(IFX65(AmountOfRegistersToOperate-1))
+	if err != nil {
+		return  err
+	}
+	return nil
+}
 
+//saveParamsInRegisters saves the params of a function call in registers from v2. Returns an error if needed
 func (emitter *Emitter) saveParamsInRegisters(functionCtx *FunctionCtx, ident string) error {
 	const PARAMS = 1
 	backupNode := emitter.ctxNode
@@ -1088,18 +1096,19 @@ func (emitter *Emitter) saveParamsInRegisters(functionCtx *FunctionCtx, ident st
 		for emitter.ctxNode.Value.Type == token.COMMA {
 			backupComma := emitter.ctxNode
 			emitter.ctxNode = emitter.ctxNode.Children[0]
-			err, ok := emitter.saveParamInRegisters(functionCtx, params, i)
-			if ok {
+			err := emitter.saveParamInRegisters(functionCtx, params, i)
+			if err!=nil {
 				return err
 			}
 			i+=symboltable.GetSize(params[i-2])
 			emitter.ctxNode = backupComma
 			emitter.ctxNode = emitter.ctxNode.Children[1]
 		}
-		err, ok := emitter.saveParamInRegisters(functionCtx, params, i)
-		if ok {
+		err := emitter.saveParamInRegisters(functionCtx, params, i)
+		if err != nil{
 			return err
 		}
+
 		functionCtx.registerHandler = backupRegisterHandler
 
 	}
@@ -1108,37 +1117,38 @@ func (emitter *Emitter) saveParamsInRegisters(functionCtx *FunctionCtx, ident st
 }
 
 
-
-func (emitter *Emitter) saveParamInRegisters(functionCtx *FunctionCtx, params []interface{}, i int) (error, bool) {
+//saveParamsInRegisters saves the param of a function call in the register v_i-2 (and v_i-1 if needed).
+//Returns an error if needed
+func (emitter *Emitter) saveParamInRegisters(functionCtx *FunctionCtx, params []interface{}, i int) error {
 	//because we free the rest of registers, it allocates the params in order from v2
 	paramRegIndex, ok := functionCtx.registerHandler.Alloc(params[i-2])
 	if !ok {
 		line := emitter.ctxNode.Value.Line
 		err := errors.New(errorhandler.TooManyRegisters(line))
-		return err, true
+		return err
 	}
 
 	//we save in registers the value of the parameter being analyzed
 	resultRegIndex, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 	if err != nil {
-		return err, true
+		return err
 	}
 
 	//and we save the result in the register reserved for that param
 	err = emitter.saveOpcode(I8XY0(paramRegIndex.lowBitsIndex, resultRegIndex.lowBitsIndex))
 
 	if err != nil {
-		return err, true
+		return err
 	}
 	if paramRegIndex.isPointer {
 		err = emitter.saveOpcode(I8XY0(paramRegIndex.highBitsIndex, resultRegIndex.highBitsIndex))
 		if err != nil {
-			return err, true
+			return err
 		}
 
 	}
 	functionCtx.registerHandler.Free(resultRegIndex)
-	return nil, false
+	return nil
 }
 
 //_byte save a byte in a registers. Return the register index in which the byte was stored and an error if needed

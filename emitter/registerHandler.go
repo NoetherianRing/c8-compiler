@@ -15,13 +15,13 @@ type ResultRegIndex struct{
 
 //RegisterHandler handle the availability of registers
 type RegisterHandler struct{
-	available [AmountOfRegistersToOperate]bool
+	available [AmountOfRegistersToOperate-2]bool //we subtract 2 because the register v0 and v1 are not handled in the same way
 	nextAvailableRegister int
 }
 
 func NewRegisterHandler() *RegisterHandler{
 	registerHandler := new(RegisterHandler)
-	for i:=0; i<AmountOfRegistersToOperate; i++{
+	for i:=0; i<AmountOfRegistersToOperate-2; i++{
 		registerHandler.available[i] = true
 
 	}
@@ -67,7 +67,7 @@ func (handler *RegisterHandler) alloc()(byte, bool){
 	if handler.nextAvailableRegister != NonAvailable{
 		registerToReturn := handler.nextAvailableRegister
 		handler.available[registerToReturn] = false
-		for i:=0; i<AmountOfRegistersToOperate; i++{
+		for i:=0; i<AmountOfRegistersToOperate-2; i++{
 			if handler.available[i]{
 				handler.nextAvailableRegister = i
 				return byte(registerToReturn+2), true //we return from index 2 because v0 and v1 are reserved
