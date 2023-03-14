@@ -1641,13 +1641,7 @@ func (emitter *Emitter) sum(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 	}
 
 	if leftRegIndex.isPointer{
-		//the sum has the same size than the left operand
-		sumRegIndex, ok := functionCtx.registerHandler.AllocPointer()
-		if !ok{
-			line := emitter.ctxNode.Value.Line
-			err := errors.New(errorhandler.TooManyRegisters(line))
-			return nil, err
-		}
+
 		//if the left operands is a pointer we first sum vLeft1 = vLeft1 + vRight
 		err = emitter.saveOpcode(I8XY4(leftRegIndex.lowBitsIndex, rightRegIndex.lowBitsIndex))
 		if err != nil {
@@ -1662,41 +1656,20 @@ func (emitter *Emitter) sum(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 		if err != nil {
 			return nil, err
 		}
-		//we save viSum0 = vLeft0, viSum1 = vLeft1
-		err = emitter.saveOpcode(I8XY0(sumRegIndex.highBitsIndex, leftRegIndex.highBitsIndex))
-		if err != nil {
-			return nil, err
-		}
 
-		err = emitter.saveOpcode(I8XY0(sumRegIndex.lowBitsIndex, leftRegIndex.lowBitsIndex))
-		if err != nil {
-			return nil, err
-		}
-		functionCtx.registerHandler.Free(leftRegIndex)
 		functionCtx.registerHandler.Free(rightRegIndex)
 
-		return sumRegIndex, nil
+		return leftRegIndex, nil
 	}else{
-		sumRegIndex, ok := functionCtx.registerHandler.AllocSimple()
-		if !ok{
-			line := emitter.ctxNode.Value.Line
-			err := errors.New(errorhandler.TooManyRegisters(line))
-			return nil, err
-		}
-		//if the left operand is a simple we just sum vLeft = vLeft +vRight, and we return the result in
-		//a single register v_isum
+
+		//if the left operand is a simple we just sum vLeft = vLeft +vRight
 		err := emitter.saveOpcode(I8XY4(leftRegIndex.lowBitsIndex, rightRegIndex.lowBitsIndex))
 		if err != nil {
 			return nil, err
 		}
-		err = emitter.saveOpcode(I8XY0(sumRegIndex.lowBitsIndex, leftRegIndex.lowBitsIndex))
-		if err != nil {
-			return nil, err
-		}
 
-		functionCtx.registerHandler.Free(leftRegIndex)
 		functionCtx.registerHandler.Free(rightRegIndex)
-		return sumRegIndex, nil
+		return leftRegIndex, nil
 
 	}
 
@@ -1711,32 +1684,15 @@ func (emitter *Emitter) subtraction(functionCtx *FunctionCtx) (*ResultRegIndex, 
 	if err != nil{
 		return nil, err
 	}
-	var resultRegIndex *ResultRegIndex
-	var ok bool
 	//the result is going to be of the same data type that the left operand
 	if !leftOperandRegIndex.isPointer{
 		//if the left operand is a simple data type we just subtract vx = vx - vy, and save the result in a new register
-		resultRegIndex, ok = functionCtx.registerHandler.AllocSimple()
-		if !ok{
-			line := emitter.ctxNode.Value.Line
-			err := errors.New(errorhandler.TooManyRegisters(line))
-			return nil, err
-		}
 		err := emitter.saveOpcode(I8XY5(leftOperandRegIndex.lowBitsIndex,rightOperandRegIndex.lowBitsIndex))
 		if err != nil{
 			return nil, err
 		}
-		err = emitter.saveOpcode(I8XY0(resultRegIndex.lowBitsIndex,leftOperandRegIndex.lowBitsIndex))
-		if err != nil{
-			return nil, err
-		}
 	}else{
-		resultRegIndex, ok = functionCtx.registerHandler.AllocPointer()
-		if !ok{
-			line := emitter.ctxNode.Value.Line
-			err := errors.New(errorhandler.TooManyRegisters(line))
-			return nil, err
-		}
+
 		//if the left operands is a pointer we first subtract vx1 = vx1 - vy
 		err = emitter.saveOpcode(I8XY5(leftOperandRegIndex.lowBitsIndex,rightOperandRegIndex.lowBitsIndex))
 		if err != nil{
@@ -1753,25 +1709,15 @@ func (emitter *Emitter) subtraction(functionCtx *FunctionCtx) (*ResultRegIndex, 
 		if err != nil{
 			return nil, err
 		}
-		err = emitter.saveOpcode(I8XY5(leftOperandRegIndex.highBitsIndex,2))
+		err = emitter.saveOpcode(I8XY5(leftOperandRegIndex.highBitsIndex,aux))
 		if err != nil{
 			return nil, err
 		}
 
-		//now we set the result in new registers
-		err = emitter.saveOpcode(I8XY0(resultRegIndex.lowBitsIndex,leftOperandRegIndex.lowBitsIndex))
-		if err != nil{
-			return nil, err
-		}
-		err = emitter.saveOpcode(I8XY0(resultRegIndex.highBitsIndex,leftOperandRegIndex.highBitsIndex))
-		if err != nil{
-			return nil, err
-		}
+
 	}
-
-	functionCtx.registerHandler.Free(leftOperandRegIndex)
 	functionCtx.registerHandler.Free(rightOperandRegIndex)
-	return resultRegIndex, nil
+	return leftOperandRegIndex, nil
 
 }
 
