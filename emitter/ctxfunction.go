@@ -5,7 +5,6 @@ type FunctionCtx struct{
 	stack           *Stack
 }
 
-func NewCtxFunction(stackReferences *Stack)*FunctionCtx {
-	registerHandler := NewRegisterHandler()
+func NewCtxFunction(registerHandler *RegisterHandler, stackReferences *Stack)*FunctionCtx {
 	return &FunctionCtx{registerHandler, stackReferences}
 }

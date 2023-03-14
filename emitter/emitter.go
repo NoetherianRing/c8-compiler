@@ -359,7 +359,7 @@ func (emitter *Emitter) drawDeclaration ()error {
 	return emitter.saveOpcode(I00EE())
 
 }
-//function declaration save all the instructions of a function in memory
+//functionDeclaration save all the instructions of a function in memory
 func (emitter *Emitter) functionDeclaration()error{
 	const IDENT = 0
 	const ARG = 1
@@ -374,7 +374,6 @@ func (emitter *Emitter) functionDeclaration()error{
 	emitter.functions[functionName] = emitter.currentAddress //the function starts at the current address
 
 	mainScope := emitter.scope
-//	emitter.scope = emitter.scope.SubScopes[len(emitter.functions)-1]
 	ctxReferences := NewStackReferences()
 
 	//we save the arguments in the stack
@@ -385,7 +384,7 @@ func (emitter *Emitter) functionDeclaration()error{
 		hasParams = true
 		funcSymbol := emitter.scope.Symbols[functionName]
  		sizeParams := obtainSizeParams(funcSymbol.DataType.(symboltable.Function).Args)
-		i := 0
+		i := 2
 		var err error
 		emitter.ctxNode = emitter.ctxNode.Children[ARG].Children[0]
 		for emitter.ctxNode.Value.Type == token.COMMA{
@@ -417,8 +416,8 @@ func (emitter *Emitter) functionDeclaration()error{
 
 	emitter.ctxNode = fn
 
-
-	ctxFunction := NewCtxFunction(ctxReferences)
+	registerHandler := NewRegisterHandler()
+	ctxFunction := NewCtxFunction(registerHandler, ctxReferences)
 	if hasParams{
 		emitter.scope = emitter.scope.SubScopes[0]
 	}
@@ -453,15 +452,14 @@ func (emitter *Emitter) saveParamsInStack(params *[]string, ctxReferences *Stack
 		return  err
 	}
 	//then we set its value
-	//the argument i is the register i + 2 (we use v0 and v1 to operate)
 
-	err = emitter.saveOpcode(I8XY0(0, byte(i+2))) //v0 = v(i+2)
+	err = emitter.saveOpcode(I8XY0(0, byte(i))) //v0 = v(i)
 	if err != nil {
 		return  err
 	}
 	if sizeParams[i] == 2 {
 		  //v1 = v(i+2)
-		err = emitter.saveOpcode(I8XY0(1, byte(i+3)))
+		err = emitter.saveOpcode(I8XY0(1, byte(i+1))) //v1 = v(i+1)
 		if err != nil {
 			return err
 		}
