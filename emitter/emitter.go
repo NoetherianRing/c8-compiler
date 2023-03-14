@@ -105,7 +105,7 @@ func (emitter *Emitter) Start() ([]byte, error){
 			emitter.scope = mainScope.SubScopes[i]
 			i++
 			emitter.ctxNode = child
-			err = emitter.functionDeclaration()
+			err = emitter.fn()
 			if err != nil{
 				return nil, err
 			}
@@ -359,8 +359,9 @@ func (emitter *Emitter) drawDeclaration ()error {
 	return emitter.saveOpcode(I00EE())
 
 }
-//functionDeclaration save all the instructions of a function in memory
-func (emitter *Emitter) functionDeclaration()error{
+
+//fn save all the instructions of a function in memory
+func (emitter *Emitter) fn()error{
 	const IDENT = 0
 	const ARG = 1
 	const BLOCK = 3
@@ -761,14 +762,16 @@ func (emitter *Emitter) _if(functionCtx *FunctionCtx) error{
 	backup := emitter.ctxNode
 	//first we write in v0 the result of the condition
 	emitter.ctxNode = emitter.ctxNode.Children[CONDITION]
-	_, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	resultRegIndex, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(I3XKK(0, True))  //if v0 = true we skip the next instruction
+	err = emitter.saveOpcode(I3XKK(resultRegIndex.lowBitsIndex, True))  //if vx = true we skip the next instruction
 	if err != nil{
 		return err
 	}
+	functionCtx.registerHandler.Free(resultRegIndex)
+
 	//the next instruction is a jump to the memory address after the block
 	//because we don't know this address yet, we save the current address to write the opcode later
 	lineAfterCondition := emitter.currentAddress
@@ -805,14 +808,15 @@ func (emitter *Emitter) _else(functionCtx *FunctionCtx) error{
 	backup := emitter.ctxNode
 	//first we write in v0 the result of the condition
 	emitter.ctxNode = emitter.ctxNode.Children[CONDITION]
-	_, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	resultRegIndex, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(I3XKK(0, True))  //if v0 = true we skip the next instruction
+	err = emitter.saveOpcode(I3XKK(resultRegIndex.lowBitsIndex, True))  //if vx = true we skip the next instruction
 	if err != nil{
 		return err
 	}
+	functionCtx.registerHandler.Free(resultRegIndex)
 	//the next instruction is a jump to the memory address after the if block
 	//because we don't know this address yet, we save the current address to write the opcode later
 	lineAfterCondition := emitter.currentAddress
@@ -873,14 +877,15 @@ func (emitter *Emitter)_while(functionCtx *FunctionCtx) error {
 	backup := emitter.ctxNode
 
 	emitter.ctxNode = emitter.ctxNode.Children[CONDITION]
-	_, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	resultRegIndex, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(I3XKK(0, True)) //if v0 = true we skip the next instruction
+	err = emitter.saveOpcode(I3XKK(resultRegIndex.lowBitsIndex, True)) //if vx = true we skip the next instruction
 	if err != nil{
 		return err
 	}
+	functionCtx.registerHandler.Free(resultRegIndex)
 	//the next instruction is a jump to the memory address after the while
 	//because we don't know this address yet, we save the current address to write the opcode later
 	lineAfterCondition := emitter.currentAddress
@@ -1172,7 +1177,7 @@ func (emitter *Emitter) _byte(functionCtx *FunctionCtx) (*ResultRegIndex, error)
 
 //boolean save a bool in a registers. Return the register index in which the bool was stored and an error if needed
 func (emitter *Emitter)boolean(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
-	regIndex, ok := emitter.functionCtx.AllocSimple()
+	regIndex, ok := functionCtx.registerHandler.AllocSimple()
 	if !ok{
 		line := emitter.ctxNode.Value.Line
 		err := errors.New(errorhandler.TooManyRegisters(line))
