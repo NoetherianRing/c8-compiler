@@ -1776,52 +1776,53 @@ func (emitter *Emitter) subtraction(functionCtx *FunctionCtx) (*ResultRegIndex, 
 }
 
 //shift translates a subtraction to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
-func (emitter *Emitter) shift(functionCtx *FunctionCtx) (int, error) {
-	_, err := emitter.solveOperands(functionCtx)
+//returns the indexes of registers in which the result is stored and an error
+func (emitter *Emitter) shift(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
+	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	//we set v3= 1 to use it as an aux
-	err = emitter.saveOpcode(I6XKK(3,1))
+	//we set v0= 1 to use it as an aux
+	err = emitter.saveOpcode(I6XKK(0,1))
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	//we shift v0 by 1
+	//we shift vx by 1
 	switch emitter.ctxNode.Value.Type {
 	case token.GTGT:
-		err = emitter.saveOpcode(I8XY6(0))
+		err = emitter.saveOpcode(I8XY6(leftOperandRegIndex.lowBitsIndex))
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
 	case token.LTLT:
-		err = emitter.saveOpcode(I8XYE(0))
+		err = emitter.saveOpcode(I8XYE(leftOperandRegIndex.lowBitsIndex))
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
 	default:
-		return 0, errors.New(errorhandler.UnexpectedCompilerError())
+		return nil, errors.New(errorhandler.UnexpectedCompilerError())
 
 	}
 
-	//v2 = v2 - 1
-	err = emitter.saveOpcode(I8XY5(2, 3))
+	//vy = vy - 1
+	err = emitter.saveOpcode(I8XY5(rightOperandRegIndex.lowBitsIndex, 0))
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	//if v2 != 0 we keep shifting
-	err = emitter.saveOpcode(I3XKK(0, 0))
+	//if vy != 0 we keep shifting
+	err = emitter.saveOpcode(I3XKK(rightOperandRegIndex.lowBitsIndex, 0))
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 	err = emitter.saveOpcode(I1NNN(emitter.currentAddress-3))
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	return 1, nil
+	functionCtx.registerHandler.Free(rightOperandRegIndex)
+	return leftOperandRegIndex, nil
 
 }
 
