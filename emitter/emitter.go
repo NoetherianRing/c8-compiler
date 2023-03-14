@@ -989,8 +989,8 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(*ResultRegIndex, error) {
 	//if it was not a void function, now the return value is in vf.
 
 	//if the function we call was not a void function, then we save in memory a backup of the return value,
-	//because we will need the registers v0
-	size := symboltable.GetSize(emitter.scope.Symbols[ident].DataType.(symboltable.Function).Return)
+	//because we will need the register v0
+	size := symboltable.GetSize(emitter.scope.Symbols[ident].DataType.(symboltable.Function).Return) //size is always 1
 	if size != 0 {
 		err := emitter.saveOpcode(I9XY1(RegisterStackAddress1, RegisterStackAddress2)) // I = stack address
 		if err != nil {
@@ -1001,7 +1001,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(*ResultRegIndex, error) {
 			return nil, err
 		}
 		emitter.offsetStack += size
-		err = emitter.saveOpcode(IFX55(byte(size-1))) //size is always 1
+		err = emitter.saveOpcode(IFX55(byte(size-1)))
 		if err != nil {
 			return nil, err
 		}
@@ -1034,6 +1034,9 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(*ResultRegIndex, error) {
 		if err != nil {
 			return nil, err
 		}
+		emitter.offsetStack = backupOffsetStack
+
+		return regIndex, nil
 
 
 	}
