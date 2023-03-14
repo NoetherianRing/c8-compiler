@@ -1630,40 +1630,74 @@ func (emitter *Emitter) sum(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 
 
 //subtraction translates a subtraction to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
-func (emitter *Emitter) subtraction(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.solveOperands(functionCtx)
+//returns the indexes of the registers in which the result was stored and an error if needed
+func (emitter *Emitter) subtraction(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
+	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	//if the left operand is a simple data type we just subtract v0 = v0 - v2
-	if sizeOperands[0] == 1{
-		err := emitter.saveOpcode(I8XY5(0,2))
-		if err != nil{
-			return 0, err
+	var resultRegIndex *ResultRegIndex
+	var ok bool
+	//the result is going to be of the same data type that the left operand
+	if !leftOperandRegIndex.isPointer{
+		//if the left operand is a simple data type we just subtract vx = vx - vy, and save the result in a new register
+		resultRegIndex, ok = functionCtx.registerHandler.AllocSimple()
+		if !ok{
+			line := emitter.ctxNode.Value.Line
+			err := errors.New(errorhandler.TooManyRegisters(line))
+			return nil, err
 		}
-		return 1, nil
+		err := emitter.saveOpcode(I8XY5(leftOperandRegIndex.lowBitsIndex,rightOperandRegIndex.lowBitsIndex))
+		if err != nil{
+			return nil, err
+		}
+		err = emitter.saveOpcode(I8XY0(resultRegIndex.lowBitsIndex,leftOperandRegIndex.lowBitsIndex))
+		if err != nil{
+			return nil, err
+		}
+	}else{
+		resultRegIndex, ok = functionCtx.registerHandler.AllocPointer()
+		if !ok{
+			line := emitter.ctxNode.Value.Line
+			err := errors.New(errorhandler.TooManyRegisters(line))
+			return nil, err
+		}
+		//if the left operands is a pointer we first subtract vx1 = vx1 - vy
+		err = emitter.saveOpcode(I8XY5(leftOperandRegIndex.lowBitsIndex,rightOperandRegIndex.lowBitsIndex))
+		if err != nil{
+			return nil, err
+		}
+		//because we already use vy, we can now use it as an aux, vy = 1
+		aux := rightOperandRegIndex.lowBitsIndex
+		err = emitter.saveOpcode(I6XKK(aux,1))
+		if err != nil{
+			return nil, err
+		}
+		//if carry = false, then vx1 - vy < 0, so we need to set vx0 = vx0 - 1
+		err = emitter.saveOpcode(I4XKK(Carry,False))
+		if err != nil{
+			return nil, err
+		}
+		err = emitter.saveOpcode(I8XY5(leftOperandRegIndex.highBitsIndex,2))
+		if err != nil{
+			return nil, err
+		}
+
+		//now we set the result in new registers
+		err = emitter.saveOpcode(I8XY0(resultRegIndex.lowBitsIndex,leftOperandRegIndex.lowBitsIndex))
+		if err != nil{
+			return nil, err
+		}
+		err = emitter.saveOpcode(I8XY0(resultRegIndex.highBitsIndex,leftOperandRegIndex.highBitsIndex))
+		if err != nil{
+			return nil, err
+		}
 	}
-	//if the left operands is a pointer we first subtract v1 = v1 - v2
-	err = emitter.saveOpcode(I8XY5(1,2))
-	if err != nil{
-		return 0, err
-	}
-	//because we already use v2, we can now use it as an aux, v2 = 1
-	err = emitter.saveOpcode(I6XKK(2,1))
-	if err != nil{
-		return 0, err
-	}
-	//if vf = false, then v1 - v2 < 0, so we need to v0 = v0 - 1
-	err = emitter.saveOpcode(I4XKK(0xf,False))
-	if err != nil{
-		return 0, err
-	}
-	err = emitter.saveOpcode(I8XY5(0,2))
-	if err != nil{
-		return 0, err
-	}
-	return 2, nil
+
+	functionCtx.registerHandler.Free(leftOperandRegIndex)
+	functionCtx.registerHandler.Free(rightOperandRegIndex)
+	return resultRegIndex, nil
+
 }
 
 //shift translates a subtraction to opcodes and write it in emitter.machineCode,
