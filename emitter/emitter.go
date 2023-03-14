@@ -1164,7 +1164,7 @@ func (emitter *Emitter)boolean(functionCtx *FunctionCtx) (*ResultRegIndex, error
 }
 
 //ltgt translates < and > to opcodes and write it in emitter.machineCode,
-//returns the indexes of registers in which the result is stored and an error
+//returns the index of register in which the result is stored and an error
 func (emitter *Emitter)ltgt(functionCtx *FunctionCtx) (*ResultRegIndex, error){
 	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil{
@@ -1268,7 +1268,7 @@ func (emitter *Emitter)ltgt(functionCtx *FunctionCtx) (*ResultRegIndex, error){
 }
 
 //ltgteq translates <= and >= to opcodes and write it in emitter.machineCode,
-//returns the indexes of register in which the result is stored and an error
+//returns the index of register in which the result is stored and an error
 func (emitter *Emitter)ltgteq(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil {
@@ -1424,7 +1424,7 @@ func (emitter *Emitter)ltgteq(functionCtx *FunctionCtx) (*ResultRegIndex, error)
 }
 
 //noteq translates a != to opcodes and write it in emitter.machineCode,
-//returns the indexes of register in which the result is stored and an error
+//returns the index of register in which the result is stored and an error
 func (emitter *Emitter) noteq(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 	resultRegIndex, ok := functionCtx.registerHandler.AllocSimple() //the result is a bool
 	if !ok{
@@ -1471,151 +1471,164 @@ func (emitter *Emitter) noteq(functionCtx *FunctionCtx) (*ResultRegIndex, error)
 
 }
 //eqeq translates a == to opcodes and write it in emitter.machineCode,
-//returns the indexes of register in which the result is stored and an error
-func (emitter *Emitter) eqeq(functionCtx *FunctionCtx) (int, error) {
+//returns the index of register in which the result is stored and an error
+func (emitter *Emitter) eqeq(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 	//we do the same than in !=, but with a not at the end
 	regIndex, err := emitter.noteq(functionCtx)
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 	err = emitter.saveOpcode(I6XKK(0,True)) //v0=true
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 	err = emitter.saveOpcode(I8XY3(regIndex.lowBitsIndex,0)) // vx = vx ^ true
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	return 1, nil
+	return regIndex, nil
 
 }
 
 //not translates a ! to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
-func (emitter *Emitter) not(functionCtx *FunctionCtx) (int, error) {
+//returns the index of register in which the result is stored and an error
+func (emitter *Emitter) not(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 	emitter.ctxNode = emitter.ctxNode.Children[0]
-	_, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	childRegisterIndex, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	//we set v0 = v0 ^ true
-	err = emitter.saveOpcode(I6XKK(1,True))
+	//we set vx = vx ^ true
+	err = emitter.saveOpcode(I6XKK(0,True)) //we use v0 as auxiliary, v0 = true
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	err = emitter.saveOpcode(I8XY3(0,1))
+	err = emitter.saveOpcode(I8XY3(childRegisterIndex.lowBitsIndex,0))
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	return 1, nil
+	return childRegisterIndex, nil
 
 }
 
 
 //land translates a && to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
-func (emitter *Emitter) land(functionCtx *FunctionCtx) (int, error) {
-	_, err := emitter.solveOperands(functionCtx)
+//returns the index of register in which the result is stored and an error
+func (emitter *Emitter) land(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
+	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	//V0 = V0 & V2
-	err = emitter.saveOpcode(I8XY2(0,2))
+	//Vx = Vx & Vy
+	err = emitter.saveOpcode(I8XY2(leftOperandRegIndex.lowBitsIndex,rightOperandRegIndex.lowBitsIndex))
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
+	functionCtx.registerHandler.Free(rightOperandRegIndex)
 
-	return 1, nil
+	return leftOperandRegIndex, nil
 }
 
 //lor translates a || to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
-func (emitter *Emitter) lor(functionCtx *FunctionCtx) (int, error) {
-	_, err := emitter.solveOperands(functionCtx)
+//returns the index of register in which the result is stored and an error
+func (emitter *Emitter) lor(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
+	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	//V0 = V0 | V2
-	err = emitter.saveOpcode(I8XY1(0,2))
+	//VX = VX | VY
+	err = emitter.saveOpcode(I8XY1(leftOperandRegIndex.lowBitsIndex,rightOperandRegIndex.lowBitsIndex))
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
+	functionCtx.registerHandler.Free(rightOperandRegIndex)
 
-	return 1, nil
+	return leftOperandRegIndex, nil
 }
 
 //or translates a | to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
-func (emitter *Emitter) or(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.solveOperands(functionCtx)
+//returns the index of register in which the result is stored and an error
+func (emitter *Emitter) or(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
+	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	//V0 = V0 | V2
-	err = emitter.saveOpcode(I8XY1(0,2))
+	//Vx1 = Vx1 | Vy1
+	err = emitter.saveOpcode(I8XY1(leftOperandRegIndex.lowBitsIndex,
+		rightOperandRegIndex.lowBitsIndex))
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	if sizeOperands[0] > 1{
+	if leftOperandRegIndex.isPointer{
 
-		//V1 = V1 | V3
-		err = emitter.saveOpcode(I8XY1(1,3))
+		//Vx0 = Vx0 | Vy0
+		err = emitter.saveOpcode(I8XY1(leftOperandRegIndex.highBitsIndex,
+			rightOperandRegIndex.highBitsIndex))
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
 	}
-	return sizeOperands[0], nil
+	functionCtx.registerHandler.Free(rightOperandRegIndex)
+
+	return leftOperandRegIndex, nil
 }
 
 //and translates a & to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
-func (emitter *Emitter) and(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.solveOperands(functionCtx)
+//returns the index of register in which the result is stored and an error
+func (emitter *Emitter) and(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
+	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	//V0 = V0 & V2
-	err = emitter.saveOpcode(I8XY2(0,2))
+	//Vx1 = Vx1 & Vy1
+	err = emitter.saveOpcode(I8XY2(leftOperandRegIndex.lowBitsIndex,
+		rightOperandRegIndex.lowBitsIndex))
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	if sizeOperands[0] > 1{
+	if leftOperandRegIndex.isPointer{
 
-		//V1 = V1 & V3
-		err = emitter.saveOpcode(I8XY2(1,3))
+		//Vx' = Vx0 & Vy0
+		err = emitter.saveOpcode(I8XY2(leftOperandRegIndex.highBitsIndex,
+			rightOperandRegIndex.highBitsIndex))
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
 	}
-	return sizeOperands[0], nil
+	functionCtx.registerHandler.Free(rightOperandRegIndex)
+	return leftOperandRegIndex, nil
 }
 
 //xor translates a ^ to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
-func (emitter *Emitter) xor(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.solveOperands(functionCtx)
+//returns the index of register in which the result is stored and an error
+func (emitter *Emitter) xor(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
+	leftOperandRegIndex,rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	//V0 = V0 ^ V2
-	err = emitter.saveOpcode(I8XY3(0,2))
+	//Vx1 = Vx1 ^ Vy1
+	err = emitter.saveOpcode(I8XY3(leftOperandRegIndex.lowBitsIndex,
+		rightOperandRegIndex.lowBitsIndex))
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	if sizeOperands[0] > 1{
+	if leftOperandRegIndex.isPointer{
 
-		//V1 = V1 ^  V3
-		err = emitter.saveOpcode(I8XY3(1,3))
+		//Vx0 = Vx0 ^  Vy0
+		err = emitter.saveOpcode(I8XY3(leftOperandRegIndex.highBitsIndex,
+			rightOperandRegIndex.highBitsIndex))
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
 	}
-	return sizeOperands[0], nil
+	functionCtx.registerHandler.Free(rightOperandRegIndex)
+
+	return leftOperandRegIndex, nil
 }
 
 
