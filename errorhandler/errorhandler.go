@@ -154,7 +154,7 @@ func TooManyParams(line int)string{
 }
 
 func TooManyRegisters(line int)string{
-	errorString := "semantic error\nin line: "+ strconv.Itoa(line) + "\nthe expression requires too many registers to be solve"
+	errorString := "error\nin line: "+ strconv.Itoa(line) + "\nthe expression requires too many registers to be solve"
 	return errorString
 }
 
