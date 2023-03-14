@@ -1164,263 +1164,325 @@ func (emitter *Emitter)boolean(functionCtx *FunctionCtx) (*ResultRegIndex, error
 }
 
 //ltgt translates < and > to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
-func (emitter *Emitter)ltgt(functionCtx *FunctionCtx) (int, error){
-	sizeOperands, err := emitter.solveOperands(functionCtx)
+//returns the indexes of registers in which the result is stored and an error
+func (emitter *Emitter)ltgt(functionCtx *FunctionCtx) (*ResultRegIndex, error){
+	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	// if our operands are simples we just need to check if v0 is lesser/greater than v2.
-	//we first save this information in vf and then we set v0 = vf
-	if sizeOperands[0] == 1{
+	resultRegIndex, ok := functionCtx.registerHandler.AllocSimple() //the result is a bool
+	if !ok{
+		line := emitter.ctxNode.Value.Line
+		err := errors.New(errorhandler.TooManyRegisters(line))
+		return nil, err
+	}
+	// if our operands are simples we just need to check if vx is lesser/greater than vy.
+	//we first save this information in carry (vf) and then we set vz = carry
+	//( where vz is  the register in which we store the result)
+	if !leftOperandRegIndex.isPointer{
+
 		switch emitter.ctxNode.Value.Type {
 		case token.GT:
-			err = emitter.saveOpcode(I8XY5(0,2))
+			err = emitter.saveOpcode(I8XY5(leftOperandRegIndex.lowBitsIndex,rightOperandRegIndex.lowBitsIndex))
 			if err != nil{
-				return 0, err
+				return nil, err
 			}
 		case token.LT:
-			err = emitter.saveOpcode(I8XY7(0,2))
+			err = emitter.saveOpcode(I8XY7(leftOperandRegIndex.lowBitsIndex,rightOperandRegIndex.lowBitsIndex))
 			if err != nil{
-				return 0, err
+				return nil, err
 			}
 		default:
-			return 0, errors.New(errorhandler.UnexpectedCompilerError())
+			return nil, errors.New(errorhandler.UnexpectedCompilerError())
 		}
-		err = emitter.saveOpcode(I8XY0(0,0xf))
-		if err != nil{
-			return 0, err
-		}
-		return 1, nil
 	}else{
-		//if we are comparing pointers we first compare v0 with v2
+		//if we are comparing pointers we first compare vx0 with vy0
+		//we backup vx0 in v0 in case we need the original value
+		err = emitter.saveOpcode(I8XY0(0,leftOperandRegIndex.highBitsIndex)) //v0 = vx0
+		if err != nil{
+			return nil, err
+		}
+
 		switch emitter.ctxNode.Value.Type {
 		case token.GT:
-			err = emitter.saveOpcode(I8XY5(0,2))
+			err = emitter.saveOpcode(I8XY5(leftOperandRegIndex.highBitsIndex,rightOperandRegIndex.highBitsIndex))
 			if err != nil{
-				return 0, err
+				return nil, err
 			}
 		case token.LT:
-			err = emitter.saveOpcode(I8XY7(0,2))
+			err = emitter.saveOpcode(I8XY7(leftOperandRegIndex.highBitsIndex,rightOperandRegIndex.highBitsIndex))
 			if err != nil{
-				return 0, err
+				return nil, err
 			}
 		default:
-			return 0, errors.New(errorhandler.UnexpectedCompilerError())
+			return nil, errors.New(errorhandler.UnexpectedCompilerError())
 
 		}
-		err = emitter.saveOpcode(I3XKK(0xf,0)) //if vf = 0 we keep analyzing
+		err = emitter.saveOpcode(I3XKK(Carry,False)) //if carry = false we keep analyzing
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
-		err = emitter.saveOpcode(I1NNN(emitter.currentAddress + 5)) //if vf = 1 we know that the result is true and jump to the end
+		err = emitter.saveOpcode(I1NNN(emitter.currentAddress + 5)) //if carry = True we jump to the end
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
-		//if vf = 0 we ask if v0 == v2 with a xor
-		err = emitter.saveOpcode(I8XY3(0,2))
+		//if carry = false we ask if v0 == vy0 with a xor (v0 saves the original value of vx0)
+		err = emitter.saveOpcode(I8XY3(0,rightOperandRegIndex.highBitsIndex))
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
-		err = emitter.saveOpcode(I4XKK(0,0)) //if v0 != v2 we skip the next opcode
+		//if v0 == vy0, now v0 = 0
+		err = emitter.saveOpcode(I4XKK(leftOperandRegIndex.highBitsIndex,0)) //if vx0 != vy0 we skip the next opcode
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
 
-
-		//if v0 == v2 we need to analyze v1 and v3
+		//if vx0 == vy0 we need to analyze vx1 and vy1
 		switch emitter.ctxNode.Value.Type {
 		case token.GT:
-			err = emitter.saveOpcode(I8XY5(0,2))
+			err = emitter.saveOpcode(I8XY5(leftOperandRegIndex.lowBitsIndex,rightOperandRegIndex.lowBitsIndex))
 			if err != nil{
-				return 0, err
+				return nil, err
 			}
 		case token.LT:
-			err = emitter.saveOpcode(I8XY7(0,2))
+			err = emitter.saveOpcode(I8XY7(leftOperandRegIndex.lowBitsIndex,rightOperandRegIndex.lowBitsIndex))
 			if err != nil{
-				return 0, err
+				return nil, err
 			}
 		default:
-			return 0, errors.New(errorhandler.UnexpectedCompilerError())
+			return nil, errors.New(errorhandler.UnexpectedCompilerError())
 
 		}
-		//then we save the result in v0
-		err = emitter.saveOpcode(I8XY0(0,0xf))
-		if err != nil{
-			return 0, err
-		}
-		return 2, nil
+
 	}
+	//we save the result in vz
+	err = emitter.saveOpcode(I8XY0(resultRegIndex.lowBitsIndex,Carry))
+	if err != nil{
+		return nil, err
+	}
+	functionCtx.registerHandler.Free(leftOperandRegIndex)
+	functionCtx.registerHandler.Free(rightOperandRegIndex)
+	return resultRegIndex, nil
 
 }
 
 //ltgteq translates <= and >= to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
-func (emitter *Emitter)ltgteq(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.solveOperands(functionCtx)
+//returns the indexes of register in which the result is stored and an error
+func (emitter *Emitter)ltgteq(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
+	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	if sizeOperands[0] == 1{
-		err = emitter.saveOpcode(I6XKK(0xf,True)) //vf = 1
+	resultRegIndex, ok := functionCtx.registerHandler.AllocSimple() //the result is a bool
+	if !ok{
+		line := emitter.ctxNode.Value.Line
+		err := errors.New(errorhandler.TooManyRegisters(line))
+		return nil, err
+	}
+
+	if !leftOperandRegIndex.isPointer{
+		err = emitter.saveOpcode(I6XKK(Carry,True)) //vf = 1
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
-		err = emitter.saveOpcode(I8XY3(0,2)) //we ask v0 == v2 with a xor
-		if err != nil{
-			return 0, err
+		//we backup vx in v0
+		err = emitter.saveOpcode(I8XY0(0, leftOperandRegIndex.lowBitsIndex)) //v0=vx
+		if err != nil {
+			return nil, err
 		}
 
-		err = emitter.saveOpcode(I3XKK(0,0)) //if v0 = 0 then v0 was equal to v2 and we skip the next opcode
+		err = emitter.saveOpcode(I8XY3(0,
+			rightOperandRegIndex.lowBitsIndex)) //we ask v0 == vy with a xor
 		if err != nil{
-			return 0, err
+			return nil, err
+		}
+
+		err = emitter.saveOpcode(I3XKK(0,0)) //if v0 = 0 then vx was equal to vy and we skip the next opcode
+		if err != nil{
+			return nil, err
 		}
 		switch emitter.ctxNode.Value.Type {
 		case token.GTEQ:
-			err = emitter.saveOpcode(I8XY5(0,2))//if v0 wasn't equal to v2, we ask if v0 > v2 and store the result in vf
+			err = emitter.saveOpcode(I8XY5(leftOperandRegIndex.lowBitsIndex,
+				rightOperandRegIndex.lowBitsIndex))//if vx wasn't equal to vy, we ask if vx > vy and store the result in vf
 			if err != nil{
-				return 0, err
+				return nil, err
 			}
 		case token.LTEQ:
-			err = emitter.saveOpcode(I8XY7(0,2)) //if v0 wasn't equal to v2, we ask if v0 < v2 and store the result in vf
+			err = emitter.saveOpcode(I8XY7(leftOperandRegIndex.lowBitsIndex,
+				rightOperandRegIndex.lowBitsIndex)) //if vx wasn't equal to vy, we ask if vx < vy and store the result in vf
 			if err != nil{
-				return 0, err
+				return nil, err
 			}
 		default:
-			return 0, errors.New(errorhandler.UnexpectedCompilerError())
+			return nil, errors.New(errorhandler.UnexpectedCompilerError())
 
 		}
-		//then we save the result in v0
-		err = emitter.saveOpcode(I8XY0(0,0xf))
+		//then we save the result in a new register
+		err = emitter.saveOpcode(I8XY0(resultRegIndex.lowBitsIndex,Carry))
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
 
-		return 1, nil
 	}else{
-		//first we ask if v0 is greater/lesser than v2 and store the result in vf
+		//we first save in v0 the high bits of vx and in v1 the low bits
+		err = emitter.saveOpcode(I8XY0(0,leftOperandRegIndex.highBitsIndex))
+		if err != nil{
+			return nil, err
+		}
+		err = emitter.saveOpcode(I8XY0(1,leftOperandRegIndex.lowBitsIndex))
+		if err != nil{
+			return nil, err
+		}
+
+		//we ask if v1 (which saves the same value than vx1) is greater/lesser than vy and store the result in vf (carry)
 		switch emitter.ctxNode.Value.Type {
 		case token.GTEQ:
-			err = emitter.saveOpcode(I8XY5(0,2))
+			err = emitter.saveOpcode(I8XY5(1,rightOperandRegIndex.highBitsIndex))
 			if err != nil{
-				return 0, err
+				return nil, err
 			}
 		case token.LTEQ:
-			err = emitter.saveOpcode(I8XY7(0,2))
+			err = emitter.saveOpcode(I8XY7(1,rightOperandRegIndex.highBitsIndex))
 			if err != nil{
-				return 0, err
+				return nil, err
 			}
 		default:
-			return 0, errors.New(errorhandler.UnexpectedCompilerError())
+			return nil, errors.New(errorhandler.UnexpectedCompilerError())
 
 		}
 
-		err = emitter.saveOpcode(I3XKK(0xf,0)) //if vf = 0 we skip  the next opcode
+		err = emitter.saveOpcode(I3XKK(Carry,False)) //if carry = false we skip  the next opcode
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
-		err = emitter.saveOpcode(I1NNN(emitter.currentAddress+9)) //if vf = 1 we skip  7 opcodes because we know the result is true
+		err = emitter.saveOpcode(I1NNN(emitter.currentAddress+9)) //if carry = true we skip 9 opcodes because we know the result is true
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
-		err = emitter.saveOpcode(I8XY3(0,2)) //we ask v0 == v2 with a xor. v0 = 0 if ture
+		err = emitter.saveOpcode(I8XY3(leftOperandRegIndex.highBitsIndex,
+			rightOperandRegIndex.highBitsIndex)) //we ask vx0 == vyx with a xor. vx0 = 0 if true
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
-		err = emitter.saveOpcode(I3XKK(0,0)) //if v0 = 0 we skip  the next opcode
+		err = emitter.saveOpcode(I3XKK(leftOperandRegIndex.highBitsIndex,0)) //if vx0 = 0 we skip  the next opcode
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
-		err = emitter.saveOpcode(I1NNN(emitter.currentAddress+6)) //if v0 != 0 we skip 4 opcodes because we know the result is false
+		err = emitter.saveOpcode(I1NNN(emitter.currentAddress+6)) //if vx0 != 0 we skip 6 opcodes because we know the result is false
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
-		err = emitter.saveOpcode(I8XY3(0,2)) //we ask v1 == v3 with a xor. v1 = 0 if ture
+		err = emitter.saveOpcode(I8XY3(1,2)) //we ask v1 == vy1 with a xor. v1 = 0 if tre
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
-		// if v1 = 0 we set vf = 1 and jump to the end
+		// if v1 = 0 we set carry = 1 and jump to the end
 		err = emitter.saveOpcode(I4XKK(1,0))
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
-		err = emitter.saveOpcode(I6XKK(0xf,True)) //vf = 1
+		err = emitter.saveOpcode(I6XKK(Carry,True)) //vf = 1
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
 		err = emitter.saveOpcode(I3XKK(1,0))
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
-		//first we ask if v1 is greater/lesser than v3 and store the result in vf
+		//if v1 != we ask if vx1 is greater/lesser than vy1 and store the result in vf
 		switch emitter.ctxNode.Value.Type {
 		case token.GTEQ:
-			err = emitter.saveOpcode(I8XY5(0,2))
+			err = emitter.saveOpcode(I8XY5(leftOperandRegIndex.lowBitsIndex,
+				rightOperandRegIndex.lowBitsIndex))
 			if err != nil{
-				return 0, err
+				return nil, err
 			}
 		case token.LTEQ:
-			err = emitter.saveOpcode(I8XY7(0,2))
+			err = emitter.saveOpcode(I8XY7(leftOperandRegIndex.lowBitsIndex,
+				rightOperandRegIndex.lowBitsIndex))
 			if err != nil{
-				return 0, err
+				return nil, err
 			}
 		default:
-			return 0, errors.New(errorhandler.UnexpectedCompilerError())
+			return nil, errors.New(errorhandler.UnexpectedCompilerError())
 
 		}
-		//we set v0 = vf
-		err = emitter.saveOpcode(I8XY0(0,0xf))
+		//we set vz = vf
+		err = emitter.saveOpcode(I8XY0(resultRegIndex.lowBitsIndex,Carry))
 		if err != nil{
-			return 0, err
+			return nil, err
 		}
 
 
-		return 2, nil
 	}
+	functionCtx.registerHandler.Free(leftOperandRegIndex)
+	functionCtx.registerHandler.Free(rightOperandRegIndex)
+	return resultRegIndex, nil
 }
+
 //noteq translates a != to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
-func (emitter *Emitter) noteq(functionCtx *FunctionCtx) (int, error) {
-	sizeOperands, err := emitter.solveOperands(functionCtx)
-	if err != nil {
-		return 0, err
-	}
-	//if the operands are simple data types we do a xor between v0 and v2,
-	//if they are equal v0 = 0
-	err = emitter.saveOpcode(I8XY3(0,2))
-	if err != nil{
-		return 0, err
+//returns the indexes of register in which the result is stored and an error
+func (emitter *Emitter) noteq(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
+	resultRegIndex, ok := functionCtx.registerHandler.AllocSimple() //the result is a bool
+	if !ok{
+		line := emitter.ctxNode.Value.Line
+		err := errors.New(errorhandler.TooManyRegisters(line))
+		return nil, err
 	}
 
-	if sizeOperands[0] == 2 {
-		//if not, we do v0 = v0 ^ v2, v1 = v1 ^ v3, v0 = v0 | v1
-		err = emitter.saveOpcode(I8XY3(1,3))
-		if err != nil{
-			return 0, err
-		}
-		err = emitter.saveOpcode(I8XY1(0,1))
-		if err != nil{
-			return 0, err
-		}
+	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
+	if err != nil {
+		return nil, err
 	}
-	return 1, nil
+
+	//if the operands are simple data types we do a xor between vx and vy,
+	//if they are equal, vx = 0
+	err = emitter.saveOpcode(I8XY3(leftOperandRegIndex.lowBitsIndex,
+		rightOperandRegIndex.lowBitsIndex))
+	if err != nil{
+		return nil, err
+	}
+
+	if leftOperandRegIndex.isPointer {
+		//if not, we set vx0 = vx0 ^ vy0, vx1 = vx1 ^ vy1, vx0 = vx0 | vx1, vz= vx0
+		err = emitter.saveOpcode(I8XY3(leftOperandRegIndex.highBitsIndex,
+			rightOperandRegIndex.highBitsIndex))
+		if err != nil{
+			return nil, err
+		}
+		err = emitter.saveOpcode(I8XY1(leftOperandRegIndex.lowBitsIndex,
+			leftOperandRegIndex.highBitsIndex))
+		if err != nil{
+			return nil, err
+		}
+		err = emitter.saveOpcode(I8XY0(resultRegIndex.lowBitsIndex,
+			leftOperandRegIndex.lowBitsIndex))
+		if err != nil{
+			return nil, err
+		}
+
+	}
+	functionCtx.registerHandler.Free(leftOperandRegIndex)
+	functionCtx.registerHandler.Free(rightOperandRegIndex)
+	return resultRegIndex, nil
 
 }
 //eqeq translates a == to opcodes and write it in emitter.machineCode,
-//returns the size of the datatype of the result and an error
+//returns the indexes of register in which the result is stored and an error
 func (emitter *Emitter) eqeq(functionCtx *FunctionCtx) (int, error) {
 	//we do the same than in !=, but with a not at the end
-	_, err := emitter.noteq(functionCtx)
+	regIndex, err := emitter.noteq(functionCtx)
 	if err != nil{
 		return 0, err
 	}
-	err = emitter.saveOpcode(I6XKK(1,True))
+	err = emitter.saveOpcode(I6XKK(0,True)) //v0=true
 	if err != nil{
 		return 0, err
 	}
-	err = emitter.saveOpcode(I8XY3(0,1))
+	err = emitter.saveOpcode(I8XY3(regIndex.lowBitsIndex,0)) // vx = vx ^ true
 	if err != nil{
 		return 0, err
 	}
@@ -1558,7 +1620,7 @@ func (emitter *Emitter) xor(functionCtx *FunctionCtx) (int, error) {
 
 
 //sum translates a sum to opcodes and write it in emitter.machineCode,
-//returns the indexes of registers in which is stored the result and an error
+//returns the indexes of registers in which the result is stored  and an error
 func (emitter *Emitter) sum(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 	leftRegIndex, rightRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil {
