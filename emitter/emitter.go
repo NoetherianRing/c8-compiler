@@ -633,110 +633,71 @@ func (emitter *Emitter) let(ctxReferences *Stack) error{
 	return nil
 }
 
-
 //assign translates the assign statement to opcodes and write it in emitter.machineCode
-func (emitter *Emitter)assign(functionCtx *FunctionCtx)error {
-	const SAVEIN = 0
-	const TOSAVE = 1
+//Returns an error if needed
+func (emitter *Emitter)assign(functionCtx *FunctionCtx)error{
+	const LEFT = 0
+	const RIGHT = 1
 
 	assignBackup := emitter.ctxNode
-	emitter.ctxNode = emitter.ctxNode.Children[TOSAVE]
-	//depending on the data type of the right side of the assign translateOperation save it in v0 or v0 and v1
-	size, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
-	if err != nil {
+	emitter.ctxNode = emitter.ctxNode.Children[RIGHT]
+	valueToSaveRegIndex, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+	if err != nil{
 		return err
 	}
 	emitter.ctxNode = assignBackup
-	emitter.ctxNode = emitter.ctxNode.Children[SAVEIN]
+	emitter.ctxNode = emitter.ctxNode.Children[LEFT]
 
-	//if in the right side of the assign there is only a identifier, then it is a reference to a variable
-	if emitter.ctxNode.Value.Type == token.IDENT {
+	//we evaluate if we are assigning to a global references, to a stack references or to a dereference
+	//we save its address in I using v0 and v1 as auxiliary and we save its size
+	if emitter.ctxNode.Value.Type == token.IDENT{
 		ident := emitter.ctxNode.Value.Literal
-		_, referenceExists := functionCtx.stack.GetReference(ident) //we check if it is saved in the stack
-		if !referenceExists{                                        //if it is not saved in the stack it must be a global variable
-
-			_, isAGlobalVariable := emitter.globalVariables[ident]
-			if !isAGlobalVariable{
-				return errors.New(errorhandler.UnexpectedCompilerError())
-			}else {
-				//if the reference is to a global variable we update I = address
-				_, err := emitter.saveGlobalReferenceAddressInI(2, 3)
+		_, isAGlobalReference := emitter.globalVariables[ident]
+		if isAGlobalReference{
+			_, err = emitter.saveGlobalReferenceAddressInI(0,1)
+			if err != nil{
+				return err
+			}else{
+				_, err  = emitter.saveStackReferenceAddressInI(0, functionCtx)
 				if err != nil{
 					return err
 				}
-				//and then we store registers V0 through Vsize in memory starting at location I
-
-				err =emitter.saveOpcode(IFX55(byte(size-1)))
-
-				if err != nil{
-					return err
-				}
-				return nil
-
 			}
-		}else{//if it is stored in the stack
-			// we look for the address of the reference in the stack, and we set I = address
-
-			_,err := emitter.saveStackReferenceAddressInI(2, functionCtx)
+		}else{
+			_, err = emitter.saveDereferenceAddressInI(functionCtx)
 			if err != nil{
 				return err
 			}
-			//then we save v0 (and maybe v1) there
-			err =emitter.saveOpcode(IFX55(byte(size-1)))
-
-			if err != nil{
-				return err
-			}
-			return nil
-
-
 		}
-
-
-	}else{ //if in the right side of the assign there is a sequence of characters before a ident, it's a dereference
-
-		//we backup v0 (and maybe v1) in v2 (and maybe v3) because we need v0 and v1 to operate
-		err = emitter.saveOpcode(I8XY0(2, 0))
-		if err!=nil{
-			return err
-		}
-		if symboltable.GetSize(size) > 1{
-
-			err =emitter.saveOpcode(I8XY0(3, 1))
-
-			if err!=nil{
-				return err
-			}
-		}
-		//we search the address of the dereference and we save it in I
-		_, err = emitter.saveDereferenceAddressInI(functionCtx)
-		if err != nil{
-			return err
-		}
-		//to save a vx (and vy) in memory we need them in v0 (and v1), so we save them there again
-
-		err =emitter.saveOpcode( I8XY0(0, 2))
-
-		if err!=nil{
-			return err
-		}
-		if symboltable.GetSize(size) > 1{
-			err =emitter.saveOpcode(I8XY0(1, 3))
-
-			if err!=nil{
-				return err
-			}
-		}
-		err =emitter.saveOpcode(IFX55(byte(size-1)))
-
-		if err != nil{
-			return err
-		}
-
-		return nil
-
 	}
 
+	//we save in v0 (and v1) the value to save
+	if valueToSaveRegIndex.isPointer{
+		err = emitter.saveOpcode(I8XY0(0, valueToSaveRegIndex.highBitsIndex))
+		if err != nil{
+			return err
+		}
+		err = emitter.saveOpcode(I8XY0(1, valueToSaveRegIndex.lowBitsIndex))
+		if err != nil{
+			return err
+		}
+		err = emitter.saveOpcode(IFX55(1))
+		if err != nil{
+			return err
+		}
+	}else{
+		err = emitter.saveOpcode(I8XY0(0, valueToSaveRegIndex.lowBitsIndex))
+		if err != nil{
+			return err
+		}
+		err = emitter.saveOpcode(IFX55(0))
+		if err != nil{
+			return err
+		}
+
+	}
+	functionCtx.registerHandler.Free(valueToSaveRegIndex)
+	return nil
 }
 
 //_return save in v0 the value a function returns
@@ -744,10 +705,15 @@ func (emitter *Emitter) _return(functionCtx *FunctionCtx) error {
 	if len(emitter.ctxNode.Children) != 0{
 		returnBackup := emitter.ctxNode
 		emitter.ctxNode = emitter.ctxNode.Children[0]
-		_, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
+		returnRegIndex, err := emitter.translateOperation[emitter.ctxNode.Value.Type](functionCtx)
 		if err != nil{
 			return  err
 		}
+		err = emitter.saveOpcode(I8XY0(0, returnRegIndex.lowBitsIndex)) //v0 = return value
+		if err != nil{
+			return  err
+		}
+		functionCtx.registerHandler.Free(returnRegIndex)
 		emitter.ctxNode = returnBackup
 	}
 	return emitter.saveOpcode(I00EE())
