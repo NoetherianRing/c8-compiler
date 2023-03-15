@@ -1919,111 +1919,99 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 }
 
 
-//division translates a / to opcodes and write it in emitter.machineCode, return the size of the datatype of the result and an error
-func (emitter *Emitter) division(functionCtx *FunctionCtx) (int, error) {
-	_, err := emitter.solveOperands(functionCtx)
+//division translates a / to opcodes and write it in emitter.machineCode,
+//returns the index of register in which the result is stored and an error
+func (emitter *Emitter) division(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
+	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	err = emitter.saveOpcode(I6XKK(1, 0)) //v1 = 0. We can use it to store the result because both operands are simples in the context of /
+	result := byte(0)
 
-
+	err = emitter.saveOpcode(I6XKK(result, 0)) //v0 = 0.
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	err = emitter.saveOpcode(I4XKK(0, 0)) //if v0 != 0 we skip the next opcode
-
-
+	err = emitter.saveOpcode(I4XKK(leftOperandRegIndex.lowBitsIndex, 0)) //if vx != 0 we skip the next opcode
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	//if v0 =0, the result is 0 and we skip the division
-	skipDivision := I1NNN(emitter.currentAddress+12)
+
+	//if vx =0, the result is 0 and we skip the division
+	skipDivision := I1NNN(emitter.currentAddress+11)
 	err = emitter.saveOpcode(skipDivision)
-
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	err = emitter.saveOpcode(I6XKK(0xf, 0))// Vf = 0
-
+	err = emitter.saveOpcode(I6XKK(Carry, 0))// Vf = 0
 	if err != nil{
-		return 0, err
-	}
-	err = emitter.saveOpcode(I8XY5(0, 2))	 // V0 = V0-V2
-
-
-	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	err = emitter.saveOpcode(I4XKK(0, 0))	 //if v0 != 0 we skip the next opcode
-
-
+	err = emitter.saveOpcode(I8XY5(leftOperandRegIndex.lowBitsIndex, rightOperandRegIndex.lowBitsIndex))	 // Vx = Vx-Vy
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-
-	err = emitter.saveOpcode(I7XKK(1,1))	//if v0 = 0 we do v1 = v1 + 1, to operate before jumping
-
-
+	err = emitter.saveOpcode(I4XKK(leftOperandRegIndex.lowBitsIndex, 0))	 //if vx != 0 we skip the next opcode
 	if err != nil{
-		return 0, err
-	}
-	err = emitter.saveOpcode(I4XKK(0, 0))  //if v0 != 0 we skip the next opcode
-
-
-	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	//if v0 =0, the rest of division is also 0 and we jump to the end of the operation
+	err = emitter.saveOpcode(I7XKK(result,1)) //if vx = 0 we do result = result + 1, to operate before jumping
+	if err != nil{
+		return nil, err
+	}
+
+	err = emitter.saveOpcode(I4XKK(leftOperandRegIndex.lowBitsIndex, 0))  //if vx != 0 we skip the next opcode
+	if err != nil{
+		return nil, err
+	}
+
+	//if vx =0, the rest of division is also 0 and we jump to the end of the operation
 	jumpToEnd := I1NNN(emitter.currentAddress+5)
 	err = emitter.saveOpcode(jumpToEnd)
-
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	//if not we ask if v0>v2, and if v0 > v2 we skip the next opcode
 
-	err = emitter.saveOpcode(I3XKK(0xf, 0))
-
+	//if not we ask if vx>vy, and if vx > vy we skip the next opcode
+	err = emitter.saveOpcode(I3XKK(Carry, 1))
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-	//if v0<v2 we jump to to the end of the division, if not we keep dividing
-	jumpToEnd = I1NNN(emitter.currentAddress+2)
+
+	//if vx<vy we jump to to the end of the division, if not we keep dividing
+	jumpToEnd = I1NNN(emitter.currentAddress+3)
 	err = emitter.saveOpcode(jumpToEnd)
 
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
-	err = emitter.saveOpcode(I7XKK(1,1))
-
+	err = emitter.saveOpcode(I7XKK(result,1)) //result = result + 1
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
 	loop := I1NNN(emitter.currentAddress-9)
 	err = emitter.saveOpcode(loop)
 
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
 
 
-	err = emitter.saveOpcode(I8XY5(0, 1))//  = V0 = V1 to save the result in v0
-
+	err = emitter.saveOpcode(I8XY0(0, result))//  = Vx = result to save the result in vx
 
 	if err != nil{
-		return 0, err
+		return nil, err
 	}
-
-	return 1, nil
+	functionCtx.registerHandler.Free(rightOperandRegIndex)
+	return leftOperandRegIndex, nil
 }
 
 //solveOperands save the operands of a operation in registers. It return the indexes of registers in which each operand
