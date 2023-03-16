@@ -2024,7 +2024,7 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (*ResultRegIndex, err
 	}
 
 
-	err = emitter.saveOpcode(I8XY0(0, result))//  = Vx = result to save the result in vx
+	err = emitter.saveOpcode(I8XY0(leftOperandRegIndex.lowBitsIndex, result))//  = Vx = result to save the result in vx
 
 	if err != nil{
 		return nil, err
