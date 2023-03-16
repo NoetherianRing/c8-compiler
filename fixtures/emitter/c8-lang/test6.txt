@@ -7,7 +7,7 @@
        isOne = true
        one = isOne
 
-       if one{
+       if one == true{
         drawFont(0,0,1)
        }
 

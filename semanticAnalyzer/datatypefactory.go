@@ -81,9 +81,9 @@ func (getter *DataTypeFactory) redirect() func()(interface{}, error){
 	case token.MINUS:
 		return getter.numericOperation
 	case token.LTLT:
-		return getter.numericOperation
+		return getter.byteOperation
 	case token.GTGT:
-		return getter.numericOperation
+		return getter.byteOperation
 	case token.SLASH:
 		return getter.byteOperation
 	case token.PERCENT:

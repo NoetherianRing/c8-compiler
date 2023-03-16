@@ -148,8 +148,13 @@ func InvalidParamType(line int, paramType string)string{
 	return errorString
 }
 
-func ToManyParams(line int)string{
+func TooManyParams(line int)string{
 	errorString := "semantic error\nin line: "+ strconv.Itoa(line) + "\nparams exceed the limit of nine bytes"
+	return errorString
+}
+
+func TooManyRegisters(line int)string{
+	errorString := "error\nin line: "+ strconv.Itoa(line) + "\nthe expression requires too many registers to be solve"
 	return errorString
 }
 

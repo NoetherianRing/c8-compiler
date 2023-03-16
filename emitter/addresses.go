@@ -1,24 +1,24 @@
 package emitter
 
 
-type StackReferences struct {
+type Stack struct {
 	References    map[string]*Reference
-	SubReferences []*StackReferences
+	SubReferences []*Stack
 }
 
 type Reference struct{
-	identifier  string
-	positionStack int
+	identifier      string
+	positionInStack int
 }
 
-func NewStackReferences() *StackReferences {
-	stackReferences := new(StackReferences)
-	stackReferences.SubReferences = make([]*StackReferences,0)
+func NewStackReferences() *Stack {
+	stackReferences := new(Stack)
+	stackReferences.SubReferences = make([]*Stack,0)
 	stackReferences.References = make(map[string]*Reference)
 	return stackReferences
 }
 
-func (references *StackReferences) AddSubReferences() {
+func (references *Stack) AddSubReferences() {
 	subReference := NewStackReferences()
 	for key, val := range references.References {
 		subReference.References[key] = val
@@ -26,12 +26,12 @@ func (references *StackReferences) AddSubReferences() {
 	references.SubReferences = append(references.SubReferences, subReference)
 }
 
-func (references *StackReferences) AddReference(ident string, positionStack int) {
+func (references *Stack) AddReference(ident string, positionStack int) {
 	references.References[ident] = &Reference{ident, positionStack}
 }
 
 
-func (references *StackReferences) GetReference(ident string) (*Reference, bool) {
+func (references *Stack) GetReference(ident string) (*Reference, bool) {
 	val, ok:= references.References[ident]
 	return val, ok
 }

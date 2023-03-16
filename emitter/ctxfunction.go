@@ -1,10 +1,10 @@
 package emitter
 
 type FunctionCtx struct{
-	Registers       *RegistersGuide
-	StackReferences *StackReferences
+	registerHandler *RegisterHandler
+	stack           *Stack
 }
 
-func NewCtxFunction(registers *RegistersGuide, stackReferences *StackReferences)*FunctionCtx {
-	return &FunctionCtx{registers,stackReferences}
+func NewCtxFunction(registerHandler *RegisterHandler, stackReferences *Stack)*FunctionCtx {
+	return &FunctionCtx{registerHandler, stackReferences}
 }

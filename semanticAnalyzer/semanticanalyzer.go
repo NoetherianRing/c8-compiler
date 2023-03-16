@@ -452,7 +452,7 @@ func (analyzer *SemanticAnalyzer) handleParams()([]interface{},error) {
 
 	if totalSize > LimitParamSize{
 		line := analyzer.ctxNode.Value.Line
-		err := errors.New(errorhandler.ToManyParams(line))
+		err := errors.New(errorhandler.TooManyParams(line))
 		return nil, err
 	}
 
