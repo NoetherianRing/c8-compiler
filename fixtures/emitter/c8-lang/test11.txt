@@ -1,0 +1,19 @@
+{
+
+    fn main() void{
+        let foo byte
+        let foo2 byte
+        let foo3 byte
+
+        foo = 0
+        foo2 = 10
+        foo3 = foo*0
+
+        if foo3 == 0{
+            drawFont(0,0,1)
+        }
+
+        return
+
+    }
+}

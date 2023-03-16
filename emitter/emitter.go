@@ -1788,36 +1788,52 @@ func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (*ResultRegInde
 		return nil, err
 	}
 
+	resultReginIndex, ok := functionCtx.registerHandler.AllocSimple()
+	if !ok {
+		line := emitter.ctxNode.Value.Line
+		err := errors.New(errorhandler.TooManyRegisters(line))
+		return nil, err
+	}
+
+	err = emitter.saveOpcode(I6XKK(resultReginIndex.lowBitsIndex, 0))
+	if err != nil{
+		return nil, err
+	}
 
 	err = emitter.saveOpcode( I4XKK(leftOperandRegIndex.lowBitsIndex, 0) )//if vx != 0 we skip the next opcode
 	if err != nil{
 		return nil, err
 	}
 	//if vx =0, the result is 0 and we skip the operation
+
 	skipMultiplication := I1NNN(emitter.currentAddress+8)
 	err = emitter.saveOpcode(skipMultiplication)
 	if err != nil{
 		return nil, err
 	}
+
 	err = emitter.saveOpcode( I4XKK(rightOperandRegIndex.lowBitsIndex, 0) )//if vy != 0 we skip the next opcode
 	if err != nil{
 		return nil, err
 	}
 	//if vy =0, the result is 0 and we skip the operation
+
 	skipMultiplication = I1NNN(emitter.currentAddress+6)
 	err = emitter.saveOpcode(skipMultiplication)
 	if err != nil{
 		return nil, err
 	}
 	//we use v0 as an aux v0 = 1
+
 	aux := byte(0)
 	err = emitter.saveOpcode(I6XKK(aux,1))
 	if err != nil{
 		return nil, err
 	}
 
-	//vx = vx + vx
-	err = emitter.saveOpcode(I8XY4(leftOperandRegIndex.lowBitsIndex,leftOperandRegIndex.lowBitsIndex))
+
+	//result = result + vx
+	err = emitter.saveOpcode(I8XY4(resultReginIndex.lowBitsIndex, leftOperandRegIndex.lowBitsIndex))
 	if err != nil{
 		return nil, err
 	}
@@ -1839,9 +1855,10 @@ func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (*ResultRegInde
 	if err != nil{
 		return nil, err
 	}
-
+	
+	functionCtx.registerHandler.Free(leftOperandRegIndex)
 	functionCtx.registerHandler.Free(rightOperandRegIndex)
-	return leftOperandRegIndex, nil
+	return resultReginIndex, nil
 }
 
 //mod translates a % to opcodes and write it in emitter.machineCode,
