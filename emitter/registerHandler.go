@@ -82,9 +82,9 @@ func (handler *RegisterHandler) alloc()(byte, bool){
 
 func (handler *RegisterHandler) Free(resultRegIndex *ResultRegIndex){
 	if resultRegIndex.isPointer{
-		handler.free(resultRegIndex.highBitsIndex)
+		handler.free(resultRegIndex.highBitsIndex-2)
 	}
-	handler.free(resultRegIndex.lowBitsIndex)
+	handler.free(resultRegIndex.lowBitsIndex-2)
 
 }
 

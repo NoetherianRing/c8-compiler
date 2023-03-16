@@ -1,5 +1,6 @@
 {
   fn main() void{
+   drawFont(32, 16, 1)
    return
   }
 }

@@ -657,17 +657,17 @@ func (emitter *Emitter)assign(functionCtx *FunctionCtx)error{
 			_, err = emitter.saveGlobalReferenceAddressInI(0,1)
 			if err != nil{
 				return err
-			}else{
-				_, err  = emitter.saveStackReferenceAddressInI(0, functionCtx)
-				if err != nil{
-					return err
-				}
 			}
 		}else{
-			_, err = emitter.saveDereferenceAddressInI(functionCtx)
+			_, err  = emitter.saveStackReferenceAddressInI(0, functionCtx)
 			if err != nil{
 				return err
 			}
+		}
+	}else{
+		_, err = emitter.saveDereferenceAddressInI(functionCtx)
+		if err != nil{
+			return err
 		}
 	}
 
@@ -1458,12 +1458,13 @@ func (emitter *Emitter) noteq(functionCtx *FunctionCtx) (*ResultRegIndex, error)
 		if err != nil{
 			return nil, err
 		}
-		err = emitter.saveOpcode(I8XY0(resultRegIndex.lowBitsIndex,
-			leftOperandRegIndex.lowBitsIndex))
-		if err != nil{
-			return nil, err
-		}
 
+
+	}
+	err = emitter.saveOpcode(I8XY0(resultRegIndex.lowBitsIndex,
+		leftOperandRegIndex.lowBitsIndex))
+	if err != nil{
+		return nil, err
 	}
 	functionCtx.registerHandler.Free(leftOperandRegIndex)
 	functionCtx.registerHandler.Free(rightOperandRegIndex)
@@ -1478,11 +1479,12 @@ func (emitter *Emitter) eqeq(functionCtx *FunctionCtx) (*ResultRegIndex, error) 
 	if err != nil{
 		return nil, err
 	}
-	err = emitter.saveOpcode(I6XKK(0,True)) //v0=true
+	aux := byte(0)
+	err = emitter.saveOpcode(I6XKK(aux,True)) //aux=true
 	if err != nil{
 		return nil, err
 	}
-	err = emitter.saveOpcode(I8XY3(regIndex.lowBitsIndex,0)) // vx = vx ^ true
+	err = emitter.saveOpcode(I8XY3(regIndex.lowBitsIndex,aux)) // vx = vx ^ true
 	if err != nil{
 		return nil, err
 	}
