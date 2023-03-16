@@ -1358,7 +1358,7 @@ func (emitter *Emitter)ltgteq(functionCtx *FunctionCtx) (*ResultRegIndex, error)
 		if err != nil{
 			return nil, err
 		}
-		err = emitter.saveOpcode(I1NNN(emitter.currentAddress+9)) //if carry = true we skip 9 opcodes because we know the result is true
+		err = emitter.saveOpcode(I1NNN(emitter.currentAddress+9*2)) //if carry = true we skip 9 opcodes because we know the result is true
 		if err != nil{
 			return nil, err
 		}
@@ -1371,7 +1371,7 @@ func (emitter *Emitter)ltgteq(functionCtx *FunctionCtx) (*ResultRegIndex, error)
 		if err != nil{
 			return nil, err
 		}
-		err = emitter.saveOpcode(I1NNN(emitter.currentAddress+6)) //if vx0 != 0 we skip 6 opcodes because we know the result is false
+		err = emitter.saveOpcode(I1NNN(emitter.currentAddress+6*2)) //if vx0 != 0 we skip 6 opcodes because we know the result is false
 		if err != nil{
 			return nil, err
 		}
@@ -1740,7 +1740,7 @@ func (emitter *Emitter) shift(functionCtx *FunctionCtx) (*ResultRegIndex, error)
 		return nil, err
 	}
 	//if vy =0, we skip the operation
-	skip := I1NNN(emitter.currentAddress+5)
+	skip := I1NNN(emitter.currentAddress+5*2)
 	err = emitter.saveOpcode(skip)
 	//we shift vx by 1
 	switch emitter.ctxNode.Value.Type {
@@ -1770,7 +1770,7 @@ func (emitter *Emitter) shift(functionCtx *FunctionCtx) (*ResultRegIndex, error)
 	if err != nil{
 		return nil, err
 	}
-	err = emitter.saveOpcode(I1NNN(emitter.currentAddress-3))
+	err = emitter.saveOpcode(I1NNN(emitter.currentAddress-3*2))
 	if err != nil{
 		return nil, err
 	}
@@ -1788,14 +1788,14 @@ func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (*ResultRegInde
 		return nil, err
 	}
 
-	resultReginIndex, ok := functionCtx.registerHandler.AllocSimple()
+	resultRegIndex, ok := functionCtx.registerHandler.AllocSimple()
 	if !ok {
 		line := emitter.ctxNode.Value.Line
 		err := errors.New(errorhandler.TooManyRegisters(line))
 		return nil, err
 	}
 
-	err = emitter.saveOpcode(I6XKK(resultReginIndex.lowBitsIndex, 0))
+	err = emitter.saveOpcode(I6XKK(resultRegIndex.lowBitsIndex, 0))
 	if err != nil{
 		return nil, err
 	}
@@ -1806,7 +1806,7 @@ func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (*ResultRegInde
 	}
 	//if vx =0, the result is 0 and we skip the operation
 
-	skipMultiplication := I1NNN(emitter.currentAddress+8)
+	skipMultiplication := I1NNN(emitter.currentAddress+8*2)
 	err = emitter.saveOpcode(skipMultiplication)
 	if err != nil{
 		return nil, err
@@ -1818,7 +1818,7 @@ func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (*ResultRegInde
 	}
 	//if vy =0, the result is 0 and we skip the operation
 
-	skipMultiplication = I1NNN(emitter.currentAddress+6)
+	skipMultiplication = I1NNN(emitter.currentAddress+6*2)
 	err = emitter.saveOpcode(skipMultiplication)
 	if err != nil{
 		return nil, err
@@ -1833,7 +1833,7 @@ func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (*ResultRegInde
 
 
 	//result = result + vx
-	err = emitter.saveOpcode(I8XY4(resultReginIndex.lowBitsIndex, leftOperandRegIndex.lowBitsIndex))
+	err = emitter.saveOpcode(I8XY4(resultRegIndex.lowBitsIndex, leftOperandRegIndex.lowBitsIndex))
 	if err != nil{
 		return nil, err
 	}
@@ -1851,14 +1851,14 @@ func (emitter *Emitter) multiplication(functionCtx *FunctionCtx) (*ResultRegInde
 	}
 
 	//if vy != 0 we keep iterating the loop
-	err = emitter.saveOpcode(I1NNN(emitter.currentAddress-3))
+	err = emitter.saveOpcode(I1NNN(emitter.currentAddress-3*2))
 	if err != nil{
 		return nil, err
 	}
-	
+
 	functionCtx.registerHandler.Free(leftOperandRegIndex)
 	functionCtx.registerHandler.Free(rightOperandRegIndex)
-	return resultReginIndex, nil
+	return resultRegIndex, nil
 }
 
 //mod translates a % to opcodes and write it in emitter.machineCode,
@@ -1875,7 +1875,7 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 		return nil, err
 	}
 	//if vx =0, the result is 0 and we skip the operation
-	skipMod := I1NNN(emitter.currentAddress+10)
+	skipMod := I1NNN(emitter.currentAddress+10*2)
 	err = emitter.saveOpcode(skipMod)
 
 	//we use v0 as an aux
@@ -1903,7 +1903,7 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 	}
 
 	//so if vx =0, we need stop dividing and we jump to the end
-	jumpToEnd := I1NNN(emitter.currentAddress+5)
+	jumpToEnd := I1NNN(emitter.currentAddress+5*2)
 	err = emitter.saveOpcode(jumpToEnd)
 	if err != nil{
 		return nil, err
@@ -1915,7 +1915,7 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 	}
 
 	//if vx>vy we keep dividing in loop by jumping
-	loop := I1NNN(emitter.currentAddress-5)
+	loop := I1NNN(emitter.currentAddress-5*2)
 	err = emitter.saveOpcode(loop)
 	if err != nil{
 		return nil, err
@@ -1959,7 +1959,7 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (*ResultRegIndex, err
 	}
 
 	//if vx =0, the result is 0 and we skip the division
-	skipDivision := I1NNN(emitter.currentAddress+11)
+	skipDivision := I1NNN(emitter.currentAddress+11*2)
 	err = emitter.saveOpcode(skipDivision)
 	if err != nil{
 		return nil, err
@@ -1991,7 +1991,7 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (*ResultRegIndex, err
 	}
 
 	//if vx =0, the rest of division is also 0 and we jump to the end of the operation
-	jumpToEnd := I1NNN(emitter.currentAddress+5)
+	jumpToEnd := I1NNN(emitter.currentAddress+5*2)
 	err = emitter.saveOpcode(jumpToEnd)
 	if err != nil{
 		return nil, err
@@ -2004,7 +2004,7 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (*ResultRegIndex, err
 	}
 
 	//if vx<vy we jump to to the end of the division, if not we keep dividing
-	jumpToEnd = I1NNN(emitter.currentAddress+3)
+	jumpToEnd = I1NNN(emitter.currentAddress+3*2)
 	err = emitter.saveOpcode(jumpToEnd)
 
 	if err != nil{
@@ -2016,7 +2016,7 @@ func (emitter *Emitter) division(functionCtx *FunctionCtx) (*ResultRegIndex, err
 		return nil, err
 	}
 
-	loop := I1NNN(emitter.currentAddress-9)
+	loop := I1NNN(emitter.currentAddress-9*2)
 	err = emitter.saveOpcode(loop)
 
 	if err != nil{

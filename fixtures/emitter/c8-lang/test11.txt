@@ -5,13 +5,27 @@
         let foo2 byte
         let foo3 byte
 
+
         foo = 0
         foo2 = 10
-        foo3 = foo*0
-
+        foo3 = foo*foo2
         if foo3 == 0{
             drawFont(0,0,1)
         }
+        if foo2*foo == 0{
+            drawFont(10,0,1)
+        }
+        foo = 20
+
+        if 200 == foo*foo2{
+            drawFont(10,10,0)
+        }
+
+         if foo*foo2*2 == 200*2{
+                drawFont(20,20,0)
+            }
+
+
 
         return
 
