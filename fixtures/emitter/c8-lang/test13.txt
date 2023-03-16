@@ -1,0 +1,24 @@
+{
+    fn main()void{
+    let foo byte
+    let foo2 byte
+    let mod byte
+    foo = 255
+    foo2 = 10
+
+    mod = foo % foo2
+    drawFont(0,0, mod)
+
+    foo = 121
+    mod = foo % 6
+
+    drawFont(10,10, mod)
+
+    foo2 = 9
+    mod = 215 % 9
+    drawFont(20,20, mod)
+
+
+    return
+    }
+}
