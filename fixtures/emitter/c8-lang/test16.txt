@@ -1,0 +1,15 @@
+{
+    fn main() void{
+        let matrix [2][2]byte
+        [0][0]matrix = 0
+        [0][1]matrix = 1
+        [1][0]matrix = 2
+        [1][1]matrix = 3
+
+        drawFont(0, 0, [0][0]matrix)
+        drawFont(10, 0, [0][1]matrix)
+        drawFont(0, 10, [1][0]matrix)
+        drawFont(10, 10, [1][1]matrix)
+        return
+    }
+}
