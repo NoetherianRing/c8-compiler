@@ -46,6 +46,7 @@ func NewEmitter(tree *ast.SyntaxTree, scope *symboltable.Scope)*Emitter{
 
 	emitter.translateOperation[token.DOLLAR] = emitter.address
 	emitter.translateOperation[token.RPAREN] = emitter.parenthesis
+	emitter.translateOperation[token.RBRACKET] = emitter.bracket
 	emitter.translateOperation[token.PLUS] = emitter.sum
 	emitter.translateOperation[token.MINUS] = emitter.subtraction
 	emitter.translateOperation[token.ASTERISK] = emitter.asterisk
@@ -910,6 +911,12 @@ func (emitter *Emitter)block(functionCtx *FunctionCtx) error {
 	emitter.scope = scopeBackup
 	functionCtx.stack = addressesBackup
 	return nil
+}
+
+//bracket analyze save a dereference in registers,
+//returns the index of registers in which the result of the operation was stored and an error if needed
+func (emitter *Emitter)bracket(functionCtx *FunctionCtx)(*ResultRegIndex, error){
+	return emitter.saveDereferenceInRegisters(functionCtx)
 }
 
 //parenthesis analyze the context of a parenthesis and delegate the operation,
@@ -2266,7 +2273,11 @@ func (emitter *Emitter)saveDereferenceAddressInI(functionCtx *FunctionCtx) (int,
 			if err != nil{
 				return 0,errors.New(errorhandler.UnexpectedCompilerError())
 			}
-			err = emitter.saveFX1ESafely(0, index*symboltable.GetSize(datatype))
+			x := index*symboltable.GetSize(datatype.(symboltable.Array).Of)
+			err = emitter.saveFX1ESafely(0, x)
+			if err != nil{
+				return 0, err
+			}
 			datatype = datatype.(symboltable.Array).Of
 			emitter.ctxNode = emitter.ctxNode.Children[1]
 

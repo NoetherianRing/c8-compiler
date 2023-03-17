@@ -1,0 +1,13 @@
+{
+    fn main() void{
+      let pointer *byte
+
+      let number byte
+
+      pointer = $number
+      *pointer = 3
+
+      drawFont(10, 10, number)
+      return
+    }
+}
