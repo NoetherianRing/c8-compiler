@@ -1,0 +1,14 @@
+{
+    fn call() byte{
+      return 3
+    }
+
+    fn main() void{
+        let result byte
+        result = call() + 2
+        drawFont(0,0, result)
+
+
+        return
+    }
+}
