@@ -1,8 +1,10 @@
 {
     fn call(let number byte, let pointer *byte)bool{
+        let result bool
+        result = true
         number = number+1
         *pointer = number
-        return true
+        return result
     }
 
     fn main() void{
@@ -11,7 +13,7 @@
         let pointer *byte
 
         number1=3
-        number2=4
+        number2=5
         pointer =$number1
 
         if call(number2, pointer){
