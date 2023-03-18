@@ -1,0 +1,27 @@
+{
+    fn main() void{
+        let myFalse bool
+        let myTrue bool
+        let result bool
+
+        myFalse = false
+        myTrue = true
+
+        result = myFalse || myTrue
+
+        if result{
+            drawFont(0,0, 1)
+        }
+
+        if myTrue || true{
+            drawFont(10,10, 1)
+        }
+
+         if !(false || myFalse){
+            drawFont(20,20, 1)
+         }
+
+        return
+    }
+
+}
