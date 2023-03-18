@@ -1466,7 +1466,7 @@ func (emitter *Emitter) noteq(functionCtx *FunctionCtx) (*ResultRegIndex, error)
 	}
 
 	if leftOperandRegIndex.isPointer {
-		//if not, we set vx0 = vx0 ^ vy0, vx1 = vx1 ^ vy1, vx0 = vx0 | vx1, vz= vx0
+		//if not, we set vx0 = vx0 ^ vy0, vx1 = vx1 ^ vy1, vx1 = vx1 | vx0, vz= vx0
 		err = emitter.saveOpcode(I8XY3(leftOperandRegIndex.highBitsIndex,
 			rightOperandRegIndex.highBitsIndex))
 		if err != nil{
