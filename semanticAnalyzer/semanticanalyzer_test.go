@@ -1,6 +1,7 @@
 package semanticAnalyzer
 
 import (
+	"fmt"
 	"github.com/NoetherianRing/c8-compiler/ast"
 	"github.com/NoetherianRing/c8-compiler/lexer"
 	"github.com/NoetherianRing/c8-compiler/syntacticanalyzer"
@@ -35,9 +36,9 @@ func TestStart(t *testing.T) {
 	}
 	grammar := syntacticanalyzer.GetGrammar()
 	program := grammar[syntacticanalyzer.PROGRAM]
-	for _, scenario := range testCases{
+	for i, scenario := range testCases{
 		l, err := lexer.NewLexer(scenario.testPath)
-
+		fmt.Println(i)
 		assert.NoError(t, err)
 
 		tokens, err:=l.GetTokens()

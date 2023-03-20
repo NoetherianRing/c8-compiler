@@ -154,57 +154,129 @@ func (t Terminal) GetValue() string{
 	return string(t)
 }
 
+
 //Build verifies if a sequence of tokens and non-terminals are syntactically valid in a context.
 //If they are valid, they are added to the syntax tree that is being built, building for that subtree
 //Then we replace the slice of token being analysed for the auxiliary one to move forward
-func (nonT NonTerminal) Build(src *[]token.Token, tree *ast.SyntaxTree) bool{
+func (nonT NonTerminal) Build(src *[]token.Token, tree *ast.SyntaxTree) bool {
 	empty := token.NewToken("", "", 0)
 	Log.nesting++
 	Log.help++
 	var found bool
-	symbolsCache := make([]cache,0)
 	for _, option := range nonT.options{
 		srcAux := *src
 		auxTree := ast.NewSyntaxTree(ast.NewNode(empty))
-		for j, symbol := range option.grammarSymbols {
-			symbolValue := symbol.GetValue()
 
-			if len(symbolsCache) > j {
-				if symbolsCache[j].symbol == symbol.GetValue(){
-					found = true
-					srcAux = *symbolsCache[j].src
-					auxTree = symbolsCache[j].tree
-					continue
-				}
-
+	/*	if option.grammarSymbols[0].GetValue() == nonT.head{ //we want to avoid infinite recursion
+			for j := i; j< len(nonT.options); j++{ //we check if a sequence of symbols of option is in another option
+				found= nonT.checkGrammarSymbols(option, &srcAux, auxTree,0)
 			}
-			found = symbol.Build(&srcAux, auxTree)
+			if !found {
+				return false
+			} else { //TODO: Hay que ver si necesito crear mas arboles auxiliares aca
+				if len(option.grammarSymbols) > 1{
+					i := 0
+					for true{
+						auxTree2 := ast.NewSyntaxTree(ast.NewNode(empty))
+						keepAnalyzing := option.grammarSymbols[1].Build(&srcAux, auxTree2)
+						if !keepAnalyzing{
+							nonT.AddSubTree(src,srcAux, tree, auxTree)
+							return true
+						}else{
+							auxTree2.Head.Children[i] = auxTree.Head
+							auxTree := auxTree2
+							if len(option.grammarSymbols) > 2 {
+								found := nonT.checkGrammarSymbols(option, &srcAux, auxTree, 2)
+								if !found{
+									return false
+								}
+							}else{
+								nonT.AddSubTree(src,srcAux, tree, auxTree)
+								return true
+							}
+						}
+
+					}
+				}else{
+					return found
+				}
+			}
+
+		}else{
+*/
+			found= nonT.checkGrammarSymbols(option, &srcAux, auxTree,0)
 			if found {
-				symbolsCache = append(symbolsCache, cache{symbol: symbolValue, src: &srcAux, tree :auxTree})
-			}else{
-				break
+				nonT.AddSubTree(src,srcAux, tree, auxTree)
+				return true
 			}
-		}
+//		}
 
-		if found{
-			//Representations of non-terminals don't have a purpose in our tree, so we skip them to avoid empty nodes
-			if auxTree.Head.Value == empty{
-				for _, child := range auxTree.Head.Children{
-					tree.Head.AddChild(child)
-
-				}
-			}else{
-				tree.Head.AddChild(auxTree.Head)
-			}
-			*src = srcAux
-			Log.nesting--
-			return true
-		}
 	}
-
 	Log.nesting--
 	return false
 }
+
+
+func (nonT NonTerminal) AddSubTree(src *[]token.Token,srcAux []token.Token, tree *ast.SyntaxTree, auxTree *ast.SyntaxTree) {
+	empty := token.NewToken("", "", 0)
+
+	//Representations of non-terminals don't have a purpose in our tree, so we skip them to avoid empty nodes
+	if auxTree.Head.Value == empty {
+		for _, child := range auxTree.Head.Children {
+			tree.Head.AddChild(child)
+
+		}
+	} else {
+		tree.Head.AddChild(auxTree.Head)
+	}
+	*src = srcAux
+	Log.nesting--
+}
+
+func (nonT NonTerminal) checkGrammarSymbols(option Option,  srcAux *[]token.Token, auxTree *ast.SyntaxTree, startSymbol int) bool{
+	symbolsCache := make([]cache,0)
+	found :=false
+	for k:= startSymbol; k< len(option.grammarSymbols);k++ {
+		symbol := option.grammarSymbols[k]
+		symbolValue := symbol.GetValue()
+
+		if len(symbolsCache) > k {
+			if symbolsCache[k].symbol == symbol.GetValue() {
+				found = true
+				*srcAux = *symbolsCache[k].src
+				auxTree = symbolsCache[k].tree
+				continue
+			}
+
+		}
+		found = symbol.Build(srcAux, auxTree)
+		if found {
+			symbolsCache = append(symbolsCache, cache{symbol: symbolValue, src: srcAux, tree: auxTree})
+		} else {
+			break
+		}
+	}
+	return found
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 func (nonT *NonTerminal) GetValue() string{
 	return nonT.head
