@@ -34,7 +34,6 @@
         v6 = (v3 % 3)
         pointer = pointer + v1
         pointer = pointer - v1
-        pointer = pointer >> v1 + v1
         pointer = pointer & pointer2
         pointer = pointer | pointer2 ^ pointer
         v1 = v2 | v3 & v4 ^ v1
