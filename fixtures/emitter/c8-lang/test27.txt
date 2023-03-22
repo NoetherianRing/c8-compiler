@@ -20,19 +20,19 @@
         number2 = 2
         let result byte
 
-        result = (number1 * number2 * number2 / number2 / number2) / 2 + 5 - 2
+        result = (number1 * number2 * number2 / number2 / number2) / 2 + 5 - 2 # 3
         drawFont(10,10, result)
 
-        result = (number2+number2)*3
+        result = (number2+number2)*3 #C
         drawFont(20,20, result)
 
-        result = 2+2+2+2+2
+        result = 2+2+2+2+2 #A
         drawFont(0,20, result)
 
-        result = 2*2*2
+        result = 2*2*2 #8
         drawFont(30,10, result)
 
-         result = 10-2-2 -2
+         result = 10-2-2-2 #4
         drawFont(40,10, result)
 
         return

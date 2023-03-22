@@ -198,7 +198,7 @@ func (nonT *NonTerminal) checkOptions(src *[]token.Token, tree *ast.SyntaxTree, 
 				auxTree = auxAuxTree
 				//nonT.AddSubTree(src, auxSrc, auxTree, auxAuxTree)
 				auxAuxTree = ast.NewSyntaxTree(ast.NewNode(empty))
-				keepAnalyzing = options[0].grammarSymbols[1].Build(&auxSrc, auxAuxTree)
+				keepAnalyzing = options[0].grammarSymbols[1].Build(src, auxAuxTree)
 				i++
 			}
 			nonT.AddSubTree(src, *src, tree, auxTree)
@@ -749,15 +749,15 @@ func GetGrammar() map[string]*NonTerminal {
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P1])
-	grammarSymbols = append(grammarSymbols, Terminal(token.SLASH))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P2])
+	grammarSymbols = append(grammarSymbols, Terminal(token.SLASH))
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P1])
 	options[1].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P1])
-	grammarSymbols = append(grammarSymbols, Terminal(token.PERCENT))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P2])
+	grammarSymbols = append(grammarSymbols, Terminal(token.PERCENT))
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P1])
 	options[2].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
