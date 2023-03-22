@@ -141,12 +141,6 @@ func (t Terminal) Build(src *[]token.Token, tree *ast.SyntaxTree) bool{
 	//fmt.Printf("SOURCE: %s WAITING: %s EQUAL: %t line: %d\n", (*src)[0].Literal, token.Type(t), (*src)[0].Type == token.Type(t), (*src)[0].Line)
 	if (*src)[0].Type == token.Type(t) {
 		//New lines don't have a purpose in our tree, so we skip them
-		if token.Type(t) == token.RETURN{
-			fmt.Println("hola")
-		}
-		if token.Type(t) == token.PLUS{
-			fmt.Println("hola")
-		}
 		if token.Type(t) != token.NEWLINE {
 			tree.Head.Value = (*src)[0]
 		}
@@ -177,36 +171,37 @@ func (nonT *NonTerminal) checkOptions(src *[]token.Token, tree *ast.SyntaxTree, 
 	empty := token.NewToken("", "", 0)
 	auxTree := ast.NewSyntaxTree(ast.NewNode(empty))
 	firstSymbolOption := options[0].grammarSymbols[0].GetValue()
-	if nonT.head == EXPRESSION_P3{
-		fmt.Println("suma o resta")
-	}
+
 	if firstSymbolOption == nonT.GetValue(){
 
 		if len(options)<=1{
 			return false
 		}
-		validFirstElement := nonT.checkOptions(src, auxTree, symbolsCache, options[1:])
-		if validFirstElement {
+		isFirstElementValid := nonT.checkOptions(src, auxTree, symbolsCache, options[1:])
+		if isFirstElementValid {
 			valid, auxSrc := nonT.checkGrammarSymbols(options[0], src, &auxTree, symbolsCache, 1,0)
 			if !valid{
 				return nonT.checkOptions(src, tree, symbolsCache, options[1:])
 			}
 			*src = auxSrc
+
 			auxAuxTree := ast.NewSyntaxTree(ast.NewNode(empty))
-			keepAnalyzing := options[0].grammarSymbols[1].Build(&auxSrc, auxAuxTree)
+			keepAnalyzing := options[0].grammarSymbols[1].Build(src, auxAuxTree)
 			i := 1
 			for keepAnalyzing{
-				valid, auxSrc := nonT.checkGrammarSymbols(options[0], src, &auxAuxTree, symbolsCache, 1, i)
+				auxAuxTree.Head.AddChild(auxTree.Head)
+				valid, auxSrc := nonT.checkGrammarSymbols(options[0], src, &auxAuxTree, symbolsCache, 2, i)
 				if !valid{
 					return false
 				}
-				nonT.AddSubTree(src, auxSrc, auxAuxTree,auxTree)
+				*src = auxSrc
 				auxTree = auxAuxTree
+				//nonT.AddSubTree(src, auxSrc, auxTree, auxAuxTree)
 				auxAuxTree = ast.NewSyntaxTree(ast.NewNode(empty))
 				keepAnalyzing = options[0].grammarSymbols[1].Build(&auxSrc, auxAuxTree)
 				i++
 			}
-			nonT.AddSubTree(src, auxSrc, tree, auxTree)
+			nonT.AddSubTree(src, *src, tree, auxTree)
 			return true
 		}
 
@@ -748,7 +743,7 @@ func GetGrammar() map[string]*NonTerminal {
 	options = make([]Option, 4)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P0])
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P1])
 	grammarSymbols = append(grammarSymbols, Terminal(token.ASTERISK))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P2])
 	options[0].grammarSymbols = grammarSymbols
@@ -783,9 +778,9 @@ func GetGrammar() map[string]*NonTerminal {
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P2])
-	grammarSymbols = append(grammarSymbols, Terminal(token.MINUS))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P3])
+	grammarSymbols = append(grammarSymbols, Terminal(token.MINUS))
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P2])
 
 	options[1].grammarSymbols = grammarSymbols
 
