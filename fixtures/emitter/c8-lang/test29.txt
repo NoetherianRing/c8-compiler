@@ -1,0 +1,9 @@
+{
+    fn main()void{
+        let result byte
+        result = 24/2/2/2*2/2
+        drawFont(0,0, result)
+        return
+    }
+
+}

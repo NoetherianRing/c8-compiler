@@ -12,7 +12,7 @@
 
     fn main() void{
 
-        drawFont(0,0, (fourFunc()+fiveFunc()+1-2)/fourFunc())
+        drawFont(0,0, (fourFunc()+fiveFunc()+1-2)/fourFunc()) #2
 
         let number1 byte
         number1 = 1
@@ -32,8 +32,10 @@
         result = 2*2*2 #8
         drawFont(30,10, result)
 
-         result = 10-2-2-2 #4
-        drawFont(40,10, result)
+         result = 10+2-1-2+1 #10
+         drawFont(40,10, result)
+
+
 
         return
     }
