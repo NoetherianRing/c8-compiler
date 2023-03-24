@@ -1,0 +1,17 @@
+{
+
+
+    fn main()void{
+        let var byte
+        let number2 byte
+        let number4 byte
+        let number16 byte
+        number2=2
+        number4=4
+        number16=16
+        var = number2*number4 * number16 / number2 / number2 / number2 / number2
+        drawFont(0,0, var)
+
+        return
+    }
+}

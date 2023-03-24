@@ -1,48 +1,51 @@
 {
+    fn sum(let v1 byte, let v2 byte)byte{
+        let v3 byte
+        v3 = v1 + v2
+        return v3
+    }
 
-   fn main () void{
-     let dt byte
-     let st byte
-
-     let randomNumber byte
-     dt = 1
-     st = 2
-     clean()
-     setDT(dt)
-     setST(st)
-     dt = getDT()
-     randomNumber = random()
-
-     let x byte
-     let y byte
-     let sprite [8]byte
-     let i *byte
-     x = 10
-     y = 20
-     [0]sprite=255
-     [1]sprite=255
-     [2]sprite=255
-     [3]sprite=0
-     [4]sprite=0
-     [5]sprite=255
-     [6]sprite=255
-     [7]sprite=255
-     i = $[0]sprite
-
-     draw(x, y, 8, i)
-
-     let font byte
-     font = 0
-     drawFont(x, y, font)
-
-     waitKey()
-     if isKeyPressed(0){
-     drawFont(x, y, font)
-
+    fn subtract(let v1 byte, let v2 byte)byte{
+         let v3 byte
+         return v1 - v2
      }
 
+    fn main()void{
+        let v1 byte
+        let v2 byte
+        let v3 byte
+        let v4 byte
+        let v5 byte
+        let v6 byte
+        let pointer *byte
+        let pointer2 *byte
+        let b1 bool
+        let b2 bool
 
-     return
-   }
+
+        v1 = 2
+        v2 = v1
+        v3 = sum(v1, v2)
+        v4 = subtract(v1, v2)
+        v5 = sum(v1, v2) + subtract(v1, v2) - v3 + v4
+        v6 = v1 * v3 * 3
+        v6 = v1 / (v3 / 3)
+        v6 = v1 << v3 >> 3
+        v6 = (v3 % 3)
+        pointer = pointer + v1
+        pointer = pointer - v1
+        pointer = pointer & pointer2
+        pointer = pointer | pointer2 ^ pointer
+        v1 = v2 | v3 & v4 ^ v1
+
+        b1 = v1 > v2 || v1 == v2
+        b2 = v1 <= v3 && !(v1+1!=1)
+
+
+
+        return
+    }
+
+
 
 }

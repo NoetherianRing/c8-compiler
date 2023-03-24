@@ -4,11 +4,11 @@
    let foo3 *byte
    let foo4 **byte
    let foo5 [10]byte
-   let foo6 [10][30]byte
-   let foo7 [10][30]*byte
+  let foo6 [10][30]byte
+  let foo7 [10][30]*byte
 
    fn main () void{
 
-    return
+   return
    }
 }

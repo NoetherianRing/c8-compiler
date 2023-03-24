@@ -136,10 +136,38 @@ type Option struct{
 				 |
                 bool
 */
+func (t Terminal) Equals(t2 token.Type) bool {
+	switch t{
+	case EXPRESSION:
+		return t2 == token.LOR
+	case EXPRESSION_P10:
+		return t2 == token.LAND
+	case EXPRESSION_P9:
+		return t2 == token.EQEQ || t2 == token.NOTEQ
+	case EXPRESSION_P8:
+		return t2 == token.GT || t2 == token.GTEQ ||
+			t2 == token.LT || t2 == token.LTEQ
+	case EXPRESSION_P7:
+		return t2 == token.OR
+	case EXPRESSION_P6:
+		return t2 == token.XOR
+	case EXPRESSION_P5:
+		return t2 == token.AND
+	case EXPRESSION_P4:
+		return t2 == token.LTLT || t2 == token.GTGT
+	case EXPRESSION_P3:
+		return t2 == token.PLUS || t2 == token.MINUS
+	case EXPRESSION_P2:
+		return t2 == token.ASTERISK || t2 == token.PERCENT || t2 == token.SLASH
+	default:
+		return token.Type(t) == t2
+	}
+
+}
 func (t Terminal) Build(src *[]token.Token, tree *ast.SyntaxTree) bool{
 	//Log.printLog()
 	//fmt.Printf("SOURCE: %s WAITING: %s EQUAL: %t line: %d\n", (*src)[0].Literal, token.Type(t), (*src)[0].Type == token.Type(t), (*src)[0].Line)
-	if (*src)[0].Type == token.Type(t) {
+	if t.Equals((*src)[0].Type){
 		//New lines don't have a purpose in our tree, so we skip them
 		if token.Type(t) != token.NEWLINE {
 			tree.Head.Value = (*src)[0]
@@ -158,57 +186,124 @@ func (t Terminal) GetValue() string{
 //If they are valid, they are added to the syntax tree that is being built, building for that subtree
 //Then we replace the slice of token being analysed for the auxiliary one to move forward
 func (nonT NonTerminal) Build(src *[]token.Token, tree *ast.SyntaxTree) bool{
-	empty := token.NewToken("", "", 0)
 	Log.nesting++
 	Log.help++
-	var found bool
-	symbolsCache := make([]cache,0)
-	for _, option := range nonT.options{
-		srcAux := *src
-		auxTree := ast.NewSyntaxTree(ast.NewNode(empty))
-		for j, symbol := range option.grammarSymbols {
-			symbolValue := symbol.GetValue()
+	symbolsCache := make([]*cache,0)
+	found := nonT.checkOptions(src, tree, &symbolsCache, nonT.options)
+	Log.nesting--
+	return found
 
-			if len(symbolsCache) > j {
-				if symbolsCache[j].symbol == symbol.GetValue(){
-					found = true
-					srcAux = *symbolsCache[j].src
-					auxTree = symbolsCache[j].tree
-					continue
-				}
+}
 
-			}
-			found = symbol.Build(&srcAux, auxTree)
-			if found {
-				symbolsCache = append(symbolsCache, cache{symbol: symbolValue, src: &srcAux, tree :auxTree})
-			}else{
-				break
-			}
+//checkOptions validates if one of the options of a productions matches with the src, in which case it add the tokens to the tree
+//and returns true
+func (nonT *NonTerminal) checkOptions(src *[]token.Token, tree *ast.SyntaxTree, symbolsCache *[]*cache, options []Option) bool{
+
+	empty := token.NewToken("", "", 0)
+	auxTree := ast.NewSyntaxTree(ast.NewNode(empty))
+	firstSymbolOption := options[0].grammarSymbols[0].GetValue()
+
+	if firstSymbolOption == nonT.head {
+
+		if len(options) == 1{
+			return false
 		}
-
-		if found{
-			//Representations of non-terminals don't have a purpose in our tree, so we skip them to avoid empty nodes
-			if auxTree.Head.Value == empty{
-				for _, child := range auxTree.Head.Children{
-					tree.Head.AddChild(child)
-
-				}
-			}else{
-				tree.Head.AddChild(auxTree.Head)
+		isFirstElementValid := nonT.checkOptions(src, auxTree, symbolsCache, options[1:])
+		if isFirstElementValid {
+			valid, auxSrc := nonT.checkGrammarSymbols(options[0], src, &auxTree, symbolsCache, 1,0)
+			if !valid{
+				return nonT.checkOptions(src, tree, symbolsCache, options[1:])
 			}
-			*src = srcAux
-			Log.nesting--
+			*src = auxSrc
+
+			auxAuxTree := ast.NewSyntaxTree(ast.NewNode(empty))
+			keepAnalyzing := options[0].grammarSymbols[1].Build(src, auxAuxTree)
+			i := 1
+			for keepAnalyzing{
+				auxAuxTree.Head.AddChild(auxTree.Head)
+				valid, auxSrc := nonT.checkGrammarSymbols(options[0], src, &auxAuxTree, symbolsCache, 2, i)
+				if !valid{
+					return false
+				}
+				*src = auxSrc
+				auxTree = auxAuxTree
+				//nonT.addSubTree(src, auxSrc, auxTree, auxAuxTree)
+				auxAuxTree = ast.NewSyntaxTree(ast.NewNode(empty))
+				keepAnalyzing = options[0].grammarSymbols[1].Build(src, auxAuxTree)
+				i++
+			}
+			nonT.addSubTree(src, *src, tree, auxTree)
 			return true
 		}
-	}
 
-	Log.nesting--
+	}else{
+		found, auxSrc := nonT.checkGrammarSymbols(options[0], src, &auxTree, symbolsCache, 0,0)
+		if found{
+			nonT.addSubTree(src, auxSrc, tree, auxTree)
+			return true
+		}
+
+	}
+	if len(options)>1{
+		return nonT.checkOptions(src, tree, symbolsCache, options[1:])
+	}
 	return false
+
 }
+//addSubTree adds a subtree to the head of a tree, and update the src moving forward
+func (nonT NonTerminal) addSubTree(src *[]token.Token,srcAux []token.Token, tree *ast.SyntaxTree, auxTree *ast.SyntaxTree) {
+	empty := token.NewToken("", "", 0)
+
+	//Representations of non-terminals don't have a purpose in our tree, so we skip them to avoid empty nodes
+	if auxTree.Head.Value == empty {
+		for _, child := range auxTree.Head.Children {
+			tree.Head.AddChild(child)
+
+		}
+	} else {
+		tree.Head.AddChild(auxTree.Head)
+	}
+	*src = srcAux
+	Log.nesting--
+}
+
+//checkGrammarSymbols validates if all the grammar symbols of an options matches with the src, in which case it adds the tokens
+//to a tree and returns true
+func (nonT NonTerminal) checkGrammarSymbols(option Option,  src *[]token.Token,
+	auxTree **ast.SyntaxTree, symbolsCache *[]*cache, startSymbol int, iteration int) (bool,  []token.Token){
+	var found bool
+	auxSrc := *src
+	j := iteration*(len(option.grammarSymbols)-2)
+	for k:= startSymbol; k< len(option.grammarSymbols);k++ {
+		symbol := option.grammarSymbols[k]
+		symbolValue := symbol.GetValue()
+
+		if len(*symbolsCache) > k+j {
+			if (*symbolsCache)[k+j].symbol == symbolValue {
+				found = true
+				auxSrc = *(*symbolsCache)[k+j].src
+				*auxTree = (*symbolsCache)[k+j].tree
+				continue
+			}
+		}
+		found = symbol.Build(&auxSrc, *auxTree)
+		if found {
+			*symbolsCache = append(*symbolsCache, &cache{symbol: symbolValue, src: &auxSrc, tree: *auxTree})
+		} else {
+			break
+		}
+
+
+	}
+	return found, auxSrc
+}
+
 
 func (nonT *NonTerminal) GetValue() string{
 	return nonT.head
 }
+
+
 //GetGrammar creates the grammar of the language.
 func GetGrammar() map[string]*NonTerminal {
 
@@ -682,75 +777,50 @@ func GetGrammar() map[string]*NonTerminal {
 	productions[EXPRESSION_P1].head = EXPRESSION_P1
 
 	//EXPRESSION_P2
-	options = make([]Option, 4)
+	options = make([]Option, 2)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P0])
-	grammarSymbols = append(grammarSymbols, Terminal(token.ASTERISK))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P2])
+	grammarSymbols = append(grammarSymbols, Terminal(EXPRESSION_P2))
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P1])
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P1])
-	grammarSymbols = append(grammarSymbols, Terminal(token.SLASH))
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P2])
 	options[1].grammarSymbols = grammarSymbols
-
-	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P1])
-	grammarSymbols = append(grammarSymbols, Terminal(token.PERCENT))
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P2])
-	options[2].grammarSymbols = grammarSymbols
-
-	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P1])
-	options[3].grammarSymbols = grammarSymbols
 
 	productions[EXPRESSION_P2].options = options
 	productions[EXPRESSION_P2].head = EXPRESSION_P2
 
 	//EXPRESSION_P3:
-	options = make([]Option, 3)
+	options = make([]Option, 2)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P2])
-	grammarSymbols = append(grammarSymbols, Terminal(token.PLUS))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P3])
+	grammarSymbols = append(grammarSymbols, Terminal(EXPRESSION_P3))
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P2])
 
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P2])
-	grammarSymbols = append(grammarSymbols, Terminal(token.MINUS))
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P3])
-
 	options[1].grammarSymbols = grammarSymbols
-
-	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P2])
-	options[2].grammarSymbols = grammarSymbols
 
 	productions[EXPRESSION_P3].options = options
 	productions[EXPRESSION_P3].head = EXPRESSION_P3
 
 	//EXPRESSION_P4
-	options = make([]Option, 3)
+	options = make([]Option, 2)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P3])
-	grammarSymbols = append(grammarSymbols, Terminal(token.GTGT))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P4])
+	grammarSymbols = append(grammarSymbols, Terminal(EXPRESSION_P4))
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P3])
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P3])
-	grammarSymbols = append(grammarSymbols, Terminal(token.LTLT))
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P4])
 	options[1].grammarSymbols = grammarSymbols
-
-	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P3])
-	options[2].grammarSymbols = grammarSymbols
 
 	productions[EXPRESSION_P4].options = options
 	productions[EXPRESSION_P4].head = EXPRESSION_P4
@@ -759,9 +829,9 @@ func GetGrammar() map[string]*NonTerminal {
 	options = make([]Option, 2)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P4])
-	grammarSymbols = append(grammarSymbols, Terminal(token.AND))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P5])
+	grammarSymbols = append(grammarSymbols, Terminal(EXPRESSION_P5)) //AND
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P4])
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
@@ -775,9 +845,9 @@ func GetGrammar() map[string]*NonTerminal {
 	options = make([]Option, 2)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P5])
-	grammarSymbols = append(grammarSymbols, Terminal(token.XOR))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P6])
+	grammarSymbols = append(grammarSymbols, Terminal(EXPRESSION_P6)) //XOR
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P5])
 
 	options[0].grammarSymbols = grammarSymbols
 
@@ -792,9 +862,9 @@ func GetGrammar() map[string]*NonTerminal {
 	options = make([]Option, 2)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P6])
-	grammarSymbols = append(grammarSymbols, Terminal(token.OR))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P7])
+	grammarSymbols = append(grammarSymbols, Terminal(EXPRESSION_P7)) //OR
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P6])
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
@@ -805,57 +875,33 @@ func GetGrammar() map[string]*NonTerminal {
 	productions[EXPRESSION_P7].head = EXPRESSION_P7
 
 	//EXPRESSION_P8
-	options = make([]Option, 5)
+	options = make([]Option, 2)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P7])
-	grammarSymbols = append(grammarSymbols, Terminal(token.GT))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P8])
+	grammarSymbols = append(grammarSymbols, Terminal(EXPRESSION_P8))
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P7])
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P7])
-	grammarSymbols = append(grammarSymbols, Terminal(token.LT))
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P8])
 	options[1].grammarSymbols = grammarSymbols
-
-	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P7])
-	grammarSymbols = append(grammarSymbols, Terminal(token.GTEQ))
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P8])
-	options[2].grammarSymbols = grammarSymbols
-
-	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P7])
-	grammarSymbols = append(grammarSymbols, Terminal(token.LTEQ))
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P8])
-	options[3].grammarSymbols = grammarSymbols
-
-	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P7])
-	options[4].grammarSymbols = grammarSymbols
 
 	productions[EXPRESSION_P8].options = options
 	productions[EXPRESSION_P8].head = EXPRESSION_P8
 
 	//EXPRESSION_P9
-	options = make([]Option, 3)
+	options = make([]Option, 2)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P8])
-	grammarSymbols = append(grammarSymbols, Terminal(token.EQEQ))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P9])
+	grammarSymbols = append(grammarSymbols, Terminal(EXPRESSION_P9))
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P8])
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P8])
-	grammarSymbols = append(grammarSymbols, Terminal(token.NOTEQ))
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P9])
 	options[1].grammarSymbols = grammarSymbols
-
-	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P8])
-	options[2].grammarSymbols = grammarSymbols
 
 	productions[EXPRESSION_P9].options = options
 	productions[EXPRESSION_P9].head = EXPRESSION_P9
@@ -864,9 +910,9 @@ func GetGrammar() map[string]*NonTerminal {
 	options = make([]Option, 2)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P9])
-	grammarSymbols = append(grammarSymbols, Terminal(token.LAND))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P10])
+	grammarSymbols = append(grammarSymbols, Terminal(EXPRESSION_P10))
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P9])
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
@@ -880,9 +926,9 @@ func GetGrammar() map[string]*NonTerminal {
 	options = make([]Option, 2)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P10])
-	grammarSymbols = append(grammarSymbols, Terminal(token.LOR))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION])
+	grammarSymbols = append(grammarSymbols, Terminal(EXPRESSION))
+	grammarSymbols = append(grammarSymbols, productions[EXPRESSION_P10])
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
