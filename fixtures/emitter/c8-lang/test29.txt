@@ -7,7 +7,30 @@
         number1= 13
         number2 = 2
         result = number1*2/2%number2*number2%1
+        if result==0{
         drawFont(0,0, result)
+
+        }
+
+        result = 255 & 10 & 2 | 10
+        if result == 10{
+            drawFont(10,0, result)
+
+        }
+
+        result = 255 & 10 & 2 | 10^2+2
+        if result == 14{
+            drawFont(10,10, result)
+
+        }
+
+        result = 15 >> 2 >> 1 << 2
+
+        drawFont(20,20, result)
+
+        result = 1 << 2 >> 1 >> 1 << 2
+        drawFont(30,20, result)
+
         return
     }
 
