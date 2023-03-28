@@ -1,7 +1,12 @@
 {
     fn main()void{
+        let number1 byte
+        let number2 byte
         let result byte
-        result = 24/2/2/2*2/2
+
+        number1= 13
+        number2 = 2
+        result = number1*2/2%number2*number2%1
         drawFont(0,0, result)
         return
     }

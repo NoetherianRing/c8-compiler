@@ -1889,12 +1889,20 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 	}
 
 	err = emitter.saveOpcode(I4XKK(leftOperandRegIndex.lowBitsIndex, 0))//if vx != 0 we skip the next opcode
+	if err != nil{
+		return nil, err
+	}
+	err = emitter.saveOpcode(I8XY0(rightOperandRegIndex.lowBitsIndex, leftOperandRegIndex.lowBitsIndex))// vy = vx
+	if err != nil{
+		return nil, err
+	}
 
+	err = emitter.saveOpcode(I4XKK(leftOperandRegIndex.lowBitsIndex, 0))//if vx != 0 we skip the next opcode
 	if err != nil{
 		return nil, err
 	}
 	//if vx =0, the result is 0 and we skip the operation
-	skipMod := I1NNN(emitter.currentAddress+11*2)
+	skipMod := I1NNN(emitter.currentAddress+12*2)
 	err = emitter.saveOpcode(skipMod)
 
 	//we use v0 as an aux
@@ -1916,6 +1924,15 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 		return nil, err
 	}
 
+	err = emitter.saveOpcode(I4XKK(leftOperandRegIndex.lowBitsIndex, 0))//if vx != 0 we skip the next opcode
+	if err != nil{
+		return nil, err
+	}
+	err = emitter.saveOpcode(I8XY0(rightOperandRegIndex.lowBitsIndex, leftOperandRegIndex.lowBitsIndex))// vy = vx
+	if err != nil{
+		return nil, err
+	}
+
 	err = emitter.saveOpcode( I4XKK(leftOperandRegIndex.lowBitsIndex, 0))	 //if vx != 0 we skip the next opcode
 	if err != nil{
 		return nil, err
@@ -1927,20 +1944,20 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 	if err != nil{
 		return nil, err
 	}
-	//if vx!=0, we ask if vx<vy (vf =0) and if so we jump the next opcode
+	//if vx!=0, we ask if vf =0 (that means vx < 0) and if so we jump the next opcode
 	err = emitter.saveOpcode(I3XKK(Carry, 0))
 	if err != nil{
 		return nil, err
 	}
 
 	//if vx>vy we keep dividing in loop by jumping
-	loop := I1NNN(emitter.currentAddress-5*2)
+	loop := I1NNN(emitter.currentAddress-7*2)
 	err = emitter.saveOpcode(loop)
 	if err != nil{
 		return nil, err
 	}
 
-	//if not we jump the previous opcode and we find the rest by subtracting 255 (saved in v0) and vx, adding 1
+	//if not, we jump the previous opcode and we find the rest by subtracting 255 (saved in v0) and vx, adding 1
 	//(because we want to subtract 256-vx) and subtracting that result to the divisor. That give us the rest
 	err = emitter.saveOpcode(I8XY5(aux, leftOperandRegIndex.lowBitsIndex))// aux = 255-vx
 	if err != nil{
@@ -1950,7 +1967,7 @@ func (emitter *Emitter) mod(functionCtx *FunctionCtx) (*ResultRegIndex, error) {
 	if err != nil{
 		return nil, err
 	}
-	err = emitter.saveOpcode(I8XY5(rightOperandRegIndex.lowBitsIndex, aux))// aux = 255-vx
+	err = emitter.saveOpcode(I8XY5(rightOperandRegIndex.lowBitsIndex, aux))// vy = vy-aux
 	if err != nil{
 		return nil, err
 	}
