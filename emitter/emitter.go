@@ -155,7 +155,7 @@ func (emitter *Emitter) primitiveFunctionsDeclaration()error{
 	if err != nil{
 		return err
 	}
-	/*
+
 	err = emitter.cleanDeclaration()
 	if err != nil{
 		return err
@@ -185,7 +185,7 @@ func (emitter *Emitter) primitiveFunctionsDeclaration()error{
 		return err
 	}
 	err = emitter.drawDeclaration()
-*/
+
 	return err
 
 }
@@ -208,7 +208,7 @@ func (emitter *Emitter) drawFontDeclaration()error{
 		return err
 	}
 
-	err = emitter.saveOpcode(I8XY0(0,0xf)) //V0 = Vf
+	err = emitter.saveOpcode(I8XY0(0,Carry)) //V0 = Vf
 	if err != nil{
 		return err
 	}
@@ -293,7 +293,7 @@ func (emitter *Emitter) waitKeyDeclaration ()error{
 func (emitter *Emitter) isKeyPressedDeclaration ()error{
 	emitter.functions[symboltable.FunctionIsKeyPressed] = emitter.currentAddress
 	//isKeyPressed has one parameter in v2(a byte) and it returns a bool in v0
-	err := emitter.saveOpcode(I6XKK(1, True)) //V1 = True
+	err := emitter.saveOpcode(I6XKK(0, True)) //V0 = True
 
 	if err != nil{
 		return err
@@ -302,11 +302,7 @@ func (emitter *Emitter) isKeyPressedDeclaration ()error{
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(I6XKK(1, False)) //If the key saved in v2 was not pressed we set v1 = False
-	if err != nil{
-		return err
-	}
-	err = emitter.saveOpcode(I8XY0(0,1)) //V0=V1
+	err = emitter.saveOpcode(I6XKK(0, False)) //If the key saved in v2 was not pressed we set v = False
 	if err != nil{
 		return err
 	}
@@ -320,7 +316,7 @@ func (emitter *Emitter) drawDeclaration ()error {
 	//it returns a boolean (the value of vf) in v0
 
 
-	dxynAddress := emitter.functions[symboltable.FunctionDraw]+6 //address in which we want dynamically write the opcode
+	dxynAddress := emitter.functions[symboltable.FunctionDraw]+6*2 //address in which we want dynamically write the opcode
 
 	err := emitter.saveOpcode(I6XKK(0, 0xD2)) //v0=0xD2 (v0 =0xDX)
 	if err != nil{
@@ -410,6 +406,9 @@ func (emitter *Emitter) fn()error{
 
 	emitter.ctxNode = fn
 
+	if hasParams{
+		emitter.scope = emitter.scope.SubScopes[0]
+	}
 	//we declare all variables in the stack
 	emitter.ctxNode = emitter.ctxNode.Children[BLOCK]
 	err := emitter.declareInStack(ctxReferences)
@@ -420,9 +419,7 @@ func (emitter *Emitter) fn()error{
 	emitter.ctxNode = fn
 
 	ctxFunction := NewCtxFunction(registerHandler, ctxReferences)
-	if hasParams{
-		emitter.scope = emitter.scope.SubScopes[0]
-	}
+
 	//we write the rest of the statements in memory
 	for _, child := range fn.Children[BLOCK].Children {
 
@@ -734,7 +731,7 @@ func (emitter *Emitter) _if(functionCtx *FunctionCtx) error{
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(I3XKK(resultRegIndex.lowBitsIndex, True))  //if vx = true we skip the next instruction
+	err = emitter.saveOpcode(I4XKK(resultRegIndex.lowBitsIndex, False))  //if vx = true (or vx != false) we skip the next instruction
 	if err != nil{
 		return err
 	}
@@ -780,7 +777,7 @@ func (emitter *Emitter) _else(functionCtx *FunctionCtx) error{
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(I3XKK(resultRegIndex.lowBitsIndex, True))  //if vx = true we skip the next instruction
+	err = emitter.saveOpcode(I4XKK(resultRegIndex.lowBitsIndex, False))  //if vx = true(vx!=false) we skip the next instruction
 	if err != nil{
 		return err
 	}
@@ -849,7 +846,7 @@ func (emitter *Emitter)_while(functionCtx *FunctionCtx) error {
 	if err != nil{
 		return err
 	}
-	err = emitter.saveOpcode(I3XKK(resultRegIndex.lowBitsIndex, True)) //if vx = true we skip the next instruction
+	err = emitter.saveOpcode(I4XKK(resultRegIndex.lowBitsIndex, False)) //if vx = true (vx!=false) we skip the next instruction
 	if err != nil{
 		return err
 	}
@@ -1452,7 +1449,7 @@ func (emitter *Emitter) noteq(functionCtx *FunctionCtx) (*ResultRegIndex, error)
 		return nil, err
 	}
 
-	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
+ 	leftOperandRegIndex, rightOperandRegIndex, err := emitter.solveOperands(functionCtx)
 	if err != nil {
 		return nil, err
 	}

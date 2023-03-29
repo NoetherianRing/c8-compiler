@@ -1,0 +1,17 @@
+{
+    fn main() void{
+        let sprite [5]byte
+        [0]sprite = 255
+        [1]sprite = 0
+        [2]sprite = 255
+        [3]sprite = 0
+        [4]sprite = 255
+
+        let pointer *byte
+
+        pointer = $[0]sprite
+        draw(0,0,5, pointer)
+
+        return
+    }
+}

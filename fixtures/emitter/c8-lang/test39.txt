@@ -1,0 +1,26 @@
+{
+    fn call(let x byte, let y byte, let n byte, let p *byte) void{
+        if x == 0 && y == 0 && n == 5{
+            drawFont(0,0,1)
+        }
+        if *p == 255 {
+            drawFont(10,10,2)
+        }
+        return
+    }
+    fn main() void{
+        let sprite [5]byte
+        [0]sprite = 255
+        [1]sprite = 255
+        [2]sprite = 255
+        [3]sprite = 255
+        [4]sprite = 255
+
+        let pointer *byte
+
+        pointer = $[0]sprite
+        call(0,0,5, pointer)
+
+        return
+    }
+}

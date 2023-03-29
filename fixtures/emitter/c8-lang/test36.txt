@@ -1,0 +1,10 @@
+{
+    fn main() void{
+       let k byte
+       clean()
+       k = waitKey()
+       drawFont(0,0, k)
+
+       return
+    }
+}
