@@ -52,7 +52,7 @@ func (app *App) Program(){
 	tree := ast.NewSyntaxTree(ast.NewNode(token.NewToken("", "", 0)))
 	valid := app.program.Build(&src, tree)
 	if !valid{
-		err = errors.New(errorhandler.SyntaxError(src[0].Line, src[0].Literal))
+		err = errors.New(errorhandler.SyntaxError())
 		panic(err)
 	}
 

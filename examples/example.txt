@@ -1,0 +1,136 @@
+{
+    let updateMonitor bool
+    fn updateScore(let score byte) byte{
+        score = score + 1
+        drawFont(0,0,score)
+        return score
+    }
+
+    fn updateX(let x byte) byte{
+         let keyA byte
+         let keyD byte
+
+         keyA = 7
+         keyD = 9
+
+         if isKeyPressed(keyA){
+               x = x - 2
+               updateMonitor = true
+         }
+         if isKeyPressed(keyD){
+                 x = x + 2
+                 updateMonitor = true
+
+         }
+        return x
+    }
+
+    fn updateY(let y byte) byte{
+           let keyW byte
+           let keyS byte
+
+           keyW = 5
+           keyS = 8
+
+           if isKeyPressed(keyW){
+             y = y - 2
+             updateMonitor = true
+
+
+           }
+           if isKeyPressed(keyS){
+                     y = y + 2
+                     updateMonitor = true
+
+           }
+            return y
+        }
+
+
+    fn game(let nPlayer byte, let spritePlayer *byte, let nSeed byte, let spriteSeed *byte) void{
+           let monitorWidth byte
+           let monitorHeight byte
+           monitorWidth = 63
+           monitorHeight = 31
+           let xP byte
+           let yP byte
+           xP = 10
+           yP = 10
+           let xS byte
+           let yS byte
+           let collision bool
+           collision = false
+           let updateSeed bool
+           updateSeed = true
+           let keepPlaying bool
+           updateMonitor = true
+
+           let maxScore byte
+           let score byte
+           maxScore = 15
+           score = 0
+           keepPlaying = true
+
+           drawFont(0,0,score)
+
+           while keepPlaying{
+
+                if updateSeed{
+                    xS = random() & monitorWidth
+                    yS = (random() & monitorHeight)
+
+                    updateMonitor = true
+                    updateSeed = false
+                 }
+
+                if updateMonitor{
+                    clean()
+
+                    collision = draw(xS,yS, nSeed, spriteSeed)
+                    draw(xP,yP, nPlayer, spritePlayer)
+                    if collision{
+                      score = updateScore(score)
+                       if score>maxScore{
+                        keepPlaying = false
+                       }
+                    updateSeed = collision
+
+                    }else{
+                         updateMonitor = false
+                         drawFont(0,0,score)
+
+                    }
+                   }
+
+                   xP = updateX(xP)
+                   yP = updateY(yP)
+
+           }
+
+           return
+
+    }
+
+    fn main() void{
+        let spritePlayer [4]byte
+        let spriteSeed [2]byte
+        let pSpritePlayer *byte
+        let pSpriteSeed *byte
+
+        [0]spriteSeed = 1
+        [1]spriteSeed = 1
+
+        pSpriteSeed = $[0]spriteSeed
+
+        [0]spritePlayer=240
+        [1]spritePlayer=240
+        [2]spritePlayer=240
+        [3]spritePlayer=240
+
+        pSpritePlayer = $[0]spritePlayer
+
+        game(4, pSpritePlayer, 2, pSpriteSeed)
+
+        return
+    }
+}

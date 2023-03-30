@@ -133,8 +133,8 @@ func MainFunctionNeeded()string{
 	errorString := "main function needed\n"
 	return errorString
 }
-func SyntaxError(line int, symbol string)string{
-	errorString := "syntactic error\nin line: "+ strconv.Itoa(line) + "\nin symbol: "+ symbol
+func SyntaxError()string{
+	errorString := "syntactic error"
 	return errorString
 }
 

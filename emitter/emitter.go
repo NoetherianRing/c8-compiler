@@ -345,11 +345,17 @@ func (emitter *Emitter) drawDeclaration ()error {
 
 	//the next 2 bytes in memory are for the DXYN opcode that was just dynamically generated
 
+
+
 	err = emitter.moveCurrentAddress()
 	if err != nil{
 		return err
 	}
 	err = emitter.moveCurrentAddress()
+	if err != nil{
+		return err
+	}
+	err = emitter.saveOpcode(I8XY0(0, Carry)) //v0 = vf
 	if err != nil{
 		return err
 	}
@@ -366,7 +372,7 @@ func (emitter *Emitter) fn()error{
 	registerHandler := NewRegisterHandler()
 
 	//we backup the offsetStack so we can update it after compiling the function
-	offsetBackup := emitter.offsetStack
+//	offsetBackup := emitter.offsetStack
 
 	//we store the address in which the function is saved in the map of functions
 	functionName := emitter.ctxNode.Children[IDENT].Value.Literal
@@ -382,22 +388,24 @@ func (emitter *Emitter) fn()error{
 		hasParams = true
 		funcSymbol := emitter.scope.Symbols[functionName]
  		sizeParams := obtainSizeParams(funcSymbol.DataType.(symboltable.Function).Args)
-		i := 0
+		iReg := 2
+		iParam := 0
 		var err error
 		emitter.ctxNode = emitter.ctxNode.Children[ARG].Children[0]
 
 		for emitter.ctxNode.Value.Type == token.COMMA{
 			comma := emitter.ctxNode
 			emitter.ctxNode = emitter.ctxNode.Children[0]
-			err = emitter.saveParamInStack(ctxReferences, i, sizeParams)
+			err = emitter.saveParamInStack(ctxReferences, iParam, iReg, sizeParams)
 			if err != nil {
 				return err
 			}
-			i++
+			iReg+=+sizeParams[iParam]
+			iParam++
 			emitter.ctxNode = comma
 			emitter.ctxNode = emitter.ctxNode.Children[1]
 		}
-		err = emitter.saveParamInStack(ctxReferences, i, sizeParams)
+		err = emitter.saveParamInStack(ctxReferences, iParam, iReg, sizeParams)
 
 		if err != nil {
 			return err
@@ -436,13 +444,13 @@ func (emitter *Emitter) fn()error{
 	}
 
 	emitter.scope = mainScope
-	emitter.offsetStack = offsetBackup
+//	emitter.offsetStack = offsetBackup
 	return nil
 }
 
 //saveParamInStack declare a param saved in the register v(i+2) in the stack and save its values there,
 //, it also update the slice params. Returns an error if needed
-func (emitter *Emitter) saveParamInStack(ctxReferences *Stack, i int, sizeParams []int) error {
+func (emitter *Emitter) saveParamInStack(ctxReferences *Stack, iParam int, iReg int, sizeParams []int) error {
 	const IDENT = 0
 	//first we declare them in the stack
 	paramIdent := emitter.ctxNode.Children[IDENT].Value.Literal
@@ -459,30 +467,31 @@ func (emitter *Emitter) saveParamInStack(ctxReferences *Stack, i int, sizeParams
 	}
 	reference, _ := ctxReferences.GetReference(paramIdent)
 
+
 	err = emitter.saveFX1ESafely(0, reference.positionInStack) // I = I + V2
 	if err != nil {
 		return err
 	}
 
-	err = emitter.saveOpcode(I8XY0(0, byte(i+2))) //v0 = v(i+2)
+	err = emitter.saveOpcode(I8XY0(0, byte(iReg))) //v0 = v(iReg+2)
 	if err != nil {
 		return  err
 	}
-	if sizeParams[i] == 2 {
-		//v1 = v(i+2)
-		err = emitter.saveOpcode(I8XY0(1, byte(i+2+1))) //v1 = v(i+2+1)
+	if sizeParams[iParam] == 2 {
+		//v1 = v(iReg+2)
+		err = emitter.saveOpcode(I8XY0(1, byte(iReg+1))) //v1 = v(iReg+2+1)
 		if err != nil {
 			return err
 		}
 
 	}
 
-	err = emitter.saveOpcode(IFX55(byte(sizeParams[i]-1))) //we save v0 (or v0 and v1) in memory
+	err = emitter.saveOpcode(IFX55(byte(sizeParams[iParam]-1))) //we save v0 (or v0 and v1) in memory
 	if err != nil {
 		return err
 	}
 
-	emitter.offsetStack = emitter.offsetStack + sizeParams[i]
+	emitter.offsetStack = emitter.offsetStack + sizeParams[iParam]
 	return nil
 }
 
@@ -952,7 +961,7 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(*ResultRegIndex, error) {
 		return nil, err
 	}
 
-	backupOffsetStack := emitter.offsetStack
+//	backupOffsetStack := emitter.offsetStack
 	emitter.offsetStack+=AmountOfRegistersToOperate
 	//then we save the params of the function call in registers
 	err = emitter.saveParamsInRegisters(functionCtx, ident)
@@ -1018,14 +1027,14 @@ func (emitter *Emitter)call(functionCtx *FunctionCtx)(*ResultRegIndex, error) {
 		if err != nil {
 			return nil, err
 		}
-		emitter.offsetStack = backupOffsetStack
+	//	emitter.offsetStack = backupOffsetStack
 		functionCtx.registerHandler.Free(aux)
 
 		return regIndex, nil
 
 
 	}
-	emitter.offsetStack = backupOffsetStack
+//	emitter.offsetStack = backupOffsetStack
 	functionCtx.registerHandler.Free(aux)
 	return nil, nil
 
@@ -1088,7 +1097,7 @@ func (emitter *Emitter) saveParamsInRegisters(functionCtx *FunctionCtx, ident st
 			if err!=nil {
 				return err
 			}
-			i+=symboltable.GetSize(params[i-2])
+			i+=1
 			emitter.ctxNode = backupComma
 			emitter.ctxNode = emitter.ctxNode.Children[1]
 		}
