@@ -7,16 +7,16 @@
     foo2 = 10
 
     mod = foo % foo2
-    drawFont(0,0, mod)
+    drawFont(0,0, mod) #5
 
     foo = 121
     mod = foo % 6
 
-    drawFont(10,10, mod)
+    drawFont(10,10, mod) # 1
 
     foo2 = 9
     mod = 215 % 9
-    drawFont(20,20, mod)
+    drawFont(20,20, mod) #8
 
 
     return

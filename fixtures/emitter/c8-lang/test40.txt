@@ -30,7 +30,6 @@
         let pointer *byte
 
         pointer = $[0]sprite
-       # draw(10,10, 5, pointer)
 
         toDraw(pointer)
         return

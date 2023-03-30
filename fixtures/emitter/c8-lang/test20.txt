@@ -17,9 +17,9 @@
         pointer =$number1
 
         if call(number2, pointer){
-            drawFont(0,0, number1)
-            drawFont(10,0, number2)
-            drawFont(10,10, *pointer)
+            drawFont(0,0, number1) #6
+            drawFont(10,0, number2) #5
+            drawFont(10,10, *pointer) #6
 
 
         }

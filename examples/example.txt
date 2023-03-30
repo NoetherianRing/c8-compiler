@@ -96,7 +96,7 @@
 
            updateMonitor = true
 
-           maxScore = 1
+           maxScore = 5
            score = 0
 
            drawFont(0,0,score)

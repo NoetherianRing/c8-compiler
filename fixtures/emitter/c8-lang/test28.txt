@@ -10,7 +10,7 @@
         number4=4
         number16=16
         var = number2*number4 * number16 / number2 / number2 / number2 / number2
-        drawFont(0,0, var)
+        drawFont(0,0, var) #8
 
         return
     }

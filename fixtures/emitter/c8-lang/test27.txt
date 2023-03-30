@@ -32,7 +32,7 @@
         result = 2*2*2 #8
         drawFont(30,10, result)
 
-         result = 10+2-1-2+1 #10
+         result = 10+2-1-2+1 #A
          drawFont(40,10, result)
 
 
