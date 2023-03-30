@@ -1,5 +1,29 @@
 {
-    let updateMonitor bool
+   let updateMonitor bool
+    fn win() void{
+        let key byte
+        let eye [4]byte
+        [0]eye = 255
+        [1]eye = 255
+        [2]eye = 255
+        [3]eye = 255
+
+        let smile [2]byte
+        [0]smile = 195
+        [1]smile = 255
+
+        clean()
+        draw(10, 10, 4,$[0]eye)
+        draw(20, 10, 4,$[0]eye)
+        draw(15, 20, 2,$[0]smile)
+
+        while key != 1{
+
+         key = waitKey()
+       }
+        return
+    }
+
     fn updateScore(let score byte) byte{
         score = score + 1
         drawFont(0,0,score)
@@ -48,65 +72,73 @@
 
 
     fn game(let nPlayer byte, let spritePlayer *byte, let nSeed byte, let spriteSeed *byte) void{
-           let monitorWidth byte
-           let monitorHeight byte
-           monitorWidth = 63
-           monitorHeight = 31
            let xP byte
            let yP byte
-           xP = 10
-           yP = 10
+
            let xS byte
            let yS byte
+
            let collision bool
-           collision = false
            let updateSeed bool
-           updateSeed = true
+
            let keepPlaying bool
-           updateMonitor = true
 
            let maxScore byte
            let score byte
-           maxScore = 15
-           score = 0
+
            keepPlaying = true
+
+           xP = 10
+           yP = 10
+
+           collision = false
+           updateSeed = true
+
+           updateMonitor = true
+
+           maxScore = 1
+           score = 0
 
            drawFont(0,0,score)
 
            while keepPlaying{
 
                 if updateSeed{
-                    xS = random() & monitorWidth
-                    yS = (random() & monitorHeight)
-
+                    xS = random()
+                    yS = random()
                     updateMonitor = true
                     updateSeed = false
-                 }
+                }
 
                 if updateMonitor{
                     clean()
 
-                    collision = draw(xS,yS, nSeed, spriteSeed)
-                    draw(xP,yP, nPlayer, spritePlayer)
+                    draw(xS,yS, nSeed, spriteSeed)
+                    collision = draw(xP,yP, nPlayer, spritePlayer)
                     if collision{
                       score = updateScore(score)
+
                        if score>maxScore{
-                        keepPlaying = false
+
+                            keepPlaying = false
                        }
-                    updateSeed = collision
+                       updateSeed = collision
 
                     }else{
                          updateMonitor = false
                          drawFont(0,0,score)
 
                     }
-                   }
+                }
+                if score >= maxScore {
+                    keepPlaying = false
+                }
 
-                   xP = updateX(xP)
-                   yP = updateY(yP)
+                xP = updateX(xP)
+                yP = updateY(yP)
 
            }
-
+           win()
            return
 
     }
