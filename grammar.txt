@@ -44,7 +44,6 @@ params -> expression, params
 
 var ->  |*var
         |[literal] var
-        |[id] var
         |call
         |ident
 

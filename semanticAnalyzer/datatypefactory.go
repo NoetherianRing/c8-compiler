@@ -9,8 +9,8 @@ import (
 	"strconv"
 )
 
-type DataTypeFactory struct{
-	scope *symboltable.Scope
+type DataTypeFactory struct {
+	scope        *symboltable.Scope
 	ctxNode      *ast.Node
 	walkingAFunc bool
 }
@@ -23,19 +23,18 @@ func NewDataTypeFactory() *DataTypeFactory {
 	return getter
 }
 
-func (getter *DataTypeFactory)SetCxtNode(node *ast.Node){
+func (getter *DataTypeFactory) SetCxtNode(node *ast.Node) {
 	getter.ctxNode = node
 }
 
-func (getter *DataTypeFactory)SetScope(scope *symboltable.Scope){
+func (getter *DataTypeFactory) SetScope(scope *symboltable.Scope) {
 	getter.scope = scope
 }
 
-
 //GetDataType calls "redirect()"to obtain a function that returns the data type of the current node of the tree.
 //It then executes that function and returns its result.
-func (getter *DataTypeFactory) GetDataType()(interface{}, error){
-	if getter.ctxNode == nil || getter.scope == nil{
+func (getter *DataTypeFactory) GetDataType() (interface{}, error) {
+	if getter.ctxNode == nil || getter.scope == nil {
 		panic(errorhandler.UnexpectedCompilerError())
 	}
 	if getter.scope == nil {
@@ -47,9 +46,9 @@ func (getter *DataTypeFactory) GetDataType()(interface{}, error){
 
 //redirect analyzes the token type of the current node of the tree and returns a function that analyzes the data type of the expression led by the node.
 //When needed, it calls another redirect method for further analysis.
-func (getter *DataTypeFactory) redirect() func()(interface{}, error){
+func (getter *DataTypeFactory) redirect() func() (interface{}, error) {
 
-	switch getter.ctxNode.Value.Type{
+	switch getter.ctxNode.Value.Type {
 	case token.ASTERISK:
 		return getter.redirectAsterisk()
 	case token.RBRACKET:
@@ -58,7 +57,7 @@ func (getter *DataTypeFactory) redirect() func()(interface{}, error){
 		return getter.redirectParentheses()
 	case token.VOID:
 		return getter.declarationSimple
-	case  token.TYPEBYTE:
+	case token.TYPEBYTE:
 		return getter.declarationSimple
 	case token.TYPEBOOL:
 		return getter.declarationSimple
@@ -112,38 +111,39 @@ func (getter *DataTypeFactory) redirect() func()(interface{}, error){
 
 }
 
-//redirectAsterisk return a function that analysis the data type of an expression led by an asterisk by checking the context.
-func (getter *DataTypeFactory) redirectAsterisk() func()(interface{}, error) {
+//redirectAsterisk returns a function that analysis the data type of an expression led by an asterisk by checking the context.
+func (getter *DataTypeFactory) redirectAsterisk() func() (interface{}, error) {
 
-	switch len(getter.ctxNode.Children){
+	switch len(getter.ctxNode.Children) {
 	case 1:
-		if getter.isADeclarationContext(){
+		if getter.isADeclarationContext() {
 			return getter.declaration
-		}else{
+		} else {
 			return getter.dereference
 		}
 	case 2:
 		return getter.byteOperation
 
-	default: panic(errorhandler.UnexpectedCompilerError())
+	default:
+		panic(errorhandler.UnexpectedCompilerError())
 	}
 
 }
-//redirectBracket return a function that analysis the data type of an expression led by an bracket by checking the context.
-func (getter *DataTypeFactory) redirectBracket() func()(interface{}, error) {
-	if getter.isADeclarationContext(){
+
+//redirectBracket returns a function that analysis the data type of an expression led by an bracket by checking the context.
+func (getter *DataTypeFactory) redirectBracket() func() (interface{}, error) {
+	if getter.isADeclarationContext() {
 		return getter.declaration
-	}else{
+	} else {
 		return getter.dereference
 	}
 
-
 }
 
-//redirectParentheses return a function that analysis the data type of an expression led by a parentheses by checking the context.
-func (getter *DataTypeFactory) redirectParentheses() func()(interface{}, error) {
+//redirectParentheses returns a function that analysis the data type of an expression led by a parentheses by checking the context.
+func (getter *DataTypeFactory) redirectParentheses() func() (interface{}, error) {
 	child := getter.ctxNode.Children[0].Value
-	if child.Type == token.IDENT{
+	if child.Type == token.IDENT {
 		return getter.functionCall
 	}
 	return getter.skipNodeByLeft
@@ -163,40 +163,38 @@ func (getter *DataTypeFactory) isADeclarationContext() bool {
 	leaf := GetLeafByRight(getter.ctxNode)
 	leafType := leaf.Value.Type
 
-	if leafType == token.TYPEBOOL|| leafType == token.TYPEBYTE{
+	if leafType == token.TYPEBOOL || leafType == token.TYPEBYTE {
 		return true
 	}
 	return false
 }
 
-
 //validateParamsDataType validates if the data type of the parameters of a function call match with each data type
 //of expressions led by the ctxNode. It also validates if the numbers of parameters matches.
-func (getter *DataTypeFactory) validateParamsDataType(args []interface{}) error{
+func (getter *DataTypeFactory) validateParamsDataType(args []interface{}) error {
 	var err error
 	err = nil
 	moreParams := true
 	backup := getter.ctxNode
-	for i := range args{
-		if getter.ctxNode.Value.Type == token.COMMA{
+	for i := range args {
+		if getter.ctxNode.Value.Type == token.COMMA {
 
 			comma := getter.ctxNode
 			getter.ctxNode = getter.ctxNode.Children[0]
 			err = getter.validateParamDataType(args, i)
-			if err != nil{
+			if err != nil {
 				return err
 			}
 
 			getter.ctxNode = comma.Children[1]
 
-
-		}else{
+		} else {
 			moreParams = false
-			if len(args) - (i) != 1{
+			if len(args)-(i) != 1 {
 				line := getter.ctxNode.Value.Line
-				err =errors.New(errorhandler.NumberOfParametersDoesntMatch(line, i+1, len(args)))
+				err = errors.New(errorhandler.NumberOfParametersDoesntMatch(line, i+1, len(args)))
 				return err
-			}else{
+			} else {
 				err = getter.validateParamDataType(args, i)
 			}
 		}
@@ -206,7 +204,7 @@ func (getter *DataTypeFactory) validateParamsDataType(args []interface{}) error{
 		getter.ctxNode = backup
 		numberOfTreeParams := CountNodesToLeafByRight(getter.ctxNode) + 1
 		line := getter.ctxNode.Value.Line
-		err =errors.New(errorhandler.NumberOfParametersDoesntMatch(line, numberOfTreeParams, len(args)))
+		err = errors.New(errorhandler.NumberOfParametersDoesntMatch(line, numberOfTreeParams, len(args)))
 
 	}
 
@@ -215,36 +213,35 @@ func (getter *DataTypeFactory) validateParamsDataType(args []interface{}) error{
 
 //validateParamDataType  validates if the data type of the expression led by the current "ctxNode"
 //matches the data type of the argument "i" of a function.
-func (getter *DataTypeFactory) validateParamDataType(args []interface{}, i int) error{
+func (getter *DataTypeFactory) validateParamDataType(args []interface{}, i int) error {
 	treeParam, err := getter.GetDataType()
-	if err != nil{
+	if err != nil {
 		return err
 	}
-	if symboltable.Compare(treeParam, args[i]){
+	if symboltable.Compare(treeParam, args[i]) {
 		return nil
-	}else{
+	} else {
 
 		line := getter.ctxNode.Value.Line
-		err =errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(treeParam), token.EQ, symboltable.Fmt(args[i])))
+		err = errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(treeParam), token.EQ, symboltable.Fmt(args[i])))
 		return err
 	}
 
 }
 
-
 //logicExpression verifies that the expressions led by the ctx Node are boolean and returns a error if not.
 //Otherwise returns a boolean
-func (getter *DataTypeFactory) logicExpression() (interface{}, error){
+func (getter *DataTypeFactory) logicExpression() (interface{}, error) {
 	boolType := symboltable.NewBool()
-	for _, child := range getter.ctxNode.Children{
+	for _, child := range getter.ctxNode.Children {
 		backup := getter.ctxNode
 		getter.ctxNode = child
-		childDatatype,err := getter.GetDataType()
+		childDatatype, err := getter.GetDataType()
 		getter.ctxNode = backup
-		if err != nil{
+		if err != nil {
 			return nil, err
 		}
-		if !boolType.Compare(childDatatype){
+		if !boolType.Compare(childDatatype) {
 			line := child.Value.Line
 			err := errors.New(errorhandler.UnexpectedDataType(line, symboltable.Fmt(boolType), symboltable.Fmt(childDatatype)))
 			return nil, err
@@ -255,35 +252,34 @@ func (getter *DataTypeFactory) logicExpression() (interface{}, error){
 
 //comparison verifies that the expressions led by the ctx Node are of the same data type and returns a error if not.
 //Otherwise returns a boolean
-func (getter *DataTypeFactory) comparison() (interface{}, error){
+func (getter *DataTypeFactory) comparison() (interface{}, error) {
 	backup := getter.ctxNode
 	getter.ctxNode = getter.ctxNode.Children[0]
-	leftChildDataType, err :=  getter.GetDataType()
+	leftChildDataType, err := getter.GetDataType()
 	getter.ctxNode = backup
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	getter.ctxNode = getter.ctxNode.Children[1]
-	rightChildDataType, err :=  getter.GetDataType()
+	rightChildDataType, err := getter.GetDataType()
 	getter.ctxNode = backup
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
-	if leftChildDataType != rightChildDataType{
+	if leftChildDataType != rightChildDataType {
 		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(leftChildDataType), token.EQ, symboltable.Fmt(rightChildDataType)))
 		return nil, err
 	}
 	return symboltable.NewBool(), nil
 
-
 }
 
 //numericLogicalComparison verifies that the expressions led by the ctx Node are of the same numeric data type by calling to
 //validateSameNumericDataType(). Returns a error if needed, otherwise returns a boolean
-func (getter *DataTypeFactory) numericLogicalComparison() (interface{}, error){
+func (getter *DataTypeFactory) numericLogicalComparison() (interface{}, error) {
 	_, err := getter.validateSameNumericDataType()
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	return symboltable.NewBool(), nil
@@ -291,9 +287,9 @@ func (getter *DataTypeFactory) numericLogicalComparison() (interface{}, error){
 
 //numericLogicalComparison verifies that the expressions led by the ctx Node are of the same numeric data type by calling to
 //validateSameNumericDataType(). Returns a error if needed, otherwise returns a the same datatype of the expressions it leads.
-func (getter *DataTypeFactory) bitwiseExpression() (interface{}, error){
+func (getter *DataTypeFactory) bitwiseExpression() (interface{}, error) {
 	datatype, err := getter.validateSameNumericDataType()
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	return datatype, nil
@@ -301,49 +297,42 @@ func (getter *DataTypeFactory) bitwiseExpression() (interface{}, error){
 
 //validateSameNumericDataType verifies that the expressions led by the ctx Node are of the same numeric data type and returns a error if not.
 //Otherwise returns the same datatype of the expressions it leads.
-func (getter *DataTypeFactory) validateSameNumericDataType() (interface{},error) {
+func (getter *DataTypeFactory) validateSameNumericDataType() (interface{}, error) {
 
 	leftChildDataType, rightChildDataType, err := getter.obtainOperandsDatatype()
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	if !symboltable.Compare(leftChildDataType, rightChildDataType) {
 		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.DataTypesMismatch(line, symboltable.Fmt(leftChildDataType), token.EQ, symboltable.Fmt(rightChildDataType)))
 		return nil, err
-	}else{
-		if !symboltable.IsNumeric(leftChildDataType){
+	} else {
+		if !symboltable.IsNumeric(leftChildDataType) {
 			line := getter.ctxNode.Value.Line
 			err := errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(leftChildDataType)))
 			return nil, err
 		}
-	/*	if !symboltable.IsByte(rightChildDataType){
-			line := getter.ctxNode.Value.Line
-			err := errors.New(errorhandler.UnexpectedDataType(line, "byte", symboltable.Fmt(rightChildDataType)))
-			return nil, err
 
-		}
-	*/
 	}
 
 	return leftChildDataType, nil
 }
 
-
 //obtainOperandDatatype return the datatype of two operands of a operation and an error if needed
-func (getter *DataTypeFactory) obtainOperandsDatatype() (interface{}, interface{},error) {
+func (getter *DataTypeFactory) obtainOperandsDatatype() (interface{}, interface{}, error) {
 	backup := getter.ctxNode
 	getter.ctxNode = getter.ctxNode.Children[0]
 	leftChildDataType, err := getter.GetDataType()
-	if err != nil{
+	if err != nil {
 
 		return nil, nil, err
 	}
 	getter.ctxNode = backup
-	getter.ctxNode =  getter.ctxNode.Children[1]
+	getter.ctxNode = getter.ctxNode.Children[1]
 
 	rightChildDataType, err := getter.GetDataType()
-	if err != nil{
+	if err != nil {
 		return nil, nil, err
 	}
 	return leftChildDataType, rightChildDataType, nil
@@ -352,16 +341,16 @@ func (getter *DataTypeFactory) obtainOperandsDatatype() (interface{}, interface{
 //numericOperation verifies that the left child of ctx Node is a pointer or a byte and the right child a byte
 func (getter *DataTypeFactory) numericOperation() (interface{}, error) {
 	leftChildDataType, rightChildDataType, err := getter.obtainOperandsDatatype()
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 
-	if !symboltable.IsNumeric(leftChildDataType){
+	if !symboltable.IsNumeric(leftChildDataType) {
 		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.UnexpectedDataType(line, "numeric", symboltable.Fmt(leftChildDataType)))
 		return nil, err
 	}
-	if !symboltable.IsByte(rightChildDataType){
+	if !symboltable.IsByte(rightChildDataType) {
 		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.UnexpectedDataType(line, "byte", symboltable.Fmt(rightChildDataType)))
 		return nil, err
@@ -374,16 +363,16 @@ func (getter *DataTypeFactory) numericOperation() (interface{}, error) {
 //byteOperation verifies that the left  and right children of ctx Node are both bytes
 func (getter *DataTypeFactory) byteOperation() (interface{}, error) {
 	leftChildDataType, rightChildDataType, err := getter.obtainOperandsDatatype()
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 
-	if !symboltable.IsByte(leftChildDataType){
+	if !symboltable.IsByte(leftChildDataType) {
 		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.UnexpectedDataType(line, "byte", symboltable.Fmt(leftChildDataType)))
 		return nil, err
 	}
-	if !symboltable.IsByte(rightChildDataType){
+	if !symboltable.IsByte(rightChildDataType) {
 		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.UnexpectedDataType(line, "byte", symboltable.Fmt(rightChildDataType)))
 		return nil, err
@@ -395,10 +384,10 @@ func (getter *DataTypeFactory) byteOperation() (interface{}, error) {
 
 //address takes the data type of what ctxNode dereference and return a pointer that points to
 //that data type
-func (getter *DataTypeFactory) address() (interface{}, error){
+func (getter *DataTypeFactory) address() (interface{}, error) {
 	getter.ctxNode = getter.ctxNode.Children[0]
 	pointsTo, err := getter.dereference()
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	return symboltable.NewPointer(pointsTo), nil
@@ -407,12 +396,11 @@ func (getter *DataTypeFactory) address() (interface{}, error){
 //functionCall validates that the data types of the parameters of a function call
 //match the ones of its definition and returns an error if needed.
 //If not, it returns the data type of the return value of the function.
-func (getter *DataTypeFactory) functionCall() (interface{}, error){
+func (getter *DataTypeFactory) functionCall() (interface{}, error) {
 	getter.walkingAFunc = true
 
 	backup := getter.ctxNode
 	identifier := getter.ctxNode.Children[0]
-
 
 	getter.ctxNode = identifier
 	identifierDataType, err := getter.reference()
@@ -420,12 +408,12 @@ func (getter *DataTypeFactory) functionCall() (interface{}, error){
 
 	getter.walkingAFunc = false
 
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 
 	funcDataType, ok := identifierDataType.(symboltable.Function)
-	if !ok{
+	if !ok {
 		panic(errorhandler.UnexpectedCompilerError())
 	}
 
@@ -443,103 +431,104 @@ func (getter *DataTypeFactory) functionCall() (interface{}, error){
 		getter.ctxNode = param
 		err = getter.validateParamsDataType(argsDataType)
 		getter.ctxNode = backup
-		if err != nil{
+		if err != nil {
 			return nil, err
 		}
-	}else{
+	} else {
 		if len(getter.ctxNode.Children) > 1 {
-			getter.ctxNode =getter.ctxNode.Children[1]
+			getter.ctxNode = getter.ctxNode.Children[1]
 			numberOfTreeParams := CountNodesToLeafByRight(getter.ctxNode) + 1
 			line := getter.ctxNode.Value.Line
-			err =errors.New(errorhandler.NumberOfParametersDoesntMatch(line, numberOfTreeParams, len(argsDataType)))
+			err = errors.New(errorhandler.NumberOfParametersDoesntMatch(line, numberOfTreeParams, len(argsDataType)))
 			return nil, err
 		}
 	}
 	return returnDataType, nil
 
 }
+
 //reference checks if an identifier is stored in the symbol table and, if it is, returns its data type.
 //It returns an error in case of not finding the reference, if we are expecting a function and the reference is not a function,
 //or if we are not expecting a function and the reference is a function.
-func (getter *DataTypeFactory) reference()(interface{}, error){
+func (getter *DataTypeFactory) reference() (interface{}, error) {
 	literal := getter.ctxNode.Value.Literal
 	ref, ok := getter.scope.Symbols[literal]
-	if !ok{
-		line :=  getter.ctxNode.Value.Line
+	if !ok {
+		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.UnresolvedReference(line, literal))
 		return nil, err
-	}else{
-		if getter.walkingAFunc && !ref.IsFunction{
-				line :=  getter.ctxNode.Value.Line
-				err := errors.New(errorhandler.IdentifierIsNotFunction(line, literal))
-				return nil, err
+	} else {
+		if getter.walkingAFunc && !ref.IsFunction {
+			line := getter.ctxNode.Value.Line
+			err := errors.New(errorhandler.IdentifierIsNotFunction(line, literal))
+			return nil, err
 		}
 
-		if !getter.walkingAFunc && ref.IsFunction{
-				line :=  getter.ctxNode.Value.Line
-				err := errors.New(errorhandler.IdentifierIsFunction(line, literal))
-				return nil, err
+		if !getter.walkingAFunc && ref.IsFunction {
+			line := getter.ctxNode.Value.Line
+			err := errors.New(errorhandler.IdentifierIsFunction(line, literal))
+			return nil, err
 		}
 	}
 	return ref.DataType, nil
 }
 
 //dereference analyzes the data type of a dereference and returns it
-func (getter *DataTypeFactory) dereference() (interface{}, error){
+func (getter *DataTypeFactory) dereference() (interface{}, error) {
 	identifier := GetLeafByRight(getter.ctxNode)
 	backup := getter.ctxNode
-	if identifier.Value.Type != token.IDENT{
+	if identifier.Value.Type != token.IDENT {
 		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.IdentifierMissed(line))
 		return nil, err
 	}
-	if identifier.Parent != nil{
+	if identifier.Parent != nil {
 		if identifier.Parent.Value.Type == token.RPAREN {
 			getter.ctxNode = identifier.Parent
-		}else{
+		} else {
 			getter.ctxNode = identifier
 		}
 	}
 	toCompare, err := getter.GetDataType()
 	getter.ctxNode = backup
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 
-	for getter.ctxNode != identifier{
+	for getter.ctxNode != identifier {
 
-		switch  toCompare.(type){
+		switch toCompare.(type) {
 		case symboltable.Pointer:
-			if getter.ctxNode.Value.Type == token.ASTERISK{
+			if getter.ctxNode.Value.Type == token.ASTERISK {
 				getter.ctxNode = getter.ctxNode.Children[0]
-				if getter.ctxNode.Value.Type == token.RPAREN{
+				if getter.ctxNode.Value.Type == token.RPAREN {
 					getter.ctxNode = getter.ctxNode.Children[0]
 
 				}
 				toCompare = toCompare.(symboltable.Pointer).PointsTo
-			}else{
+			} else {
 				line := getter.ctxNode.Value.Line
 				err := errors.New(errorhandler.InvalidIndirectOf(line, identifier.Value.Literal))
 				return nil, err
 
 			}
 		case symboltable.Array:
-			if getter.ctxNode.Value.Type == token.RBRACKET{
+			if getter.ctxNode.Value.Type == token.RBRACKET {
 				backup = getter.ctxNode
 				getter.ctxNode = getter.ctxNode.Children[0]
 				err := getter.validateIndex(toCompare)
 				getter.ctxNode = backup
-				if err !=nil{
+				if err != nil {
 					return nil, err
 				}
 				getter.ctxNode = getter.ctxNode.Children[1]
-				if getter.ctxNode.Value.Type == token.RPAREN{
+				if getter.ctxNode.Value.Type == token.RPAREN {
 					getter.ctxNode = getter.ctxNode.Children[0]
 
 				}
 				toCompare = toCompare.(symboltable.Array).Of
 
-			}else{
+			} else {
 				line := getter.ctxNode.Value.Line
 				err := errors.New(errorhandler.InvalidIndirectOf(line, identifier.Value.Literal))
 				return nil, err
@@ -555,25 +544,24 @@ func (getter *DataTypeFactory) dereference() (interface{}, error){
 	return toCompare, nil
 }
 
-
 //validateIndex validates if the index of an array is a byte and if its out of bound.
 func (getter *DataTypeFactory) validateIndex(compare interface{}) error {
 
-	if getter.ctxNode.Value.Type != token.BYTE{
+	if getter.ctxNode.Value.Type != token.BYTE {
 		return errors.New(errorhandler.UnexpectedCompilerError())
 
-	}else{
+	} else {
 		length, err := strconv.Atoi(getter.ctxNode.Value.Literal)
-		if err != nil{
+		if err != nil {
 			panic(errorhandler.UnexpectedCompilerError())
 		}
-		if length < 0{
+		if length < 0 {
 			line := getter.ctxNode.Value.Line
 			err := errors.New(errorhandler.NegativeIndex(line))
 			return err
 		}
 		arrayToCompare := compare.(symboltable.Array)
-		if length >= arrayToCompare.Length{
+		if length >= arrayToCompare.Length {
 			line := getter.ctxNode.Value.Line
 			err := errors.New(errorhandler.IndexOutOfBounds(line))
 			return err
@@ -585,8 +573,8 @@ func (getter *DataTypeFactory) validateIndex(compare interface{}) error {
 
 //declaration verifies that there is no declaration of a pointer to a function
 //in the context and returns an error if needed. Otherwise, it returns the data type built by "declarationFactory()".
-func (getter *DataTypeFactory) declaration() (interface{}, error){
-	if len(getter.ctxNode.Children) != 0{
+func (getter *DataTypeFactory) declaration() (interface{}, error) {
+	if len(getter.ctxNode.Children) != 0 {
 		leaf := GetLeafByRight(getter.ctxNode)
 		leafType := leaf.Value.Type
 		if leafType == token.VOID {
@@ -599,10 +587,10 @@ func (getter *DataTypeFactory) declaration() (interface{}, error){
 }
 
 //declarationFactory builds the datatype in the context of a declaration by calling more specific methods
-func (getter *DataTypeFactory) declarationFactory() (interface{}, error){
-	if len(getter.ctxNode.Children) == 0{
+func (getter *DataTypeFactory) declarationFactory() (interface{}, error) {
+	if len(getter.ctxNode.Children) == 0 {
 		return getter.declarationSimple()
-	}else{
+	} else {
 		switch getter.ctxNode.Value.Type {
 		case token.ASTERISK:
 			return getter.declarationFactoryPointer()
@@ -634,11 +622,11 @@ func (getter *DataTypeFactory) declarationSimple() (interface{}, error) {
 //the context to the child of the current node and building its datatype
 func (getter *DataTypeFactory) declarationFactoryPointer() (interface{}, error) {
 	getter.ctxNode = getter.ctxNode.Children[0]
-	if getter.ctxNode.Value.Type == token.RBRACKET{
+	if getter.ctxNode.Value.Type == token.RBRACKET {
 		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.UnallowedPointerToArray(line))
 		return nil, err
-	}else{
+	} else {
 		pointsTo, err := getter.declarationFactory()
 		if err != nil {
 			return nil, err
@@ -652,16 +640,16 @@ func (getter *DataTypeFactory) declarationFactoryPointer() (interface{}, error) 
 //the data type of the elements of the array is obtained by moving the context and calling to declarationFactory()
 func (getter *DataTypeFactory) declarationFactoryArray() (interface{}, error) {
 	index := getter.ctxNode.Children[0]
-	if index.Value.Type != token.BYTE{
+	if index.Value.Type != token.BYTE {
 		return nil, errors.New(errorhandler.UnexpectedCompilerError())
 	}
 
 	literal, err := strconv.Atoi(index.Value.Literal)
-	if err != nil{
+	if err != nil {
 		panic(errorhandler.UnexpectedCompilerError())
 	}
 	length := literal
-	if length < 0{
+	if length < 0 {
 		line := getter.ctxNode.Value.Line
 		err := errors.New(errorhandler.NegativeIndex(line))
 		return nil, err
@@ -682,10 +670,10 @@ func (getter *DataTypeFactory) simple() (interface{}, error) {
 		return symboltable.NewBool(), nil
 	case token.BYTE:
 		_byte, err := strconv.Atoi(getter.ctxNode.Value.Literal)
-		if err != nil{
+		if err != nil {
 			return nil, errors.New(errorhandler.UnexpectedCompilerError())
 		}
-		if  _byte > 255 || _byte < 0 {
+		if _byte > 255 || _byte < 0 {
 			line := getter.ctxNode.Value.Line
 			return nil, errors.New(errorhandler.ByteOutOfRange(line, _byte))
 
@@ -698,9 +686,9 @@ func (getter *DataTypeFactory) simple() (interface{}, error) {
 }
 
 // GetLeafByRight gets the leaf by walking a tree using the right child of each node.
-func GetLeafByRight(head *ast.Node) *ast.Node{
+func GetLeafByRight(head *ast.Node) *ast.Node {
 	current := head
-	for len(current.Children) != 0{
+	for len(current.Children) != 0 {
 		current = current.Children[len(current.Children)-1]
 	}
 	return current
@@ -708,15 +696,12 @@ func GetLeafByRight(head *ast.Node) *ast.Node{
 
 // CountNodesToLeafByRight counts how many nodes are left to found
 //a leaf by walking a tree using the right child of each node.
-func CountNodesToLeafByRight(head *ast.Node) int{
+func CountNodesToLeafByRight(head *ast.Node) int {
 	current := head
 	i := 0
-	for len(current.Children) != 0{
+	for len(current.Children) != 0 {
 		i++
 		current = current.Children[len(current.Children)-1]
 	}
 	return i
 }
-
-
-

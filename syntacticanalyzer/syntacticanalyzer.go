@@ -5,11 +5,12 @@ import (
 	"github.com/NoetherianRing/c8-compiler/ast"
 	"github.com/NoetherianRing/c8-compiler/token"
 )
+
 /*
 Definition of Grammars according to The Dragon Book:
 
 1. A set of terminal symbols, sometimes referred to as "tokens." The
-terminals are the elementary symbols of the language denned by the grammar.
+terminals are the elementary symbols of the language defined by the grammar.
 
 2. A set of nonterminals, sometimes called "syntactic variables." Each
 nonterminal represents a set of strings of terminals.
@@ -46,8 +47,8 @@ const ADDRESS = "address"
 const IDENT = "ident"
 const CALL = "call"
 const PARAMS = "params"
-const DATATYPE= "datatype"
-const ARGS= "args"
+const DATATYPE = "datatype"
+const ARGS = "args"
 const FUNC_DATATYPE = "funcdatatype"
 const NEW_LINE = "newline"
 
@@ -64,37 +65,36 @@ const EXPRESSION_P2 = "expression_p2"
 const EXPRESSION_P1 = "expression_p1"
 const EXPRESSION_P0 = "expression_p0"
 
-
-type cache struct{
+type cache struct {
 	symbol string
-	src *[]token.Token
-	tree *ast.SyntaxTree
+	src    *[]token.Token
+	tree   *ast.SyntaxTree
 }
-type log struct{
-	nesting int
-	help int
 
+//we use log for debugging purposes
+type log struct {
+	nesting int
+	help    int
 }
 
 var Log *log
 
-func (l *log) printLog(){
-	i :=0
-	for i < l.nesting{
+func (l *log) printLog() {
+	i := 0
+	for i < l.nesting {
 		fmt.Printf("_")
 		i++
 	}
 }
 
-
-type GrammarSymbol interface{
+type GrammarSymbol interface {
 	Build(*[]token.Token, *ast.SyntaxTree) bool
 	GetValue() string
 }
 
 //We say that a grammar symbol is a non terminal if and only if it's the head of a production. A production being a set of options
-type NonTerminal struct{
-	head string
+type NonTerminal struct {
+	head    string
 	options []Option
 }
 
@@ -102,14 +102,14 @@ type NonTerminal struct{
 type Terminal token.Type
 
 //Each option is a sequence of Grammar Symbols
-type Option struct{
+type Option struct {
 	grammarSymbols []GrammarSymbol
 }
 
 //Build verifies if a given token is syntactically valid in a context and, if it is, it's added as head of the syntax tree that is being built
 //then we slices the slice of tokens to move forward
 //In case of having more than one terminal in the same nesting level we only keep the last one as head of the (sub)tree
-//the grammar is made in such a way that this only happens with "() [] {}", functions that returns a value
+//the grammar is made in such a way that this only happens with "()", "[]", "{}", functions that returns a value
 //(which we identified by adding a third branch in the function's declaration tree), and the if/else statement
 //(which we use to distinguish it from the if statement)
 /*
@@ -136,8 +136,26 @@ type Option struct{
 				 |
                 bool
 */
+func (t Terminal) Build(src *[]token.Token, tree *ast.SyntaxTree) bool {
+	//Log.printLog()
+	//fmt.Printf("SOURCE: %s WAITING: %s EQUAL: %t line: %d\n", (*src)[0].Literal, token.Type(t), (*src)[0].Type == token.Type(t), (*src)[0].Line)
+	if t.Equals((*src)[0].Type) {
+		//New lines don't have a purpose in our tree, so we skip them
+		if token.Type(t) != token.NEWLINE {
+			tree.Head.Value = (*src)[0]
+		}
+		*src = (*src)[1:]
+		return true
+	}
+	return false
+}
+
+func (t Terminal) GetValue() string {
+	return string(t)
+}
+
 func (t Terminal) Equals(t2 token.Type) bool {
-	switch t{
+	switch t {
 	case EXPRESSION:
 		return t2 == token.LOR
 	case EXPRESSION_P10:
@@ -164,31 +182,14 @@ func (t Terminal) Equals(t2 token.Type) bool {
 	}
 
 }
-func (t Terminal) Build(src *[]token.Token, tree *ast.SyntaxTree) bool{
-	//Log.printLog()
-	//fmt.Printf("SOURCE: %s WAITING: %s EQUAL: %t line: %d\n", (*src)[0].Literal, token.Type(t), (*src)[0].Type == token.Type(t), (*src)[0].Line)
-	if t.Equals((*src)[0].Type){
-		//New lines don't have a purpose in our tree, so we skip them
-		if token.Type(t) != token.NEWLINE {
-			tree.Head.Value = (*src)[0]
-		}
-		*src = (*src)[1:]
-		return true
-	}
-	return false
-}
-
-func (t Terminal) GetValue() string{
-	return string(t)
-}
 
 //Build verifies if a sequence of tokens and non-terminals are syntactically valid in a context.
 //If they are valid, they are added to the syntax tree that is being built, building for that subtree
 //Then we replace the slice of token being analysed for the auxiliary one to move forward
-func (nonT NonTerminal) Build(src *[]token.Token, tree *ast.SyntaxTree) bool{
+func (nonT NonTerminal) Build(src *[]token.Token, tree *ast.SyntaxTree) bool {
 	Log.nesting++
 	Log.help++
-	symbolsCache := make([]*cache,0)
+	symbolsCache := make([]*cache, 0)
 	found := nonT.checkOptions(src, tree, &symbolsCache, nonT.options)
 	Log.nesting--
 	return found
@@ -197,7 +198,7 @@ func (nonT NonTerminal) Build(src *[]token.Token, tree *ast.SyntaxTree) bool{
 
 //checkOptions validates if one of the options of a productions matches with the src, in which case it add the tokens to the tree
 //and returns true
-func (nonT *NonTerminal) checkOptions(src *[]token.Token, tree *ast.SyntaxTree, symbolsCache *[]*cache, options []Option) bool{
+func (nonT *NonTerminal) checkOptions(src *[]token.Token, tree *ast.SyntaxTree, symbolsCache *[]*cache, options []Option) bool {
 
 	empty := token.NewToken("", "", 0)
 	auxTree := ast.NewSyntaxTree(ast.NewNode(empty))
@@ -205,13 +206,13 @@ func (nonT *NonTerminal) checkOptions(src *[]token.Token, tree *ast.SyntaxTree, 
 
 	if firstSymbolOption == nonT.head {
 
-		if len(options) == 1{
+		if len(options) == 1 {
 			return false
 		}
 		isFirstElementValid := nonT.checkOptions(src, auxTree, symbolsCache, options[1:])
 		if isFirstElementValid {
-			valid, auxSrc := nonT.checkGrammarSymbols(options[0], src, &auxTree, symbolsCache, 1,0)
-			if !valid{
+			valid, auxSrc := nonT.checkGrammarSymbols(options[0], src, &auxTree, symbolsCache, 1, 0)
+			if !valid {
 				return nonT.checkOptions(src, tree, symbolsCache, options[1:])
 			}
 			*src = auxSrc
@@ -219,15 +220,14 @@ func (nonT *NonTerminal) checkOptions(src *[]token.Token, tree *ast.SyntaxTree, 
 			auxAuxTree := ast.NewSyntaxTree(ast.NewNode(empty))
 			keepAnalyzing := options[0].grammarSymbols[1].Build(src, auxAuxTree)
 			i := 1
-			for keepAnalyzing{
+			for keepAnalyzing {
 				auxAuxTree.Head.AddChild(auxTree.Head)
 				valid, auxSrc := nonT.checkGrammarSymbols(options[0], src, &auxAuxTree, symbolsCache, 2, i)
-				if !valid{
+				if !valid {
 					return false
 				}
 				*src = auxSrc
 				auxTree = auxAuxTree
-				//nonT.addSubTree(src, auxSrc, auxTree, auxAuxTree)
 				auxAuxTree = ast.NewSyntaxTree(ast.NewNode(empty))
 				keepAnalyzing = options[0].grammarSymbols[1].Build(src, auxAuxTree)
 				i++
@@ -236,22 +236,23 @@ func (nonT *NonTerminal) checkOptions(src *[]token.Token, tree *ast.SyntaxTree, 
 			return true
 		}
 
-	}else{
-		found, auxSrc := nonT.checkGrammarSymbols(options[0], src, &auxTree, symbolsCache, 0,0)
-		if found{
+	} else {
+		found, auxSrc := nonT.checkGrammarSymbols(options[0], src, &auxTree, symbolsCache, 0, 0)
+		if found {
 			nonT.addSubTree(src, auxSrc, tree, auxTree)
 			return true
 		}
 
 	}
-	if len(options)>1{
+	if len(options) > 1 {
 		return nonT.checkOptions(src, tree, symbolsCache, options[1:])
 	}
 	return false
 
 }
+
 //addSubTree adds a subtree to the head of a tree, and update the src moving forward
-func (nonT NonTerminal) addSubTree(src *[]token.Token,srcAux []token.Token, tree *ast.SyntaxTree, auxTree *ast.SyntaxTree) {
+func (nonT NonTerminal) addSubTree(src *[]token.Token, srcAux []token.Token, tree *ast.SyntaxTree, auxTree *ast.SyntaxTree) {
 	empty := token.NewToken("", "", 0)
 
 	//Representations of non-terminals don't have a purpose in our tree, so we skip them to avoid empty nodes
@@ -269,12 +270,12 @@ func (nonT NonTerminal) addSubTree(src *[]token.Token,srcAux []token.Token, tree
 
 //checkGrammarSymbols validates if all the grammar symbols of an options matches with the src, in which case it adds the tokens
 //to a tree and returns true
-func (nonT NonTerminal) checkGrammarSymbols(option Option,  src *[]token.Token,
-	auxTree **ast.SyntaxTree, symbolsCache *[]*cache, startSymbol int, iteration int) (bool,  []token.Token){
+func (nonT NonTerminal) checkGrammarSymbols(option Option, src *[]token.Token,
+	auxTree **ast.SyntaxTree, symbolsCache *[]*cache, startSymbol int, iteration int) (bool, []token.Token) {
 	var found bool
 	auxSrc := *src
-	j := iteration*(len(option.grammarSymbols)-2)
-	for k:= startSymbol; k< len(option.grammarSymbols);k++ {
+	j := iteration * (len(option.grammarSymbols) - 2)
+	for k := startSymbol; k < len(option.grammarSymbols); k++ {
 		symbol := option.grammarSymbols[k]
 		symbolValue := symbol.GetValue()
 
@@ -293,22 +294,18 @@ func (nonT NonTerminal) checkGrammarSymbols(option Option,  src *[]token.Token,
 			break
 		}
 
-
 	}
 	return found, auxSrc
 }
 
-
-func (nonT *NonTerminal) GetValue() string{
+func (nonT *NonTerminal) GetValue() string {
 	return nonT.head
 }
-
 
 //GetGrammar creates the grammar of the language.
 func GetGrammar() map[string]*NonTerminal {
 
 	Log = new(log)
-
 
 	productions := make(map[string]*NonTerminal)
 	productions[PROGRAM] = new(NonTerminal)
@@ -379,10 +376,8 @@ func GetGrammar() map[string]*NonTerminal {
 	grammarSymbols = append(grammarSymbols, Terminal(token.RBRACE))
 	options[0].grammarSymbols = grammarSymbols
 
-
 	productions[FUNC_BLOCK].options = options
 	productions[FUNC_BLOCK].head = FUNC_BLOCK
-
 
 	//STATEMENTS:
 	options = make([]Option, 2)
@@ -399,7 +394,6 @@ func GetGrammar() map[string]*NonTerminal {
 	productions[STATEMENTS].options = options
 	productions[STATEMENTS].head = STATEMENTS
 
-
 	//FUNC_STATEMENTS:
 	options = make([]Option, 2)
 
@@ -415,21 +409,18 @@ func GetGrammar() map[string]*NonTerminal {
 	productions[FUNC_STATEMENTS].options = options
 	productions[FUNC_STATEMENTS].head = FUNC_STATEMENTS
 
-
 	//RETURN_STATEMENT:
 	options = make([]Option, 2)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, Terminal(token.RETURN))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION])
-//	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
 	grammarSymbols = append(grammarSymbols, productions[NEW_LINE])
 
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, Terminal(token.RETURN))
-//	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
 	grammarSymbols = append(grammarSymbols, productions[NEW_LINE])
 
 	options[1].grammarSymbols = grammarSymbols
@@ -441,13 +432,11 @@ func GetGrammar() map[string]*NonTerminal {
 	options = make([]Option, 8)
 
 	grammarSymbols = make([]GrammarSymbol, 0)
-	//grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
 	grammarSymbols = append(grammarSymbols, productions[NEW_LINE])
 	options[0].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, productions[DECLARATION])
-	//grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
 	grammarSymbols = append(grammarSymbols, productions[NEW_LINE])
 
 	options[1].grammarSymbols = grammarSymbols
@@ -458,14 +447,12 @@ func GetGrammar() map[string]*NonTerminal {
 	grammarSymbols = append(grammarSymbols, productions[ARGS])
 	grammarSymbols = append(grammarSymbols, productions[FUNC_DATATYPE])
 	grammarSymbols = append(grammarSymbols, productions[FUNC_BLOCK])
-//	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
 	grammarSymbols = append(grammarSymbols, productions[NEW_LINE])
 
 	options[2].grammarSymbols = grammarSymbols
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, productions[CALL])
-//	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
 	grammarSymbols = append(grammarSymbols, productions[NEW_LINE])
 
 	options[3].grammarSymbols = grammarSymbols
@@ -474,7 +461,6 @@ func GetGrammar() map[string]*NonTerminal {
 	grammarSymbols = append(grammarSymbols, productions[VAR])
 	grammarSymbols = append(grammarSymbols, Terminal(token.EQ))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION])
-//	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
 	grammarSymbols = append(grammarSymbols, productions[NEW_LINE])
 
 	options[4].grammarSymbols = grammarSymbols
@@ -483,7 +469,6 @@ func GetGrammar() map[string]*NonTerminal {
 	grammarSymbols = append(grammarSymbols, Terminal(token.WHILE))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION])
 	grammarSymbols = append(grammarSymbols, productions[BLOCK])
-//	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
 	grammarSymbols = append(grammarSymbols, productions[NEW_LINE])
 
 	options[5].grammarSymbols = grammarSymbols
@@ -494,7 +479,6 @@ func GetGrammar() map[string]*NonTerminal {
 	grammarSymbols = append(grammarSymbols, productions[BLOCK])
 	grammarSymbols = append(grammarSymbols, Terminal(token.ELSE))
 	grammarSymbols = append(grammarSymbols, productions[BLOCK])
-//	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
 	grammarSymbols = append(grammarSymbols, productions[NEW_LINE])
 
 	options[6].grammarSymbols = grammarSymbols
@@ -503,7 +487,6 @@ func GetGrammar() map[string]*NonTerminal {
 	grammarSymbols = append(grammarSymbols, Terminal(token.IF))
 	grammarSymbols = append(grammarSymbols, productions[EXPRESSION])
 	grammarSymbols = append(grammarSymbols, productions[BLOCK])
-//	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
 	grammarSymbols = append(grammarSymbols, productions[NEW_LINE])
 
 	options[7].grammarSymbols = grammarSymbols
@@ -522,7 +505,6 @@ func GetGrammar() map[string]*NonTerminal {
 
 	productions[DECLARATION].options = options
 	productions[DECLARATION].head = DECLARATION
-
 
 	// IDENT
 	options = make([]Option, 1)
@@ -658,10 +640,8 @@ func GetGrammar() map[string]*NonTerminal {
 	grammarSymbols = append(grammarSymbols, Terminal(token.IDENT))
 	options[5].grammarSymbols = grammarSymbols
 
-
 	productions[VAR].options = options
 	productions[VAR].head = VAR
-
 
 	// ADDRESS:
 	options = make([]Option, 1)
@@ -671,11 +651,6 @@ func GetGrammar() map[string]*NonTerminal {
 	grammarSymbols = append(grammarSymbols, productions[VAR])
 	options[0].grammarSymbols = grammarSymbols
 
-	/*grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, Terminal(token.DOLLAR))
-	grammarSymbols = append(grammarSymbols, productions[ADDRESS])
-	options[1].grammarSymbols = grammarSymbols
-*/
 	productions[ADDRESS].options = options
 	productions[ADDRESS].head = ADDRESS
 
@@ -690,11 +665,6 @@ func GetGrammar() map[string]*NonTerminal {
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, Terminal(token.BOOL))
 	options[1].grammarSymbols = grammarSymbols
-/*
-	grammarSymbols = make([]GrammarSymbol, 0)
-	grammarSymbols = append(grammarSymbols, productions[ADDRESS])
-	options[2].grammarSymbols = grammarSymbols
-*/
 
 	productions[LITERAL].options = options
 	productions[LITERAL].head = LITERAL
@@ -706,7 +676,6 @@ func GetGrammar() map[string]*NonTerminal {
 	grammarSymbols = append(grammarSymbols, Terminal(token.LPAREN))
 	grammarSymbols = append(grammarSymbols, Terminal(token.RPAREN))
 	options[0].grammarSymbols = grammarSymbols
-
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, Terminal(token.LPAREN))
@@ -724,7 +693,6 @@ func GetGrammar() map[string]*NonTerminal {
 	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
 	grammarSymbols = append(grammarSymbols, productions[NEW_LINE])
 	options[0].grammarSymbols = grammarSymbols
-
 
 	grammarSymbols = make([]GrammarSymbol, 0)
 	grammarSymbols = append(grammarSymbols, Terminal(token.NEWLINE))
@@ -941,4 +909,7 @@ func GetGrammar() map[string]*NonTerminal {
 	return productions
 }
 
-
+//GetStartSymbol returns the start symbol of our grammar.
+func GetStartSymbol() string {
+	return PROGRAM
+}

@@ -2,21 +2,21 @@ package token
 
 const (
 	ILLEGAL = "ILLEGAL"
-	EOF = "EOF"
+	EOF     = "EOF"
 
 	IDENT = "IDENT"
 	BYTE  = "BYTE"
 	BOOL  = "BOOL"
 
 	TRUE  = "true"
-	FALSE  = "false"
+	FALSE = "false"
 
-	EQ   = "="
+	EQ = "="
 
-	DOLLAR   = "$"
+	DOLLAR = "$"
 
-	AND   = "&"
-	LAND   = "&&"
+	AND      = "&"
+	LAND     = "&&"
 	OR       = "|"
 	LOR      = "||"
 	PLUS     = "+"
@@ -29,65 +29,63 @@ const (
 	GTGT     = ">>"
 	XOR      = "^"
 
-	LT = "<"
-	LTEQ = "<="
-	GT = ">"
-	GTEQ = ">="
-	NOTEQ   = "!="
-	EQEQ   = "=="
+	LT    = "<"
+	LTEQ  = "<="
+	GT    = ">"
+	GTEQ  = ">="
+	NOTEQ = "!="
+	EQEQ  = "=="
 
-	COMMA = ","
+	COMMA   = ","
 	NEWLINE = "\n"
 
-	LPAREN = "("
-	RPAREN = ")"
+	LPAREN   = "("
+	RPAREN   = ")"
 	LBRACKET = "["
 	RBRACKET = "]"
-	LBRACE = "{"
-	RBRACE = "}"
+	LBRACE   = "{"
+	RBRACE   = "}"
 
 	FUNCTION = "fn"
-	WHILE = "while"
-	LET = "let"
-	IF = "if"
-	ELSE = "else"
-	RETURN = "return"
-	MAIN = "main"
+	WHILE    = "while"
+	LET      = "let"
+	IF       = "if"
+	ELSE     = "else"
+	RETURN   = "return"
+	MAIN     = "main"
 
 	TYPEBOOL = "TYPEBOOL"
 	TYPEBYTE = "TYPEBYTE"
-	VOID = "VOID"
-
+	VOID     = "VOID"
 )
 
 type Type string
 
-
-
-type Token struct{
+type Token struct {
 	Type    Type
 	Literal string
 	Line    int
 }
 
-
-func NewToken(tokenType Type, literal string, line int) Token{
-	t := Token{Type: tokenType, Literal:literal, Line: line}
+func NewToken(tokenType Type, literal string, line int) Token {
+	t := Token{Type: tokenType, Literal: literal, Line: line}
 	return t
 }
+
 var keywords = map[string]Type{
 	"fn":     FUNCTION,
 	"let":    LET,
 	"if":     IF,
 	"else":   ELSE,
 	"return": RETURN,
-	"while": WHILE,
+	"while":  WHILE,
 	"bool":   TYPEBOOL,
 	"byte":   TYPEBYTE,
 	"true":   BOOL,
-	"false":   BOOL,
+	"false":  BOOL,
 	"void":   VOID,
 }
+
 func LookupIdent(ident string) Type {
 	if tok, ok := keywords[ident]; ok {
 		return tok
