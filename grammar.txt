@@ -2,15 +2,20 @@ program -> block eof
 
 block ->  {stmnts}
 
-funcBlock ->  {stmnts return expression}
-             | block
+funcBlock ->  {func_statements}
+
+func_statements -> statement func_statements
+                   | returnStatement
+
+returnStatement -> return expression
+                 | return
 
 stmnts -> stmnt stmnts
         |stmnt
 
 stmnt -> declaration \n
         | var = expression \n
-        | fn arg ident funcDataType block \n
+        | fn arg ident funcDataType funcBlock \n
         | if expression block else block \n
         | if expression block \n
         | while expression block \n
@@ -18,11 +23,12 @@ stmnt -> declaration \n
         | \n
 
 
-
+returnStm -> return expresion
+            | return
 ident -> id
 
-call ->| var(params)
-        |var()
+call ->| ident(params)
+        |ident()
 
 
 arg -> (paramDecl)
@@ -37,17 +43,15 @@ params -> expression, params
          |expression
 
 var ->  |*var
-        |[literal] var (:
-        |(var)
-        |id
+        |[literal] var
+        |call
+        |ident
 
 
-literal -> address
-        |byte
+literal -> byte
         |bool
 
-address -> $address
-           |$var
+address -> $var
 
 funcDataType -> void
                |datatype
@@ -58,43 +62,43 @@ dataType -> [literal]datatype
             |typeByte
 
 
-expression -> expressionP10 || expression
+expression -> expression || expressionP10
             |expressionP10
 
-expressionP10 -> expressionP9 &&  expressionP10
+expressionP10 ->  expressionP10 && expressionP9
              |expressionP9
 
 
-expressionP9 -> expressionP8 == expressionP9
-              |expressionP8 != expressionP9
+expressionP9 -> expressionP9 == expressionP8
+              | expressionP9 != expressionP8
               |expressionP8
 
-expressionP8 -> expressionP7 < expressionP8
-            | expressionP7 <= expressionP8
-            | expressionP7 > expressionP8
-            | expressionP7 >= expressionP8
+expressionP8 -> expressionP8 < expressionP7
+            | expressionP8 <= expressionP7
+            | expressionP8 > expressionP7
+            | expressionP8 >= expressionP7
             | expressionP7
 
-expressionP7 -> expressionP6 | expressionP7
+expressionP7 -> expressionP7 | expressionP6
              | expressionP6
 
-expressionP6 -> expressionP5 ^ expressionP6
+expressionP6 -> expressionP6 ^ expressionP5
                |expressionP5
 
-expressionP5 -> expressionP4 & expressionP5
+expressionP5 -> expressionP5 & expressionP4
               |expressionP4
 
-expressionP4 -> expressionP3 >> expressionP4
-              |expressionP3 << expressionP4
+expressionP4 -> expressionP4 >> expressionP3
+              |expressionP4 << expressionP3
               |expressionP3
 
-expressionP3 -> expressionP2 + expressionP3
-              |expressionP2 - expressionP3
+expressionP3 -> expressionP3 + expressionP2
+              |expressionP3 - expressionP2
               |expressionP2
 
-expressionP2 -> expressionP1 % expressionP2
-              |expressionP1 / expressionP2
-              |expressionP1 * expressionP2
+expressionP2 -> expressionP2 % expressionP1
+              |expressionP2 / expressionP1
+              |expressionP2 * expressionP1
               |expressionP1
 
 expressionP1 -> !expressionP1

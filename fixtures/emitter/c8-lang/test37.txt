@@ -1,0 +1,12 @@
+{
+    fn main() void{
+        if isKeyPressed(7){
+            drawFont(0,0,1)
+        }
+        if isKeyPressed(1){
+            clean()
+        }
+
+        return
+    }
+}

@@ -1,0 +1,37 @@
+{
+    fn toDraw(let p *byte) void{
+        let p2 *byte
+        let p3 *byte
+        let p4 *byte
+        let p5 *byte
+
+        p2 = p+1
+        p3 = p +2
+        p4 = p+3
+        p5 = p+4
+        draw(0,0, 5, p)
+
+        drawFont(10, 10,*p)
+        drawFont(20, 10,*p2)
+        drawFont(30, 10,*p3)
+        drawFont(40,10, *p4)
+        drawFont(50,10, *p5)
+
+        return
+    }
+    fn main() void{
+        let sprite [5]byte
+        [0]sprite = 10
+        [1]sprite = 10
+        [2]sprite = 10
+        [3]sprite = 10
+        [4]sprite = 10
+
+        let pointer *byte
+
+        pointer = $[0]sprite
+
+        toDraw(pointer)
+        return
+    }
+}

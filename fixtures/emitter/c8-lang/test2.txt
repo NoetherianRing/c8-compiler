@@ -1,0 +1,10 @@
+{
+  let mustDraw bool
+  fn main()void{
+    mustDraw = true
+    if mustDraw{
+        drawFont(32, 16, 1)
+    }
+    return
+  }
+}

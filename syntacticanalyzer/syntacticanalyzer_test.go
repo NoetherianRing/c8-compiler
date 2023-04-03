@@ -1,16 +1,17 @@
-package parser
+package syntacticanalyzer
 
 import (
+	"github.com/NoetherianRing/c8-compiler/ast"
 	"github.com/NoetherianRing/c8-compiler/token"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func TestBuild(t *testing.T){
+func TestBuild(t *testing.T) {
 
 	grammar := GetGrammar()
 
-	type cases struct{
+	type cases struct {
 		description     string
 		src             []token.Token
 		isValid         bool
@@ -83,7 +84,6 @@ func TestBuild(t *testing.T){
 
 				token.NewToken(token.RBRACE, token.RBRACE, 4),
 				token.NewToken(token.EOF, token.EOF, 5),
-
 			},
 			isValid: true,
 			expectedTreeRep: "\n/EOF\n" +
@@ -92,7 +92,6 @@ func TestBuild(t *testing.T){
 				"/EOF/}/let/foo\n" +
 				"/EOF/}/let/*\n" +
 				"/EOF/}/let/*/BYTE\n",
-
 		},
 		{
 			description: "new line / let [30]bool",
@@ -108,10 +107,8 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.TYPEBOOL, "bool", 1),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
 
-
 				token.NewToken(token.RBRACE, token.RBRACE, 3),
 				token.NewToken(token.EOF, token.EOF, 4),
-
 			},
 			isValid: true,
 			expectedTreeRep: "\n/EOF\n" +
@@ -121,7 +118,6 @@ func TestBuild(t *testing.T){
 				"/EOF/}/let/]\n" +
 				"/EOF/}/let/]/30\n" +
 				"/EOF/}/let/]/bool\n",
-
 		},
 		{
 			description: "call()",
@@ -138,12 +134,11 @@ func TestBuild(t *testing.T){
 			isValid: true,
 			expectedTreeRep: "\n/EOF\n" +
 				"/EOF/}\n" +
-				"/EOF/}/)\n"+
+				"/EOF/}/)\n" +
 				"/EOF/}/)/foo\n",
-
 		},
 		{
-			description: "call(var1, $$var2, 3, !true, 7+8)",
+			description: "call(var1, $var2, 3, !true, 7+8)",
 			src: []token.Token{
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
@@ -151,7 +146,6 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.LPAREN, "(", 1),
 				token.NewToken(token.IDENT, "var1", 1),
 				token.NewToken(token.COMMA, ",", 1),
-				token.NewToken(token.DOLLAR, "$", 1),
 				token.NewToken(token.DOLLAR, "$", 1),
 				token.NewToken(token.IDENT, "var2", 1),
 				token.NewToken(token.COMMA, ",", 1),
@@ -169,17 +163,15 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.EOF, token.EOF, 2),
 			},
 			isValid: true,
-			expectedTreeRep:
-				"\n/EOF\n" +
+			expectedTreeRep: "\n/EOF\n" +
 				"/EOF/}" +
 				"\n/EOF/}/)" +
 				"\n/EOF/}/)/call\n" +
 				"/EOF/}/)/," +
 				"\n/EOF/}/)/,/var1" +
 				"\n/EOF/}/)/,/," +
-				"\n/EOF/}/)/,/,/$" +
-				"\n/EOF/}/)/,/,/$/$\n" +
-				"/EOF/}/)/,/,/$/$/var2\n" +
+				"\n/EOF/}/)/,/,/$\n" +
+				"/EOF/}/)/,/,/$/var2\n" +
 				"/EOF/}/)/,/,/," +
 				"\n/EOF/}/)/,/,/,/3" +
 				"\n/EOF/}/)/,/,/,/,\n" +
@@ -188,98 +180,95 @@ func TestBuild(t *testing.T){
 				"/EOF/}/)/,/,/,/,/+\n" +
 				"/EOF/}/)/,/,/,/,/+/7" +
 				"\n/EOF/}/)/,/,/,/,/+/8\n",
-			},{
-				description: "call(var1)",
-				src: []token.Token{
-					token.NewToken(token.LBRACE, token.LBRACE, 0),
-					token.NewToken(token.NEWLINE, token.NEWLINE, 0),
-					token.NewToken(token.IDENT, "call", 1),
-					token.NewToken(token.LPAREN, "(", 1),
-					token.NewToken(token.IDENT, "var1", 1),
-					token.NewToken(token.RPAREN, ")", 1),
-					token.NewToken(token.NEWLINE, token.NEWLINE, 1),
-					token.NewToken(token.RBRACE, token.RBRACE, 2),
-					token.NewToken(token.EOF, token.EOF, 2),
-				},
-				isValid: true,
-				expectedTreeRep:
-					"\n/EOF\n" +
-					"/EOF/}" +
-					"\n/EOF/}/)" +
-					"\n/EOF/}/)/call\n" +
-					"/EOF/}/)/var1\n",
+		}, {
+			description: "call(var1)",
+			src: []token.Token{
+				token.NewToken(token.LBRACE, token.LBRACE, 0),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
+				token.NewToken(token.IDENT, "call", 1),
+				token.NewToken(token.LPAREN, "(", 1),
+				token.NewToken(token.IDENT, "var1", 1),
+				token.NewToken(token.RPAREN, ")", 1),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
+				token.NewToken(token.RBRACE, token.RBRACE, 2),
+				token.NewToken(token.EOF, token.EOF, 2),
 			},
-			{
-			  description: "**var1=*[2]([8][10]matrix)",
-			  src: []token.Token{
-				  token.NewToken(token.LBRACE, token.LBRACE, 0),
-				  token.NewToken(token.ASTERISK, token.ASTERISK, 0),
-				  token.NewToken(token.ASTERISK, token.ASTERISK, 0),
-				  token.NewToken(token.IDENT, "var1", 0),
-				  token.NewToken(token.EQ, token.EQ, 0),
-				  token.NewToken(token.ASTERISK, token.ASTERISK, 0),
-				  token.NewToken(token.LBRACKET, token.LBRACKET, 0),
-				  token.NewToken(token.BYTE, "2", 0),
-				  token.NewToken(token.RBRACKET, token.RBRACKET, 0),
-				  token.NewToken(token.LPAREN, token.LPAREN, 0),
-				  token.NewToken(token.LBRACKET, token.LBRACKET, 0),
-				  token.NewToken(token.BYTE, "8", 0),
-				  token.NewToken(token.RBRACKET, token.RBRACKET, 0),
-				  token.NewToken(token.LBRACKET, token.LBRACKET, 0),
-				  token.NewToken(token.BYTE, "10", 0),
-				  token.NewToken(token.RBRACKET, token.RBRACKET, 0),
-				  token.NewToken(token.IDENT, "matrix", 0),
-				  token.NewToken(token.RPAREN, token.RPAREN, 0),
-				  token.NewToken(token.NEWLINE, token.NEWLINE, 0),
-				  token.NewToken(token.RBRACE, token.RBRACE, 1),
-				  token.NewToken(token.EOF, token.EOF, 1),
-
-			  },
-			  isValid: true,
-			  expectedTreeRep: "\n/EOF\n" +
-			  	"/EOF/}\n" +
-			  	"/EOF/}/=\n" +
-			  	"/EOF/}/=/*\n"+
-			  	"/EOF/}/=/*/*\n"+
-			  	"/EOF/}/=/*/*/var1\n"+
-			  	"/EOF/}/=/*\n"+
-			  	"/EOF/}/=/*/]\n"+
-			  	"/EOF/}/=/*/]/2\n"+
-			  	"/EOF/}/=/*/]/)\n"+
-			  	"/EOF/}/=/*/]/)/]\n"+
-			  	"/EOF/}/=/*/]/)/]/8\n"+
-			  	"/EOF/}/=/*/]/)/]/]\n"+
-			  	"/EOF/}/=/*/]/)/]/]/10\n"+
-			  	"/EOF/}/=/*/]/)/]/]/matrix\n",
-			},
-			{
-				description: "fn myFunc() void {new line}",
-				src: []token.Token{
-					token.NewToken(token.LBRACE, token.LBRACE, 0),
-					token.NewToken(token.FUNCTION, "fn", 0),
-					token.NewToken(token.IDENT, "myFunc", 0),
-					token.NewToken(token.LPAREN, token.LPAREN, 0),
-					token.NewToken(token.RPAREN, token.RPAREN, 0),
-					token.NewToken(token.VOID, "void", 0),
-					token.NewToken(token.LBRACE, token.LBRACE, 0),
-					token.NewToken(token.NEWLINE, token.NEWLINE, 0),
-					token.NewToken(token.RBRACE, token.RBRACE, 1),
-					token.NewToken(token.NEWLINE, token.NEWLINE, 1),
-					token.NewToken(token.RBRACE, token.RBRACE, 2),
-					token.NewToken(token.EOF, token.EOF, 2),
-				},
-				isValid: true,
-				expectedTreeRep:
-					"\n/EOF\n" +
-					"/EOF/}\n"+
-					"/EOF/}/fn\n"+
-					"/EOF/}/fn/myFunc\n"+
-					"/EOF/}/fn/)\n"+
-					"/EOF/}/fn/void\n"+
-					"/EOF/}/fn/}\n",
-			},
+			isValid: true,
+			expectedTreeRep: "\n/EOF\n" +
+				"/EOF/}" +
+				"\n/EOF/}/)" +
+				"\n/EOF/}/)/call\n" +
+				"/EOF/}/)/var1\n",
+		},
 		{
-			description: "fn myFunc(let number byte) byte {new line}",
+			description: "**var1=*[2][8][10]matrix",
+			src: []token.Token{
+				token.NewToken(token.LBRACE, token.LBRACE, 0),
+				token.NewToken(token.ASTERISK, token.ASTERISK, 0),
+				token.NewToken(token.ASTERISK, token.ASTERISK, 0),
+				token.NewToken(token.IDENT, "var1", 0),
+				token.NewToken(token.EQ, token.EQ, 0),
+				token.NewToken(token.ASTERISK, token.ASTERISK, 0),
+				token.NewToken(token.LBRACKET, token.LBRACKET, 0),
+				token.NewToken(token.BYTE, "2", 0),
+				token.NewToken(token.RBRACKET, token.RBRACKET, 0),
+				token.NewToken(token.LBRACKET, token.LBRACKET, 0),
+				token.NewToken(token.BYTE, "8", 0),
+				token.NewToken(token.RBRACKET, token.RBRACKET, 0),
+				token.NewToken(token.LBRACKET, token.LBRACKET, 0),
+				token.NewToken(token.BYTE, "10", 0),
+				token.NewToken(token.RBRACKET, token.RBRACKET, 0),
+				token.NewToken(token.IDENT, "matrix", 0),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
+				token.NewToken(token.RBRACE, token.RBRACE, 1),
+				token.NewToken(token.EOF, token.EOF, 1),
+			},
+			isValid: true,
+			expectedTreeRep: "\n/EOF\n" +
+				"/EOF/}\n" +
+				"/EOF/}/=\n" +
+				"/EOF/}/=/*\n" +
+				"/EOF/}/=/*/*\n" +
+				"/EOF/}/=/*/*/var1\n" +
+				"/EOF/}/=/*\n" +
+				"/EOF/}/=/*/]\n" +
+				"/EOF/}/=/*/]/2\n" +
+				"/EOF/}/=/*/]/]\n" +
+				"/EOF/}/=/*/]/]/8\n" +
+				"/EOF/}/=/*/]/]/]\n" +
+				"/EOF/}/=/*/]/]/]/10\n" +
+				"/EOF/}/=/*/]/]/]/matrix\n",
+		},
+		{
+			description: "fn myFunc() void {return new line}",
+			src: []token.Token{
+				token.NewToken(token.LBRACE, token.LBRACE, 0),
+				token.NewToken(token.FUNCTION, "fn", 0),
+				token.NewToken(token.IDENT, "myFunc", 0),
+				token.NewToken(token.LPAREN, token.LPAREN, 0),
+				token.NewToken(token.RPAREN, token.RPAREN, 0),
+				token.NewToken(token.VOID, "void", 0),
+				token.NewToken(token.LBRACE, token.LBRACE, 0),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
+				token.NewToken(token.RETURN, "return", 1),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
+				token.NewToken(token.RBRACE, token.RBRACE, 2),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 2),
+				token.NewToken(token.RBRACE, token.RBRACE, 3),
+				token.NewToken(token.EOF, token.EOF, 3),
+			},
+			isValid: true,
+			expectedTreeRep: "\n/EOF\n" +
+				"/EOF/}\n" +
+				"/EOF/}/fn\n" +
+				"/EOF/}/fn/myFunc\n" +
+				"/EOF/}/fn/)\n" +
+				"/EOF/}/fn/void\n" +
+				"/EOF/}/fn/}\n" +
+				"/EOF/}/fn/}/return\n",
+		},
+		{
+			description: "fn myFunc(let number byte) byte {return 3+3 new line}",
 			src: []token.Token{
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.FUNCTION, "fn", 0),
@@ -292,26 +281,34 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.TYPEBYTE, "byte", 0),
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
-				token.NewToken(token.RBRACE, token.RBRACE, 1),
+				token.NewToken(token.RETURN, "return", 1),
+				token.NewToken(token.BYTE, "3", 1),
+				token.NewToken(token.PLUS, token.PLUS, 1),
+				token.NewToken(token.BYTE, "3", 1),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
 				token.NewToken(token.RBRACE, token.RBRACE, 2),
-				token.NewToken(token.EOF, token.EOF, 2),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 2),
+				token.NewToken(token.RBRACE, token.RBRACE, 3),
+				token.NewToken(token.EOF, token.EOF, 3),
 			},
 			isValid: true,
-			expectedTreeRep:
-			"\n/EOF\n" +
-				"/EOF/}\n"+
-				"/EOF/}/fn\n"+
-				"/EOF/}/fn/myFunc\n"+
-				"/EOF/}/fn/)\n"+
-				"/EOF/}/fn/)/let\n"+
-				"/EOF/}/fn/)/let/number\n"+
-				"/EOF/}/fn/)/let/byte\n"+
-				"/EOF/}/fn/byte\n"+
-				"/EOF/}/fn/}\n",
+			expectedTreeRep: "\n/EOF\n" +
+				"/EOF/}\n" +
+				"/EOF/}/fn\n" +
+				"/EOF/}/fn/myFunc\n" +
+				"/EOF/}/fn/)\n" +
+				"/EOF/}/fn/)/let\n" +
+				"/EOF/}/fn/)/let/number\n" +
+				"/EOF/}/fn/)/let/byte\n" +
+				"/EOF/}/fn/byte\n" +
+				"/EOF/}/fn/}\n" +
+				"/EOF/}/fn/}/return\n" +
+				"/EOF/}/fn/}/return/+\n" +
+				"/EOF/}/fn/}/return/+/3\n" +
+				"/EOF/}/fn/}/return/+/3\n",
 		},
 		{
-			description: "fn myFunc(let number byte, let flag bool) byte {new line}",
+			description: "fn myFunc(let number byte, let flag bool) byte {return foo new line}",
 			src: []token.Token{
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.FUNCTION, "fn", 0),
@@ -328,27 +325,31 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.TYPEBYTE, "byte", 0),
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
-				token.NewToken(token.RBRACE, token.RBRACE, 1),
+				token.NewToken(token.RETURN, "return", 1),
+				token.NewToken(token.IDENT, "foo", 1),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
 				token.NewToken(token.RBRACE, token.RBRACE, 2),
-				token.NewToken(token.EOF, token.EOF, 2),
+				token.NewToken(token.NEWLINE, token.NEWLINE, 2),
+				token.NewToken(token.RBRACE, token.RBRACE, 3),
+				token.NewToken(token.EOF, token.EOF, 3),
 			},
 			isValid: true,
-			expectedTreeRep:
-			"\n/EOF\n" +
-				"/EOF/}\n"+
-				"/EOF/}/fn\n"+
-				"/EOF/}/fn/myFunc\n"+
-				"/EOF/}/fn/)\n"+
-				"/EOF/}/fn/)/,\n"+
-				"/EOF/}/fn/)/,/let\n"+
-				"/EOF/}/fn/)/,/let/number\n"+
-				"/EOF/}/fn/)/,/let/byte\n"+
-				"/EOF/}/fn/)/,/let\n"+
-				"/EOF/}/fn/)/,/let/flag\n"+
-				"/EOF/}/fn/)/,/let/bool\n"+
-				"/EOF/}/fn/byte\n"+
-				"/EOF/}/fn/}\n",
+			expectedTreeRep: "\n/EOF\n" +
+				"/EOF/}\n" +
+				"/EOF/}/fn\n" +
+				"/EOF/}/fn/myFunc\n" +
+				"/EOF/}/fn/)\n" +
+				"/EOF/}/fn/)/,\n" +
+				"/EOF/}/fn/)/,/let\n" +
+				"/EOF/}/fn/)/,/let/number\n" +
+				"/EOF/}/fn/)/,/let/byte\n" +
+				"/EOF/}/fn/)/,/let\n" +
+				"/EOF/}/fn/)/,/let/flag\n" +
+				"/EOF/}/fn/)/,/let/bool\n" +
+				"/EOF/}/fn/byte\n" +
+				"/EOF/}/fn/}\n" +
+				"/EOF/}/fn/}/return\n" +
+				"/EOF/}/fn/}/return/foo\n",
 		},
 		{
 			description: "var1 = (var2 * **var3 << 8) + 3 | 7",
@@ -373,7 +374,6 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.NEWLINE, token.NEWLINE, 2),
 				token.NewToken(token.RBRACE, token.RBRACE, 2),
 				token.NewToken(token.EOF, token.EOF, 2),
-
 			},
 			isValid: true,
 			expectedTreeRep: "\n/EOF\n" +
@@ -392,8 +392,6 @@ func TestBuild(t *testing.T){
 				"/EOF/}/=/|/+/)/<</8\n" +
 				"/EOF/}/=/|/+/3\n" +
 				"/EOF/}/=/|/7\n",
-
-
 		},
 		{
 			description: "foo = (var1 != 3 || $var2 == 8) && var3 ^ var2 & var4 | var5 <= 3 || call()",
@@ -429,7 +427,6 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
 				token.NewToken(token.RBRACE, token.RBRACE, 2),
 				token.NewToken(token.EOF, token.EOF, 2),
-
 			},
 			isValid: true,
 			expectedTreeRep: "\n/EOF\n" +
@@ -458,7 +455,6 @@ func TestBuild(t *testing.T){
 				"/EOF/}/=/||/&&/<=/3\n" +
 				"/EOF/}/=/||/)\n" +
 				"/EOF/}/=/||/)/call\n",
-
 		},
 		{
 			description: "while foo<20{new line}",
@@ -478,7 +474,6 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.RBRACE, token.RBRACE, 0),
 
 				token.NewToken(token.EOF, token.EOF, 0),
-
 			},
 			isValid: true,
 			expectedTreeRep: "\n/EOF\n" +
@@ -541,7 +536,6 @@ func TestBuild(t *testing.T){
 				"/EOF/}/else/}/=/-\n" +
 				"/EOF/}/else/}/=/-/var\n" +
 				"/EOF/}/else/}/=/-/1\n",
-
 		},
 		{
 			description: "if var1 || var2{let var3 byte new line var3 = 2}",
@@ -584,7 +578,7 @@ func TestBuild(t *testing.T){
 		},
 
 		{
-			description: "fn myFunc2() byte {return 3}",
+			description: "fn myFunc2() byte {return call()}",
 			src: []token.Token{
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.FUNCTION, "fn", 0),
@@ -595,7 +589,9 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 0),
 				token.NewToken(token.RETURN, "return", 1),
-				token.NewToken(token.BYTE, "3", 1),
+				token.NewToken(token.IDENT, "call", 1),
+				token.NewToken(token.LPAREN, token.LPAREN, 1),
+				token.NewToken(token.RPAREN, token.RPAREN, 1),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 1),
 				token.NewToken(token.RBRACE, token.RBRACE, 2),
 				token.NewToken(token.NEWLINE, token.NEWLINE, 2),
@@ -603,25 +599,26 @@ func TestBuild(t *testing.T){
 				token.NewToken(token.EOF, token.EOF, 3),
 			},
 			isValid: true,
-			expectedTreeRep:
-			"\n/EOF\n" +
-				"/EOF/}\n"+
-				"/EOF/}/fn\n"+
-				"/EOF/}/fn/myFunc2\n"+
-				"/EOF/}/fn/)\n"+
-				"/EOF/}/fn/byte\n"+
-				"/EOF/}/fn/}\n"+
-				"/EOF/}/fn/}/3\n",
+			expectedTreeRep: "\n/EOF\n" +
+				"/EOF/}\n" +
+				"/EOF/}/fn\n" +
+				"/EOF/}/fn/myFunc2\n" +
+				"/EOF/}/fn/)\n" +
+				"/EOF/}/fn/byte\n" +
+				"/EOF/}/fn/}\n" +
+				"/EOF/}/fn/}/return\n" +
+				"/EOF/}/fn/}/return/)\n" +
+				"/EOF/}/fn/}/return/)/call\n",
 		},
 	}
 
-	for _, scenario := range testCases{
+	for _, scenario := range testCases {
 
 		t.Run(scenario.description, func(t *testing.T) {
-			tree := NewSyntaxTree(NewNode(token.NewToken("","",0)))
+			tree := ast.NewSyntaxTree(ast.NewNode(token.NewToken("", "", 0)))
 			valid := grammar["program"].Build(&scenario.src, tree)
 			assert.Equal(t, scenario.isValid, valid)
-			treeRep :=""
+			treeRep := ""
 			parseTree(tree, "", &treeRep)
 			assert.Equal(t, scenario.expectedTreeRep, treeRep)
 		})
@@ -629,14 +626,13 @@ func TestBuild(t *testing.T){
 
 }
 
-
-func parseTree(tree *SyntaxTree, parents string, treeRep *string){
-	*treeRep += parents + tree.current.value.Literal +"\n"
-	for _, child := range tree.current.children{
-		current := tree.current
-		tree.current = child
-		parseTree(tree, parents+ current.value.Literal +"/", treeRep)
-		tree.current = current
+func parseTree(tree *ast.SyntaxTree, parents string, treeRep *string) {
+	*treeRep += parents + tree.Current.Value.Literal + "\n"
+	for _, child := range tree.Current.Children {
+		current := tree.Current
+		tree.Current = child
+		parseTree(tree, parents+current.Value.Literal+"/", treeRep)
+		tree.Current = current
 	}
 
 }

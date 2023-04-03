@@ -1,0 +1,12 @@
+{
+  let one bool
+  fn main()void{
+    one = true
+    if one{
+        drawFont(32, 16, 1)
+    }else{
+        drawFont(32, 16, 0)
+    }
+    return
+  }
+}

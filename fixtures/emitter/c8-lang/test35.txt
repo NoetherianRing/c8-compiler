@@ -1,0 +1,18 @@
+{
+    fn main() void{
+
+    let number byte
+    number = 14
+
+   while number != 0{
+       setDT(getDT()+200)
+
+       drawFont(0,0, number)
+       number = number - 1
+       clean()
+    }
+
+
+    return
+    }
+}

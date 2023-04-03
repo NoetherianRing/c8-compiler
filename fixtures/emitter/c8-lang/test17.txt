@@ -1,0 +1,22 @@
+{
+    fn main() void{
+    let pointer *byte
+    let array [4]byte
+    let matrix [4][4]byte
+
+    [0]array = 10
+    pointer = $[0]array
+
+    drawFont(10, 10, *pointer)
+    [3][3]matrix = 5
+
+    pointer = $[3][3]matrix
+    drawFont(0, 10, *pointer)
+
+    *pointer = 1
+    drawFont(10, 20, [3][3]matrix)
+
+
+    return
+    }
+}

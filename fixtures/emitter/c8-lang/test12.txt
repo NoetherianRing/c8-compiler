@@ -1,0 +1,35 @@
+{
+    fn main()void{
+        let foo1 byte
+        let foo2 byte
+        let div byte
+
+        foo1 = 0
+        foo2 = 10
+        div = foo1/foo2
+        if div == 0{
+            drawFont(10,10, 15)
+
+        }
+        foo1 = 250
+        div = foo1 / foo2
+        if div == 25{
+            drawFont(20,20, 14)
+
+        }
+        foo1 = 255
+        div = foo1 / foo2
+        if div == 25{
+            drawFont(20,10, 13)
+
+        }
+        if div/10 == 25 /10 {
+            drawFont(0,0, 12)
+
+        }else{
+            drawFont(0,0, 0)
+
+        }
+    return
+    }
+}

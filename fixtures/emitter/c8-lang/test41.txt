@@ -1,0 +1,23 @@
+{
+    fn check(let s1 *byte, let number2 byte, let s2 *byte) void{
+        while true{
+         draw(10,10, 1, s1 )
+         drawFont(0,0, number2)
+         draw(20,20, 1, s2 )
+
+        }
+        return
+
+   }
+
+    fn main() void{
+        let sprite1 [1]byte
+
+        let sprite2 [1]byte
+
+        [0]sprite1 = 1
+        [0]sprite2 = 255
+        check($[0]sprite1, 2, $[0]sprite2)
+         return
+    }
+}
