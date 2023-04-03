@@ -1,0 +1,28 @@
+{
+    fn main() void{
+        let result bool
+        let myTrue bool
+        let myFalse bool
+        myTrue = true
+        myFalse = false
+        result = true && !false && 3==2+1
+
+        if result{
+            drawFont(0,0,1)
+        }
+
+        result = false
+        result = myTrue && 30<31 && (false || true)
+        if result{
+               drawFont(10,00,1)
+        }
+
+        result = myTrue && 30<31 && 32 <= 10 && (false || true)
+         if result != true{
+               drawFont(20,00,1)
+        }
+
+
+    return
+    }
+}

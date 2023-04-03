@@ -1,0 +1,28 @@
+{
+    fn main() void{
+    let foo byte
+    let foo2 byte
+    let result byte
+
+    foo = 255
+    foo2 = 240
+    result = foo ^ foo2
+
+    if result == 15{
+        drawFont(0,0,1)
+    }
+
+    foo = 170
+    result = foo ^ 85
+    if result == 255{
+     drawFont(10,10,1)
+    }
+
+    foo2 = 240
+    result = 128 ^ foo2
+    if result == 112{
+      drawFont(20,20,1)
+    }
+    return
+    }
+}

@@ -5,10 +5,11 @@ import (
 	"os"
 )
 
-func main (){
-
-	compiler, err := app.NewApp(os.Args[1], os.Args[2])
-	if err != nil{
+func main() {
+	const inputPathArg = 1
+	const outputPathArg = 1
+	compiler, err := app.NewApp(os.Args[inputPathArg], os.Args[outputPathArg])
+	if err != nil {
 		panic(err)
 	}
 	compiler.Program()

@@ -1,38 +1,35 @@
 package emitter
 
-
-type StackReferences struct {
-	References   map[string]*Reference
-	SubAddresses []*StackReferences
+type Stack struct {
+	References    map[string]*Reference
+	SubReferences []*Stack
 }
 
-type Reference struct{
-	identifier  string
-	positionStack int
+type Reference struct {
+	identifier      string
+	positionInStack int
 }
 
-func NewStackReferences() *StackReferences {
-	stackReferences := new(StackReferences)
-	stackReferences.SubAddresses = make([]*StackReferences,0)
+func NewStackReferences() *Stack {
+	stackReferences := new(Stack)
+	stackReferences.SubReferences = make([]*Stack, 0)
 	stackReferences.References = make(map[string]*Reference)
 	return stackReferences
 }
 
-func (addresses StackReferences) AddSubAddresses() {
-	subAddress := NewStackReferences()
-	for key, val := range addresses.References {
-		subAddress.References[key] = val
+func (references *Stack) AddSubReferences() {
+	subReference := NewStackReferences()
+	for key, val := range references.References {
+		subReference.References[key] = val
 	}
-	addresses.SubAddresses = append(addresses.SubAddresses, subAddress)
+	references.SubReferences = append(references.SubReferences, subReference)
 }
 
-func (addresses StackReferences) AddReference(ident string, positionStack int) {
-	addresses.References[ident] = &Reference{ident, positionStack}
+func (references *Stack) AddReference(ident string, positionStack int) {
+	references.References[ident] = &Reference{ident, positionStack}
 }
 
-
-func (addresses StackReferences) GetReference(ident string) (*Reference, bool) {
-	val, ok:= addresses.References[ident]
+func (references *Stack) GetReference(ident string) (*Reference, bool) {
+	val, ok := references.References[ident]
 	return val, ok
 }
-

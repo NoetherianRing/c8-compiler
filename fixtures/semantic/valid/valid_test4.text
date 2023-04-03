@@ -1,0 +1,48 @@
+{
+
+   fn main () void{
+     let dt byte
+     let st byte
+
+     let randomNumber byte
+     dt = 1
+     st = 2
+     clean()
+     setDT(dt)
+     setST(st)
+     dt = getDT()
+     randomNumber = random()
+
+     let x byte
+     let y byte
+     let sprite [8]byte
+     let i *byte
+     x = 10
+     y = 20
+     [0]sprite=255
+     [1]sprite=255
+     [2]sprite=255
+     [3]sprite=0
+     [4]sprite=0
+     [5]sprite=255
+     [6]sprite=255
+     [7]sprite=255
+     i = $[0]sprite
+
+     draw(x, y, 8, i)
+
+     let font byte
+     font = 0
+     drawFont(x, y, font)
+
+     waitKey()
+     if isKeyPressed(0){
+     drawFont(x, y, font)
+
+     }
+
+
+     return
+   }
+
+}

@@ -1,25 +1,24 @@
 package lexer
 
-import(
+import (
 	"github.com/NoetherianRing/c8-compiler/token"
 	"github.com/stretchr/testify/assert"
 	"path/filepath"
 	"testing"
-
 )
 
-func TestNextToken(t *testing.T){
+func TestNextToken(t *testing.T) {
 
 	type testsCases struct {
-		description string
-		fixture     string
+		description    string
+		fixture        string
 		expectedTokens []token.Token
 	}
 
 	cases := []testsCases{
 		{
 			description: "TestNextToken1",
-			fixture: "../fixtures/TestNextToken1.txt",
+			fixture:     "../fixtures/TestNextToken1.txt",
 			expectedTokens: []token.Token{
 
 				token.NewToken(token.LBRACE, token.LBRACE, 0),
@@ -45,13 +44,11 @@ func TestNextToken(t *testing.T){
 				token.NewToken(token.NEWLINE, token.NEWLINE, 4),
 				token.NewToken(token.RBRACE, token.RBRACE, 5),
 				token.NewToken(token.EOF, token.EOF, 5),
-
 			},
-
 		},
 		{
 			description: "TestNextToken2",
-			fixture: "../fixtures/TestNextToken2.txt",
+			fixture:     "../fixtures/TestNextToken2.txt",
 			expectedTokens: []token.Token{
 				token.NewToken(token.WHILE, "while", 0),
 				token.NewToken(token.LPAREN, token.LPAREN, 0),
@@ -96,13 +93,11 @@ func TestNextToken(t *testing.T){
 				token.NewToken(token.GTEQ, token.GTEQ, 0),
 				token.NewToken(token.BYTE, "5", 0),
 				token.NewToken(token.EOF, token.EOF, 0),
-
 			},
-
 		},
 		{
 			description: "TestNextToken3",
-			fixture: "../fixtures/TestNextToken3.txt",
+			fixture:     "../fixtures/TestNextToken3.txt",
 			expectedTokens: []token.Token{
 				token.NewToken(token.IDENT, "foo", 0),
 				token.NewToken(token.EQ, token.EQ, 0),
@@ -143,36 +138,33 @@ func TestNextToken(t *testing.T){
 				token.NewToken(token.NEWLINE, token.NEWLINE, 6),
 				token.NewToken(token.RBRACE, token.RBRACE, 7),
 				token.NewToken(token.EOF, token.EOF, 7),
-
 			},
 		},
 	}
-	for i, tt := range cases{
+	for i, tt := range cases {
 		input, err := filepath.Abs(tt.fixture)
-		assert.NoError(t, err, "errorhandler in absPath  " + tt.fixture )
+		assert.NoError(t, err, "errorhandler in absPath  "+tt.fixture)
 
 		l, err := NewLexer(input)
-		assert.NoError(t, err, "errorhandler in NewLexer " + tt.description)
-		for j, ttt := range tt.expectedTokens{
+		assert.NoError(t, err, "errorhandler in NewLexer "+tt.description)
+		for j, ttt := range tt.expectedTokens {
 			tok := l.nextToken()
-
 
 			if tok.Type != ttt.Type {
 				t.Fatalf("tests[%d] - token[%d]type wrong. expected =%q, got=%q",
 					i, j, ttt.Type, tok.Type)
 
-
 			}
 
 			if tok.Literal != ttt.Literal {
 				t.Fatalf("tests[%d] - token[%d]literal wrong. expected =%q, got=%q",
-					i,j, ttt.Literal, tok.Literal)
+					i, j, ttt.Literal, tok.Literal)
 
 			}
 
-			if tok.Line != ttt.Line{
+			if tok.Line != ttt.Line {
 				t.Fatalf("tests[%d] - token[%d]line wrong. expected =%d, got=%d",
-					i,j, ttt.Line, tok.Line)
+					i, j, ttt.Line, tok.Line)
 
 			}
 		}

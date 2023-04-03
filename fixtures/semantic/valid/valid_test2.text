@@ -1,0 +1,20 @@
+{
+
+   fn main() void{
+    let foo byte
+
+    let foo2 bool
+    let foo3 *byte
+    let foo4 [39]byte
+    let foo5 [2][39]*byte
+
+    foo = 3
+    foo2 = true
+    foo3 = $foo
+    [2]foo4=2
+    [0]foo4=foo
+    [1]foo4=*foo3
+    [1][2]foo5 = foo3
+    return
+   }
+}

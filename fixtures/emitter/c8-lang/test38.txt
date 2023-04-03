@@ -1,0 +1,18 @@
+{
+    fn main() void{
+        let r byte
+        r = random() & 15
+        drawFont(0,0, r)
+        r = random() & 15
+        drawFont(10,0, r)
+
+        r = random() & 15
+        drawFont(20,0, r)
+
+        r = random() & 15
+        drawFont(30,0, r)
+        clean()
+        return
+
+    }
+}

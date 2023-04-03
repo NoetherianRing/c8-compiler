@@ -1,0 +1,17 @@
+{
+    fn main() void{
+      let array [4]byte
+
+      [0]array = 12
+      [1]array = 4
+      [2]array = 2
+      [3]array = 3
+
+      drawFont(10,10, [0]array)
+      drawFont(10,20, [1]array)
+      drawFont(20,20, [2]array)
+      drawFont(20,10, [3]array)
+
+    return
+    }
+}

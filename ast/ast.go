@@ -4,14 +4,14 @@ import (
 	"github.com/NoetherianRing/c8-compiler/token"
 )
 
-type SyntaxTree struct{
+type SyntaxTree struct {
 	Head    *Node
 	Current *Node
 }
 
-type Node struct{
+type Node struct {
 	Children []*Node
-	Parent *Node
+	Parent   *Node
 	Value    token.Token
 }
 
@@ -26,11 +26,11 @@ func NewNode(value token.Token) *Node {
 	node := new(Node)
 	node.Value = value
 	node.Parent = nil
-	node.Children = make([]*Node,0)
+	node.Children = make([]*Node, 0)
 	return node
 }
 
-func (node *Node) AddChild(child *Node){
+func (node *Node) AddChild(child *Node) {
 	child.Parent = node
 	node.Children = append(node.Children, child)
 }

@@ -1,0 +1,36 @@
+{
+   let foo byte
+
+
+   fn funcByteGlobal () byte{
+       return foo
+   }
+   fn main () void{
+    return
+   }
+
+   fn funcByteLiteral () byte{
+       return 3
+    }
+    fn funcParam (let param1 byte) byte{
+      return param1
+    }
+
+    fn funcTrue () bool{
+       return true
+    }
+  fn funcParams (let param1 byte, let param2 **bool, let param3 bool) bool{
+       return **param2
+   }
+
+   fn funcFalse () bool{
+          return false
+   }
+
+   fn funcBoolStack () bool{
+         let foo2 bool
+
+         return foo2
+   }
+
+}

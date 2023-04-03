@@ -1,0 +1,42 @@
+{
+
+    fn fourFunc() byte{
+        let number byte
+        number = 4
+        return number
+    }
+
+    fn fiveFunc() byte{
+      return 3+2
+    }
+
+    fn main() void{
+
+        drawFont(0,0, (fourFunc()+fiveFunc()+1-2)/fourFunc()) #2
+
+        let number1 byte
+        number1 = 1
+        let number2 byte
+        number2 = 2
+        let result byte
+
+        result = (number1 * number2 * number2 / number2 / number2) / 2 + 5 - 2 # 3
+        drawFont(10,10, result)
+
+        result = (number2+number2)*3 #C
+        drawFont(20,20, result)
+
+        result = 2+2+2+2+2 #A
+        drawFont(0,20, result)
+
+        result = 2*2*2 #8
+        drawFont(30,10, result)
+
+         result = 10+2-1-2+1 #A
+         drawFont(40,10, result)
+
+
+
+        return
+    }
+}

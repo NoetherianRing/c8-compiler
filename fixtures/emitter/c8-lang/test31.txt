@@ -1,0 +1,24 @@
+{
+    fn main()void{
+        if !(30<2){
+            drawFont(0,0,1)
+        }else{
+            drawFont(0,0,0)
+        }
+
+        if !(30<=2){
+           drawFont(10,0,1)
+
+        }
+
+        if !(2>30){
+            drawFont(0,10,1)
+         }
+        if !(2>=30){
+           drawFont(10,10,1)
+
+        }
+
+    return
+    }
+}

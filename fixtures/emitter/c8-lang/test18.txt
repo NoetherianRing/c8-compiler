@@ -1,0 +1,18 @@
+{
+    fn main() void{
+    let pointer *byte
+    let array [3]byte
+    [0]array = 10
+    [1]array = 11
+    [2]array = 12
+
+    pointer = $[0]array
+    pointer=pointer+1
+
+    drawFont(10,10, *pointer)
+
+
+    return
+
+    }
+}

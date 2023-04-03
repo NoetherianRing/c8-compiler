@@ -8,43 +8,55 @@ import (
 
 type SymbolTable map[string]*Symbol
 
-const(
+const (
 	KindByte = iota
 	KindVoid
 	KindBool
 )
+const (
+	FunctionClean        = "clean"
+	FunctionSetST        = "setST"
+	FunctionSetDT        = "setDT"
+	FunctionGetDT        = "getDT"
+	FunctionDraw         = "draw"
+	FunctionDrawFont     = "drawFont"
+	FunctionRandom       = "random"
+	FunctionWaitKey      = "waitKey"
+	FunctionIsKeyPressed = "isKeyPressed"
+)
 
-type Scope struct{
-	SubScopes []*Scope
+type Scope struct {
+	SubScopes        []*Scope
 	NumberOfSubScope int
-	Parent *Scope
-	Symbols SymbolTable
+	Parent           *Scope
+	Symbols          SymbolTable
 }
 
-type Simple struct{
+type Simple struct {
 	Size int
 	Kind int
 }
-type Array struct{
+type Array struct {
 	Length int
-	Of interface{}
+	Of     interface{}
 }
-type Pointer struct{
-	Size int
+type Pointer struct {
+	Size     int
 	PointsTo interface{}
 }
 
-type Function struct{
+type Function struct {
 	Return interface{}
-	Args [] interface{}
+	Args   []interface{}
 }
 
-type Symbol struct{
+type Symbol struct {
 	Identifier string
 	IsFunction bool
-	DataType interface{}
+	DataType   interface{}
 }
-func (array Array) SizeOfElements() int{
+
+func (array Array) SizeOfElements() int {
 	switch array.Of.(type) {
 	case Pointer:
 		return array.Of.(Pointer).Size
@@ -59,9 +71,9 @@ func (array Array) SizeOfElements() int{
 
 }
 
-func (t Simple)Compare(datatype interface{})bool{
+func (t Simple) Compare(datatype interface{}) bool {
 	toCompare, ok := datatype.(Simple)
-	if !ok{
+	if !ok {
 		return false
 	}
 
@@ -69,29 +81,26 @@ func (t Simple)Compare(datatype interface{})bool{
 
 }
 
-func (array Array)Compare(datatype interface{})bool{
+func (array Array) Compare(datatype interface{}) bool {
 	toCompare, ok := datatype.(Array)
-	if !ok{
+	if !ok {
 		return false
 	}
 
-	if toCompare.Length != array.Length{
-			return false
-		}
+	if toCompare.Length != array.Length {
+		return false
+	}
 
-
-	if reflect.TypeOf(array.Of) != reflect.TypeOf(toCompare.Of){
+	if reflect.TypeOf(array.Of) != reflect.TypeOf(toCompare.Of) {
 		return false
 	}
 	return Compare(array.Of, toCompare.Of)
 
-
 }
 
-
-func (pointer Pointer) Compare(datatype interface{}) bool{
+func (pointer Pointer) Compare(datatype interface{}) bool {
 	toCompare, ok := datatype.(Pointer)
-	if !ok{
+	if !ok {
 		return false
 	}
 	return Compare(pointer.PointsTo, toCompare.PointsTo)
@@ -111,21 +120,21 @@ func Compare(dataType1 interface{}, dataType2 interface{}) bool {
 	}
 }
 
-func Fmt(datatype interface{}) string{
+func Fmt(datatype interface{}) string {
 	switch datatype.(type) {
 	case Pointer:
-		return "*"+ Fmt(datatype.(Pointer).PointsTo)
+		return "*" + Fmt(datatype.(Pointer).PointsTo)
 	case Array:
 		array := datatype.(Array)
-		return "["+strconv.Itoa(array.Length)+"]"+Fmt(array.Of)
+		return "[" + strconv.Itoa(array.Length) + "]" + Fmt(array.Of)
 	case Simple:
-		simpleDataType :=  datatype.(Simple)
-		if simpleDataType.Kind == KindByte{
+		simpleDataType := datatype.(Simple)
+		if simpleDataType.Kind == KindByte {
 			return "byte"
-		}else{
-			if simpleDataType.Kind == KindBool{
+		} else {
+			if simpleDataType.Kind == KindBool {
 				return "bool"
-			}else{
+			} else {
 				return "void"
 			}
 		}
@@ -134,15 +143,15 @@ func Fmt(datatype interface{}) string{
 		panic(errorhandler.UnexpectedCompilerError())
 	}
 }
-func NewFunction(returnDataType interface{}, argsDataType[] interface{}) Function {
+func NewFunction(returnDataType interface{}, argsDataType []interface{}) Function {
 	return Function{Return: returnDataType, Args: argsDataType}
 }
 
-func NewPointer(pointsTo interface{})Pointer{
+func NewPointer(pointsTo interface{}) Pointer {
 	return Pointer{Size: 2, PointsTo: pointsTo}
 }
 
-func NewArray(length int, datatype interface{}) Array{
+func NewArray(length int, datatype interface{}) Array {
 	return Array{Length: length, Of: datatype}
 }
 
@@ -158,10 +167,10 @@ func NewVoid() Simple {
 	return Simple{Size: 0, Kind: KindVoid}
 }
 
-func newSymbol(identifier string, datatype interface{})*Symbol{
+func newSymbol(identifier string, datatype interface{}) *Symbol {
 	symbol := new(Symbol)
 	symbol.Identifier = identifier
-	switch datatype.(type){
+	switch datatype.(type) {
 	case Function:
 		symbol.IsFunction = true
 	default:
@@ -171,7 +180,7 @@ func newSymbol(identifier string, datatype interface{})*Symbol{
 	return symbol
 }
 
-func CreateGlobalScope()*Scope{
+func CreateGlobalScope() *Scope {
 	return &Scope{
 		SubScopes:        make([]*Scope, 0),
 		NumberOfSubScope: 0,
@@ -180,24 +189,28 @@ func CreateGlobalScope()*Scope{
 	}
 }
 
-func newScope(parent *Scope, parentSymbols SymbolTable) *Scope{
+func newScope(parent *Scope, parentSymbols SymbolTable) *Scope {
+	symbols := make(SymbolTable)
+	for key, symbol := range parentSymbols {
+		symbols[key] = symbol
+	}
 	return &Scope{
 		SubScopes:        nil,
 		NumberOfSubScope: 0,
 		Parent:           parent,
-		Symbols:          parentSymbols,
+		Symbols:          symbols,
 	}
 }
 
-func (scope *Scope)AddSubScope(){
+func (scope *Scope) AddSubScope() {
 	child := newScope(scope, scope.Symbols)
 	scope.SubScopes = append(scope.SubScopes, child)
 	scope.NumberOfSubScope += 1
 }
 
-func (scope *Scope )AddSymbol(identifier string, datatype interface{}) bool {
+func (scope *Scope) AddSymbol(identifier string, datatype interface{}) bool {
 	_, exists := scope.Symbols[identifier]
-	if exists{
+	if exists {
 		return false
 	}
 	symbol := newSymbol(identifier, datatype)
@@ -205,8 +218,8 @@ func (scope *Scope )AddSymbol(identifier string, datatype interface{}) bool {
 	return true
 }
 
-func GetSize(datatype interface{}) int{
-	switch datatype.(type){
+func GetSize(datatype interface{}) int {
+	switch datatype.(type) {
 	case Pointer:
 		return datatype.(Pointer).Size
 	case Array:
@@ -219,8 +232,8 @@ func GetSize(datatype interface{}) int{
 
 }
 
-func IsAnArray(datatype interface{})bool{
-	switch datatype.(type){
+func IsAnArray(datatype interface{}) bool {
+	switch datatype.(type) {
 	case Array:
 		return true
 
@@ -230,8 +243,8 @@ func IsAnArray(datatype interface{})bool{
 
 }
 
-func IsNumeric(datatype interface{})bool{
-	switch datatype.(type){
+func IsNumeric(datatype interface{}) bool {
+	switch datatype.(type) {
 	case Pointer:
 		return true
 	case Simple:
@@ -241,12 +254,12 @@ func IsNumeric(datatype interface{})bool{
 	}
 
 }
-func IsByte(datatype interface{})bool{
-	switch datatype.(type){
+func IsByte(datatype interface{}) bool {
+	switch datatype.(type) {
 	case Simple:
-		if datatype.(Simple).Kind == KindByte{
+		if datatype.(Simple).Kind == KindByte {
 			return true
-		}else{
+		} else {
 			return false
 		}
 	default:

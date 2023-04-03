@@ -1,5 +1,5 @@
 package semanticAnalyzer
 
-const(
+const (
 	LimitParamSize = 9
 )

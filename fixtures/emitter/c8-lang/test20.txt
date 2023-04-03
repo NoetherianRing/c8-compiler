@@ -1,0 +1,28 @@
+{
+    fn call(let number byte, let pointer *byte)bool{
+        let result bool
+        result = true
+        number = number+1
+        *pointer = number
+        return result
+    }
+
+    fn main() void{
+        let number1 byte
+        let number2 byte
+        let pointer *byte
+
+        number1=3
+        number2=5
+        pointer =$number1
+
+        if call(number2, pointer){
+            drawFont(0,0, number1) #6
+            drawFont(10,0, number2) #5
+            drawFont(10,10, *pointer) #6
+
+
+        }
+    return
+    }
+}

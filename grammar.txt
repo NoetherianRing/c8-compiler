@@ -44,7 +44,6 @@ params -> expression, params
 
 var ->  |*var
         |[literal] var
-        |[id] var
         |call
         |ident
 
@@ -63,43 +62,43 @@ dataType -> [literal]datatype
             |typeByte
 
 
-expression -> expressionP10 || expression
+expression -> expression || expressionP10
             |expressionP10
 
-expressionP10 -> expressionP9 &&  expressionP10
+expressionP10 ->  expressionP10 && expressionP9
              |expressionP9
 
 
-expressionP9 -> expressionP8 == expressionP9
-              |expressionP8 != expressionP9
+expressionP9 -> expressionP9 == expressionP8
+              | expressionP9 != expressionP8
               |expressionP8
 
-expressionP8 -> expressionP7 < expressionP8
-            | expressionP7 <= expressionP8
-            | expressionP7 > expressionP8
-            | expressionP7 >= expressionP8
+expressionP8 -> expressionP8 < expressionP7
+            | expressionP8 <= expressionP7
+            | expressionP8 > expressionP7
+            | expressionP8 >= expressionP7
             | expressionP7
 
-expressionP7 -> expressionP6 | expressionP7
+expressionP7 -> expressionP7 | expressionP6
              | expressionP6
 
-expressionP6 -> expressionP5 ^ expressionP6
+expressionP6 -> expressionP6 ^ expressionP5
                |expressionP5
 
-expressionP5 -> expressionP4 & expressionP5
+expressionP5 -> expressionP5 & expressionP4
               |expressionP4
 
-expressionP4 -> expressionP3 >> expressionP4
-              |expressionP3 << expressionP4
+expressionP4 -> expressionP4 >> expressionP3
+              |expressionP4 << expressionP3
               |expressionP3
 
-expressionP3 -> expressionP2 + expressionP3
-              |expressionP2 - expressionP3
+expressionP3 -> expressionP3 + expressionP2
+              |expressionP3 - expressionP2
               |expressionP2
 
-expressionP2 -> expressionP1 % expressionP2
-              |expressionP1 / expressionP2
-              |expressionP1 * expressionP2
+expressionP2 -> expressionP2 % expressionP1
+              |expressionP2 / expressionP1
+              |expressionP2 * expressionP1
               |expressionP1
 
 expressionP1 -> !expressionP1

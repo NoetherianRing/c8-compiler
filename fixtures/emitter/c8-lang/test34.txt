@@ -1,0 +1,25 @@
+{
+    fn main() void{
+
+    let number byte
+    number = 4
+
+    setST(10)
+
+   while number != 0{
+       drawFont(0,0, number)
+       number = number - 1
+       clean()
+    }
+    setST(20)
+
+   while number != 4{
+       drawFont(0,0, number)
+       number = number + 1
+       clean()
+    }
+
+
+    return
+    }
+}

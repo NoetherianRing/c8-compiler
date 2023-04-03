@@ -1,0 +1,12 @@
+{
+    fn main() void{
+    let foo byte
+    foo = 3
+
+    if foo == 3{
+       drawFont(0,0,1)
+    }
+
+    return
+    }
+}

@@ -1,0 +1,51 @@
+{
+    fn sum(let v1 byte, let v2 byte)byte{
+        let v3 byte
+        v3 = v1 + v2
+        return v3
+    }
+
+    fn subtract(let v1 byte, let v2 byte)byte{
+         let v3 byte
+         return v1 - v2
+     }
+
+    fn main()void{
+        let v1 byte
+        let v2 byte
+        let v3 byte
+        let v4 byte
+        let v5 byte
+        let v6 byte
+        let pointer *byte
+        let pointer2 *byte
+        let b1 bool
+        let b2 bool
+
+
+        v1 = 2
+        v2 = v1
+        v3 = sum(v1, v2)
+        v4 = subtract(v1, v2)
+        v5 = sum(v1, v2) + subtract(v1, v2) - v3 + v4
+        v6 = v1 * v3 * 3
+        v6 = v1 / (v3 / 3)
+        v6 = v1 << v3 >> 3
+        v6 = (v3 % 3)
+        pointer = pointer + v1
+        pointer = pointer - v1
+        pointer = pointer & pointer2
+        pointer = pointer | pointer2 ^ pointer
+        v1 = v2 | v3 & v4 ^ v1
+
+        b1 = v1 > v2 || v1 == v2
+        b2 = v1 <= v3 && !(v1+1!=1)
+
+
+
+        return
+    }
+
+
+
+}
