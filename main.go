@@ -7,7 +7,7 @@ import (
 
 func main() {
 	const inputPathArg = 1
-	const outputPathArg = 1
+	const outputPathArg = 2
 	compiler, err := app.NewApp(os.Args[inputPathArg], os.Args[outputPathArg])
 	if err != nil {
 		panic(err)
